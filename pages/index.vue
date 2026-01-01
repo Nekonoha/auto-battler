@@ -114,6 +114,41 @@
 
         <div>
           <CombatLog :logs="combatLogs" />
+          <div class="exploration-log-panel" v-if="explorationTimeline.length">
+            <div class="exploration-log-header">
+              <span>🧭 探索ログ（最新{{ explorationTimeline.length }}件）</span>
+              <span class="exploration-log-hint">ダンジョン中の戦闘を時系列で表示</span>
+            </div>
+            <div class="exploration-log-list">
+              <div 
+                v-for="log in explorationTimeline" 
+                :key="log.id"
+                class="exploration-log-item"
+              >
+                <div class="exploration-log-main">
+                  <div class="exploration-log-title">
+                    <span class="chip">Stage {{ log.stage }}</span>
+                    <span class="chip tier" :class="log.enemyTier">{{ log.enemyTier }}</span>
+                    <span class="enemy-name">{{ log.enemyName }}</span>
+                  </div>
+                  <div class="exploration-log-meta">
+                    <span>Lv{{ log.enemyLevel }}</span>
+                    <span>結果: {{ log.result === 'victory' ? '勝利' : '敗北' }}</span>
+                    <span>ログ: {{ log.logs.length }}件</span>
+                  </div>
+                </div>
+                <details class="exploration-log-details">
+                  <summary>詳細ログ</summary>
+                  <ul>
+                    <li v-for="entry in log.logs" :key="entry.turn + entry.message">
+                      <span class="turn">T{{ entry.turn }}</span>
+                      <span>{{ entry.message }}</span>
+                    </li>
+                  </ul>
+                </details>
+              </div>
+            </div>
+          </div>
           <div v-if="combat?.isGameOver()" class="battle-result">
             <div v-if="combat.isPlayerVictory()" class="victory">
               <h2>🎉 勝利！</h2>
@@ -485,7 +520,7 @@
         </div>
 
         <div class="settings-section">
-          <h3 class="settings-title">📊 ログエクスポート</h3>
+          <h3 class="settings-title">📊 ログ & セーブ管理</h3>
           <div class="settings-buttons">
             <button 
               class="btn btn-info" 
@@ -510,6 +545,20 @@
               style="width: 100%;"
             >
               🏰 ダンジョンログをエクスポート ({{ dungeonLogs.length }}件)
+            </button>
+            <button 
+              class="btn btn-primary" 
+              @click="downloadSaveData"
+              style="width: 100%;"
+            >
+              💾 セーブデータをダウンロード
+            </button>
+            <button 
+              class="btn btn-danger" 
+              @click="clearLocalSave"
+              style="width: 100%;"
+            >
+              🗑️ ローカルセーブを削除
             </button>
           </div>
         </div>
@@ -849,6 +898,7 @@ import PlayerInfo from '~/components/PlayerInfo.vue'
 import EnemyInfo from '~/components/EnemyInfo.vue'
 import CombatLog from '~/components/CombatLog.vue'
 import WeaponCard from '~/components/WeaponCard.vue'
+import { compressToUint8Array, decompressFromUint8Array } from '~/utils/lzString'
 
 // 初期武器を生成
 const initialWeapon = generateEnchantedWeapon(BASE_WEAPONS[0], 0, 0) // エンチャントなしの錆びた剣
@@ -1142,6 +1192,24 @@ const fileInput = ref<HTMLInputElement | null>(null)
 const SAVE_KEY = 'auto-battler-save'
 const SAVE_VERSION = '1.1'
 let isRestoring = false
+const SAVE_PASSPHRASE = 'auto-battler-local-key'
+const SAVE_SALT = 'auto-battler-salt'
+const SAVE_ITERATIONS = 120000
+const AES_PARAMS = { name: 'AES-GCM', length: 256 }
+
+interface StoredSave {
+  version: string
+  algo: 'AES-GCM'
+  iv: string // base64
+  data: string // base64 cipher
+  compressed: boolean
+  createdAt: number
+}
+
+interface StoredSaveEnvelope {
+  encoded?: StoredSave
+  raw?: SaveData
+}
 
 interface SaveData {
   version: string
@@ -1150,6 +1218,9 @@ interface SaveData {
   availableWeapons: Weapon[]
   selectedDungeonId: string
   currentLevel: number
+  combatLogs: typeof combatLogs.value
+  explorationCombatLogs: typeof explorationCombatLogs.value
+  dungeonLogs: typeof dungeonLogs.value
 }
 
 const clampLevel = (level: number, dungeon?: Dungeon) => {
@@ -1169,7 +1240,10 @@ const buildSaveData = (): SaveData => {
     player: JSON.parse(JSON.stringify(player)),
     availableWeapons: JSON.parse(JSON.stringify(availableWeapons.value)),
     selectedDungeonId: dungeonId,
-    currentLevel: safeLevel
+    currentLevel: safeLevel,
+    combatLogs: JSON.parse(JSON.stringify(combatLogs.value)),
+    explorationCombatLogs: JSON.parse(JSON.stringify(explorationCombatLogs.value)),
+    dungeonLogs: JSON.parse(JSON.stringify(dungeonLogs.value))
   }
 }
 
@@ -1180,6 +1254,9 @@ const validateSaveData = (data: any): data is SaveData => {
     && Array.isArray(data.availableWeapons)
     && typeof data.selectedDungeonId === 'string'
     && typeof data.currentLevel === 'number'
+    && Array.isArray(data.combatLogs ?? [])
+    && Array.isArray(data.explorationCombatLogs ?? [])
+    && Array.isArray(data.dungeonLogs ?? [])
 }
 
 const applySaveData = (data: SaveData, opts: { silent?: boolean } = {}) => {
@@ -1201,6 +1278,9 @@ const applySaveData = (data: SaveData, opts: { silent?: boolean } = {}) => {
   player.currentHp = Math.min(player.currentHp, player.maxHp)
 
   availableWeapons.value = Array.isArray(data.availableWeapons) ? data.availableWeapons : []
+  combatLogs.value = Array.isArray(data.combatLogs) ? data.combatLogs : []
+  explorationCombatLogs.value = Array.isArray(data.explorationCombatLogs) ? data.explorationCombatLogs : []
+  dungeonLogs.value = Array.isArray(data.dungeonLogs) ? data.dungeonLogs : []
 
   isRestoring = true
   selectedDungeonId.value = dungeonId
@@ -1212,23 +1292,46 @@ const applySaveData = (data: SaveData, opts: { silent?: boolean } = {}) => {
   }
 }
 
-const saveToLocal = (payload?: SaveData) => {
+const saveToLocal = async (payload?: SaveData) => {
   if (typeof window === 'undefined') return
+  if (isRestoring) return
   const data = payload ?? buildSaveData()
-  localStorage.setItem(SAVE_KEY, JSON.stringify(data))
+  const envelope: StoredSaveEnvelope = { raw: data }
+  const encoded = await encryptAndCompress(JSON.stringify(data))
+  if (encoded) envelope.encoded = encoded
+  localStorage.setItem(SAVE_KEY, JSON.stringify(envelope))
 }
 
-const loadFromLocal = () => {
+const loadFromLocal = async () => {
   if (typeof window === 'undefined') return
   const raw = localStorage.getItem(SAVE_KEY)
   if (!raw) return
 
   try {
-    const parsed = JSON.parse(raw)
-    if (!validateSaveData(parsed)) {
+    const parsed = JSON.parse(raw) as StoredSaveEnvelope | StoredSave | SaveData
+    let payload: SaveData | null = null
+
+    // Envelope format preferred
+    if ((parsed as StoredSaveEnvelope).encoded || (parsed as StoredSaveEnvelope).raw) {
+      const envelope = parsed as StoredSaveEnvelope
+      if (envelope.encoded) {
+        const decrypted = await decryptAndDecompress(envelope.encoded)
+        if (decrypted) payload = JSON.parse(decrypted)
+      }
+      if (!payload && envelope.raw) {
+        payload = envelope.raw
+      }
+    } else if ((parsed as StoredSave).data && (parsed as StoredSave).iv) {
+      const decrypted = await decryptAndDecompress(parsed as StoredSave)
+      if (decrypted) payload = JSON.parse(decrypted)
+    } else {
+      payload = parsed as SaveData
+    }
+
+    if (!validateSaveData(payload)) {
       throw new Error('無効なセーブデータです')
     }
-    applySaveData(parsed, { silent: true })
+    applySaveData(payload, { silent: true })
   } catch (e) {
     console.error('ロードエラー:', e)
     showToast('セーブデータの読み込みに失敗しました', 'error')
@@ -1240,8 +1343,8 @@ onMounted(() => {
 })
 
 watch(
-  [player, availableWeapons, selectedDungeonId, currentLevel],
-  () => saveToLocal(),
+  [player, availableWeapons, selectedDungeonId, currentLevel, combatLogs, explorationCombatLogs, dungeonLogs],
+  () => { saveToLocal().catch(err => console.error('自動セーブ失敗:', err)) },
   { deep: true }
 )
 
@@ -1249,18 +1352,24 @@ watch(
 function downloadSaveData() {
   try {
     const saveData = buildSaveData()
-    const json = JSON.stringify(saveData, null, 2)
-    const blob = new Blob([json], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `auto-battler-save-${new Date().toISOString().slice(0, 10)}.json`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-    
-    showToast('セーブデータをダウンロードしました', 'info')
+    encryptAndCompress(JSON.stringify(saveData)).then(encoded => {
+      const payload = encoded ?? saveData
+      const json = JSON.stringify(payload, null, 2)
+      const blob = new Blob([json], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `auto-battler-save-${new Date().toISOString().slice(0, 10)}.json`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      
+      showToast('セーブデータをダウンロードしました', 'info')
+    }).catch(err => {
+      console.error('セーブダウンロードエラー:', err)
+      showToast('セーブに失敗しました', 'error')
+    })
   } catch (e) {
     console.error('セーブエラー:', e)
     showToast('セーブに失敗しました', 'error')
@@ -1276,13 +1385,22 @@ async function uploadSaveData(event: Event) {
   try {
     const text = await file.text()
     const saveData = JSON.parse(text)
+    let payload: SaveData | null = null
+
+    if ((saveData as StoredSave).data && (saveData as StoredSave).iv) {
+      const restored = await decryptAndDecompress(saveData as StoredSave)
+      if (!restored) throw new Error('セーブデータの復号に失敗しました')
+      payload = JSON.parse(restored)
+    } else {
+      payload = saveData as SaveData
+    }
     
-    if (!validateSaveData(saveData)) {
+    if (!validateSaveData(payload)) {
       throw new Error('無効なセーブデータです')
     }
     
-    applySaveData(saveData)
-    saveToLocal(saveData)
+    applySaveData(payload)
+    saveToLocal(payload)
     showSettings.value = false
   } catch (e) {
     console.error('ロードエラー:', e)
@@ -1396,6 +1514,14 @@ const currentEventLabel = computed(() => {
   if (currentEvent.value === 'chest') return '宝箱'
   if (combat.value?.isGameOver()) return '決着'
   return '戦闘'
+})
+
+const explorationTimeline = computed(() => {
+  const maxItems = 15
+  return explorationCombatLogs.value
+    .slice(-maxItems)
+    .map((entry, idx) => ({ ...entry, id: `${entry.stage}-${entry.enemyName}-${idx}` }))
+    .reverse()
 })
 
 const addInfoOnce = (msg: string) => {
@@ -1560,6 +1686,101 @@ function showToast(message: string, type: 'info' | 'error' | 'loot') {
   toastType.value = type
 }
 
+const toBase64 = (bytes: Uint8Array) => {
+  let binary = ''
+  const chunkSize = 0x8000
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize))
+  }
+  return btoa(binary)
+}
+
+const fromBase64 = (base64: string) => {
+  const binary = atob(base64)
+  const len = binary.length
+  const bytes = new Uint8Array(len)
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binary.charCodeAt(i)
+  }
+  return bytes
+}
+
+const isCryptoAvailable = () => typeof window !== 'undefined' && !!window.crypto?.subtle
+
+const deriveKey = async () => {
+  if (!isCryptoAvailable()) return null
+  const encoder = new TextEncoder()
+  const baseKey = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(SAVE_PASSPHRASE),
+    { name: 'PBKDF2' },
+    false,
+    ['deriveKey']
+  )
+  return crypto.subtle.deriveKey(
+    {
+      name: 'PBKDF2',
+      salt: encoder.encode(SAVE_SALT),
+      iterations: SAVE_ITERATIONS,
+      hash: 'SHA-256'
+    },
+    baseKey,
+    AES_PARAMS,
+    false,
+    ['encrypt', 'decrypt']
+  )
+}
+
+const encryptAndCompress = async (plaintext: string): Promise<StoredSave | null> => {
+  try {
+    const compressed = compressToUint8Array(plaintext)
+    const key = await deriveKey()
+    if (!key) return null
+    const iv = crypto.getRandomValues(new Uint8Array(12))
+    const cipher = await crypto.subtle.encrypt(
+      { name: 'AES-GCM', iv },
+      key,
+      compressed
+    )
+    return {
+      version: SAVE_VERSION,
+      algo: 'AES-GCM',
+      iv: toBase64(iv),
+      data: toBase64(new Uint8Array(cipher)),
+      compressed: true,
+      createdAt: Date.now()
+    }
+  } catch (e) {
+    console.error('暗号化エラー:', e)
+    return null
+  }
+}
+
+const decryptAndDecompress = async (payload: StoredSave): Promise<string | null> => {
+  try {
+    const key = await deriveKey()
+    if (!key) return null
+    const iv = fromBase64(payload.iv)
+    const cipherBytes = fromBase64(payload.data)
+    const plainBuffer = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv },
+      key,
+      cipherBytes
+    )
+    const decompressed = decompressFromUint8Array(new Uint8Array(plainBuffer))
+    return decompressed
+  } catch (e) {
+    console.error('復号エラー:', e)
+    return null
+  }
+}
+
+const clearLocalSave = () => {
+  if (typeof window === 'undefined') return
+  localStorage.removeItem(SAVE_KEY)
+  showToast('ローカルセーブを削除しました', 'info')
+}
+
 </script>
 
 <style scoped>
@@ -1636,6 +1857,92 @@ function showToast(message: string, type: 'info' | 'error' | 'loot') {
   backdrop-filter: blur(10px);
   border: 1px solid rgba(79, 172, 254, 0.2);
 }
+
+.exploration-log-panel {
+  margin-top: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(79, 172, 254, 0.2);
+  border-radius: 10px;
+}
+
+.exploration-log-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #cde6ff;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.exploration-log-hint {
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+.exploration-log-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.exploration-log-item {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.exploration-log-title {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.exploration-log-meta {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  opacity: 0.8;
+  margin-top: 4px;
+}
+
+.exploration-log-details {
+  margin-top: 6px;
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+.exploration-log-details summary {
+  cursor: pointer;
+  color: #9ad1ff;
+}
+
+.exploration-log-details ul {
+  margin: 6px 0 0 0;
+  padding-left: 14px;
+  max-height: 140px;
+  overflow-y: auto;
+  font-size: 12px;
+}
+
+.exploration-log-details li {
+  margin-bottom: 4px;
+}
+
+.exploration-log-details .turn {
+  color: #ffdf6b;
+  margin-right: 6px;
+}
+
+.chip.tier.elite { background: rgba(76, 175, 80, 0.15); border: 1px solid rgba(76, 175, 80, 0.4); }
+.chip.tier.named { background: rgba(255, 193, 7, 0.15); border: 1px solid rgba(255, 193, 7, 0.4); }
+.chip.tier.boss { background: rgba(244, 67, 54, 0.15); border: 1px solid rgba(244, 67, 54, 0.4); }
+.chip.tier.normal { background: rgba(158, 158, 158, 0.15); border: 1px solid rgba(158, 158, 158, 0.3); }
 
 .dungeon-picker {
   display: grid;
