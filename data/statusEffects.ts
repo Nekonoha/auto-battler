@@ -190,9 +190,10 @@ export const STATUS_EFFECTS_DB: Record<StatusEffectType, StatusEffectDefinition>
     tag: 'Fear',
     icon: '😱',
     color: '#8e44ad',
-    description: 'ランダムに強制移動',
+    description: '攻撃力と防御力が大幅に低下',
     effects: {
-      // 強制移動の実装はゲームロジック側で処理
+      attackSpeedModifier: -30,
+      damageTakenModifier: 25
     },
     stackable: false,
     refreshRule: 'refresh'
@@ -206,9 +207,10 @@ export const STATUS_EFFECTS_DB: Record<StatusEffectType, StatusEffectDefinition>
     tag: 'Drunk',
     icon: '🍺',
     color: '#d35400',
-    description: 'ランダムに強制移動、確率で睡眠',
+    description: '攻撃速度・命中率が低下',
     effects: {
-      // ランダム移動 + 睡眠は実装側で処理
+      attackSpeedModifier: -40,
+      moveSpeedModifier: -30
     },
     stackable: true,
     maxStack: 3,

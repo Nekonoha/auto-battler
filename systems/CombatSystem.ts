@@ -2,6 +2,7 @@ import type { Player, Enemy, CombatLogEntry, Weapon } from '../types'
 import { WeaponSystem } from './WeaponSystem'
 import { StatusEffectSystem } from './StatusEffectSystem'
 import { DamageSystem } from './DamageSystem'
+import { calculateActiveSynergies, getTotalSynergyBonus } from '../data/synergies'
 
 /**
  * 戦闘システム
@@ -13,6 +14,7 @@ export class CombatSystem {
   private turnCount: number
   private combatLog: CombatLogEntry[]
   private isFinished: boolean
+  private synergyBonus: ReturnType<typeof getTotalSynergyBonus> | null = null
 
   constructor(player: Player, enemy: Enemy) {
     this.player = player
@@ -20,6 +22,32 @@ export class CombatSystem {
     this.turnCount = 0
     this.combatLog = []
     this.isFinished = false
+    this.applySynergyBonuses()
+  }
+
+  /**
+   * 装備武器のタグからシナジーを計算し、プレイヤーのステータスにボーナスを適用
+   */
+  private applySynergyBonuses() {
+    const weaponTags = this.player.weapons.map(w => w.tags)
+    const activeSynergies = calculateActiveSynergies(weaponTags)
+    
+    if (activeSynergies.length > 0) {
+      this.synergyBonus = getTotalSynergyBonus(activeSynergies)
+      
+      // シナジーログを追加
+      activeSynergies.forEach(synergy => {
+        this.addLog(`シナジー発動: ${synergy.name}`, 'info')
+      })
+      
+      // ステータスボーナスを一時的に適用（元のステータスは保持）
+      if (this.synergyBonus.attackBonus) this.player.attack = Math.floor(this.player.attack * (1 + this.synergyBonus.attackBonus / 100))
+      if (this.synergyBonus.magicBonus) this.player.magic = Math.floor(this.player.magic * (1 + this.synergyBonus.magicBonus / 100))
+      if (this.synergyBonus.speedBonus) this.player.speed = Math.floor(this.player.speed * (1 + this.synergyBonus.speedBonus / 100))
+      
+      // 武器のステータスは変更せず、攻撃計算時にボーナスを適用
+      // (シナジーボーナスはWeaponSystem.attack内で計算時に反映される)
+    }
   }
 
   /**
@@ -122,7 +150,7 @@ export class CombatSystem {
       for (let i = 1; i <= swings; i++) {
         if (this.enemy.currentHp <= 0) break
 
-        const result = WeaponSystem.attack(weapon, this.player, this.enemy)
+        const result = WeaponSystem.attack(weapon, this.player, this.enemy, this.synergyBonus)
 
         let message = `プレイヤーは ${weapon.name} (${i}/${swings}) で攻撃！ ${result.damage}ダメージ`
         if (result.isCritical) {
@@ -179,6 +207,20 @@ export class CombatSystem {
         ? `${this.enemy.name}の攻撃 (${i}/${numAttacks})！ ${finalDamage}ダメージ`
         : `${this.enemy.name}の攻撃！ ${finalDamage}ダメージ`
       this.addLog(message, 'damage')
+      
+      // 敵の状態異常付与（敵のtraitsから）
+      if (this.enemy.traits?.applyEffects) {
+        this.enemy.traits.applyEffects.forEach(effect => {
+          if (Math.random() * 100 < effect.chance) {
+            StatusEffectSystem.applyStatusEffect(this.player, effect.type, effect.stacks, effect.duration)
+            const icon = StatusEffectSystem.getStatusIcon(effect.type)
+            this.addLog(
+              `プレイヤーに${icon}${this.getStatusName(effect.type)}を付与した！`,
+              'status'
+            )
+          }
+        })
+      }
     }
   }
 
@@ -232,6 +274,7 @@ export class CombatSystem {
     tierWeights?: Partial<Record<Enemy['tier'], number>>
     levelMultiplier?: number
     forcedTier?: Enemy['tier']
+    enemyPool?: string[]
   }): Enemy {
     const baseHp = 80
     const baseAtk = 15
@@ -264,6 +307,12 @@ export class CombatSystem {
       }
     }
 
+    // enemyPoolからランダムに敵を選択
+    const enemyNames = opts?.enemyPool && opts.enemyPool.length > 0 
+      ? opts.enemyPool 
+      : ['スライム']
+    const randomEnemy = enemyNames[Math.floor(Math.random() * enemyNames.length)]
+
     const tierMultiplier = tier === 'boss' ? 2.3 : tier === 'named' ? 1.8 : tier === 'elite' ? 1.4 : 1.0
     const tierNamePrefix = tier === 'boss' ? '【ボス】' : tier === 'named' ? '【ネームド】' : tier === 'elite' ? 'エリート' : ''
     const levelScale = opts?.levelMultiplier ?? 1
@@ -271,7 +320,7 @@ export class CombatSystem {
     const hp = Math.floor((baseHp + (level - 1) * 25) * tierMultiplier * levelScale)
     
     return {
-      name: `${opts?.dungeonName ? `[${opts.dungeonName}] ` : ''}${tierNamePrefix}スライム Lv.${level}`.trim(),
+      name: `${opts?.dungeonName ? `[${opts.dungeonName}] ` : ''}${tierNamePrefix}${randomEnemy} Lv.${level}`.trim(),
       level,
       maxHp: hp,
       currentHp: hp,

@@ -1,5 +1,5 @@
 import { ref, type Ref, type ComputedRef } from 'vue'
-import type { Player, Enemy, Dungeon, CombatLogEntry, EnemyTier } from '~/types'
+import type { Player, Enemy, Dungeon, CombatLogEntry, DungeonLogEntry, EnemyTier } from '~/types'
 import { CombatSystem } from '~/systems/CombatSystem'
 
 /**
@@ -13,6 +13,8 @@ export function useBattleFlow(
   const enemy = ref<Enemy | null>(null)
   const combat = ref<CombatSystem | null>(null)
   const combatLogs = ref<CombatLogEntry[]>([])
+  const dungeonLogs = ref<DungeonLogEntry[]>([])
+  const currentStageHpBefore = ref<number>(0)
   const isBattleActive = ref(false)
 
   const startBattle = (opts?: { forcedTier?: EnemyTier }) => {
@@ -24,9 +26,13 @@ export function useBattleFlow(
       Math.max(dungeon.levelRange[0], currentLevel.value)
     )
 
+    // 戦闘前のHP保存
+    currentStageHpBefore.value = player.currentHp
+
     enemy.value = CombatSystem.generateEnemy(level, {
       dungeonName: dungeon.name,
       tierWeights: dungeon.tierWeights,
+      enemyPool: dungeon.enemyPool,
       levelMultiplier: 1 + (level - dungeon.levelRange[0]) * 0.05,
       forcedTier: opts?.forcedTier
     })
@@ -48,6 +54,22 @@ export function useBattleFlow(
   }
 
   const goNextBattle = (resetLoot: () => void) => {
+    // ダンジョンログに記録
+    if (combat.value && enemy.value) {
+      const isVictory = combat.value.isPlayerVictory()
+      dungeonLogs.value.push({
+        stage: currentLevel.value,
+        enemyName: enemy.value.name,
+        enemyLevel: enemy.value.level,
+        enemyTier: enemy.value.tier,
+        playerHpBefore: currentStageHpBefore.value,
+        playerHpAfter: isVictory ? player.currentHp : 0,
+        result: isVictory ? 'victory' : 'defeat',
+        goldEarned: 0, // 別途計算
+        combatTurns: Math.max(...combatLogs.value.map(log => log.turn), 0)
+      })
+    }
+
     if (combat.value?.isPlayerVictory()) {
       const dungeon = selectedDungeon.value
       if (dungeon) {
@@ -68,6 +90,7 @@ export function useBattleFlow(
     enemy,
     combat,
     combatLogs,
+    dungeonLogs,
     isBattleActive,
     startBattle,
     runTurn,

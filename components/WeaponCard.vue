@@ -6,9 +6,6 @@
     <div class="weapon-header">
       <div class="weapon-name">{{ weapon.name }}</div>
       <div class="header-badges">
-        <div v-if="weapon.limitBreak && weapon.limitBreak > 0" class="limit-break-badge">
-          ⭐ +{{ weapon.limitBreak }}
-        </div>
         <div 
           class="weapon-rarity"
           :style="{ backgroundColor: getRarityColor(weapon.rarity) }"

@@ -45,14 +45,14 @@
           <Tooltip title="⚔️ 攻撃力" content="敵へのダメージに影響">
             <span class="stat-label">⚔️</span>
             <span class="stat-value">{{ totalStats.attack }}</span>
-            <span v-if="tagBonuses.attack > 0" class="bonus">+{{ tagBonuses.attack }}</span>
+            <span v-if="synergyBonuses.attack > 0" class="bonus">+{{ synergyBonuses.attack }}</span>
           </Tooltip>
         </div>
         <div class="stat-item">
           <Tooltip title="✨ 魔法" content="魔法攻撃力に影響">
             <span class="stat-label">✨</span>
             <span class="stat-value">{{ totalStats.magic }}</span>
-            <span v-if="tagBonuses.magic > 0" class="bonus">+{{ tagBonuses.magic }}</span>
+            <span v-if="synergyBonuses.magic > 0" class="bonus">+{{ synergyBonuses.magic }}</span>
           </Tooltip>
         </div>
       </div>
@@ -61,14 +61,14 @@
           <Tooltip title="🛡️ 物理防御" content="物理ダメージの軽減">
             <span class="stat-label">🛡️</span>
             <span class="stat-value">{{ totalStats.defense }}</span>
-            <span v-if="tagBonuses.defense > 0" class="bonus">+{{ tagBonuses.defense }}</span>
+            <span v-if="synergyBonuses.defense > 0" class="bonus">+{{ synergyBonuses.defense }}</span>
           </Tooltip>
         </div>
         <div class="stat-item">
           <Tooltip title="🔮 魔法防御" content="魔法ダメージの軽減">
             <span class="stat-label">🔮</span>
             <span class="stat-value">{{ totalStats.magicDefense }}</span>
-            <span v-if="tagBonuses.magicDefense > 0" class="bonus">+{{ tagBonuses.magicDefense }}</span>
+            <span v-if="synergyBonuses.magicDefense > 0" class="bonus">+{{ synergyBonuses.magicDefense }}</span>
           </Tooltip>
         </div>
       </div>
@@ -77,7 +77,7 @@
           <Tooltip title="⚡ 速度" content="攻撃順序に影響">
             <span class="stat-label">⚡</span>
             <span class="stat-value">{{ totalStats.speed }}</span>
-            <span v-if="tagBonuses.speed > 0" class="bonus">+{{ tagBonuses.speed }}</span>
+            <span v-if="synergyBonuses.speed > 0" class="bonus">+{{ synergyBonuses.speed }}</span>
           </Tooltip>
         </div>
       </div>
@@ -122,7 +122,6 @@
           <div class="weapon-info">
             <div class="weapon-name-row">
               <span class="weapon-name">{{ weapon.name }}</span>
-              <span v-if="weapon.limitBreak && weapon.limitBreak > 0" class="limit-break-mini">⭐+{{ weapon.limitBreak }}</span>
               <span class="weapon-rarity-badge" :style="{ backgroundColor: getRarityColor(weapon.rarity) }">
                 {{ weapon.rarity.toUpperCase() }}
               </span>
@@ -193,9 +192,9 @@
     <div v-if="activeSynergies.length > 0" class="synergies-display">
       <h3>✨ アクティブシナジー</h3>
       <div class="synergy-list">
-        <div v-for="tagName in activeSynergies" :key="tagName" class="synergy-item">
-          <Tooltip :title="`📌 ${tagName}`" :content="getSynergyDescription(tagName)">
-            <span class="synergy-tag">{{ tagName }}</span>
+        <div v-for="synergy in activeSynergies" :key="synergy.id" class="synergy-item">
+          <Tooltip :title="`🔥 ${synergy.name}`" :content="synergy.description">
+            <span class="synergy-tag">{{ synergy.name }}</span>
           </Tooltip>
         </div>
       </div>
@@ -208,7 +207,7 @@ import { computed } from 'vue'
 import type { Player } from '~/types'
 import { StatusEffectSystem } from '~/systems/StatusEffectSystem'
 import { WeaponSystem } from '~/systems/WeaponSystem'
-import { calculateTagBonuses, getActiveSynergies, TAG_SYNERGIES } from '~/systems/TagSynergySystem'
+import { calculateActiveSynergies, getTotalSynergyBonus, TAG_DEFINITIONS } from '~/data/synergies'
 import Tooltip from './Tooltip.vue'
 
 const props = defineProps<{
@@ -229,18 +228,23 @@ const expPercentage = computed(() => {
   return (props.player.exp / props.player.nextLevelExp) * 100
 })
 
-const tagBonuses = computed(() => calculateTagBonuses(props.player.weapons).bonuses)
+const activeSynergies = computed(() => {
+  const weaponTags = props.player.weapons.map(w => w.tags)
+  return calculateActiveSynergies(weaponTags)
+})
+
+const synergyBonuses = computed(() => {
+  return getTotalSynergyBonus(activeSynergies.value)
+})
 
 const totalStats = computed(() => ({
-  attack: props.player.stats.attack + tagBonuses.value.attack,
-  magic: props.player.stats.magic + tagBonuses.value.magic,
-  defense: props.player.stats.defense + tagBonuses.value.defense,
-  magicDefense: props.player.stats.magicDefense + tagBonuses.value.magicDefense,
-  speed: props.player.stats.speed + tagBonuses.value.speed,
-  critChance: tagBonuses.value.critChance
+  attack: props.player.stats.attack,
+  magic: props.player.stats.magic,
+  defense: props.player.stats.defense,
+  magicDefense: props.player.stats.magicDefense,
+  speed: props.player.stats.speed,
+  critChance: 0
 }))
-
-const activeSynergies = computed(() => getActiveSynergies(props.player.weapons))
 
 const getStatusIcon = (type: string) => {
   return StatusEffectSystem.getStatusIcon(type as any)
@@ -294,19 +298,12 @@ const getTagColor = (tag: string) => {
 }
 
 const getTagDescription = (tag: string) => {
-  const descriptions: Record<string, string> = {
-    fast: '攻撃速度が速い',
-    heavy: '高ダメージだが遅い',
-    precise: 'クリティカル率が高い',
-    elemental: '属性攻撃を行う',
-    cursed: '状態異常を付与する',
-    bleeding: '出血効果を付与する'
-  }
-  return descriptions[tag] || ''
+  const tagDef = TAG_DEFINITIONS[tag as keyof typeof TAG_DEFINITIONS]
+  return tagDef ? tagDef.description : ''
 }
 
-const getSynergyDescription = (tag: string) => {
-  const synergy = TAG_SYNERGIES[tag as keyof typeof TAG_SYNERGIES]
+const getSynergyDescription = (synergyId: string) => {
+  const synergy = activeSynergies.value.find(s => s.id === synergyId)
   return synergy ? synergy.description : ''
 }
 </script>

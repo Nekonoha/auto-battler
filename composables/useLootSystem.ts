@@ -1,6 +1,7 @@
 import { ref, computed, type Ref, type ComputedRef } from 'vue'
 import type { Enemy, EnemyTier, Weapon, Dungeon, Player, WeaponRarity } from '~/types'
-import { weaponDatabase } from '~/data/weapons'
+import { BASE_WEAPONS, getBaseWeaponsByRarity, getRandomBaseWeapon } from '~/data/baseWeapons'
+import { generateEnchantedWeapon } from '~/systems/WeaponGenerationSystem'
 
 const DEFAULT_WEIGHTS = { common: 0.6, rare: 0.3, epic: 0.09, legendary: 0.01 }
 const MAX_LIMIT_BREAK = 4
@@ -151,31 +152,31 @@ export function useLootSystem(
     const rarities = Object.keys(weights) as Array<keyof typeof weights>
     const total = rarities.reduce((sum, key) => sum + weights[key], 0)
 
-    let attempt = 0
-    while (attempt < 10) {
-      attempt += 1
-      let r = Math.random() * total
-      let picked: keyof typeof weights = 'common'
-      for (const key of rarities) {
-        if (r < weights[key]) {
-          picked = key
-          break
-        }
-        r -= weights[key]
+    // レアリティをランダムに選択
+    let r = Math.random() * total
+    let picked: keyof typeof weights = 'common'
+    for (const key of rarities) {
+      if (r < weights[key]) {
+        picked = key
+        break
       }
-
-      const pool = weaponDatabase.filter(w => w.rarity === picked && !isWeaponMaxed(w.id))
-      if (pool.length > 0) {
-        return cloneWeapon(pool[Math.floor(Math.random() * pool.length)])
-      }
+      r -= weights[key]
     }
 
-    // fallback
-    const fallback = weaponDatabase.filter(w => !isWeaponMaxed(w.id))
-    if (fallback.length) {
-      return cloneWeapon(fallback[Math.floor(Math.random() * fallback.length)])
+    // 選択されたレアリティのベース武器を取得
+    const baseWeapons = getBaseWeaponsByRarity(picked)
+    if (baseWeapons.length === 0) {
+      // フォールバック: ランダムな武器を生成
+      const randomBase = getRandomBaseWeapon()
+      return generateEnchantedWeapon(randomBase, 50, 20)
     }
-    return cloneWeapon(weaponDatabase[Math.floor(Math.random() * weaponDatabase.length)])
+
+    // ランダムにベース武器を選択してエンチャント付きで生成
+    const baseWeapon = baseWeapons[Math.floor(Math.random() * baseWeapons.length)]
+    // レアリティに応じてエンチャント確率を調整
+    const enchantChance = picked === 'legendary' ? 90 : picked === 'epic' ? 70 : picked === 'rare' ? 50 : 30
+    const multiEnchantChance = picked === 'legendary' ? 40 : picked === 'epic' ? 25 : 10
+    return generateEnchantedWeapon(baseWeapon, enchantChance, multiEnchantChance)
   }
 
   const rollReward = (target: Enemy): LootResult => {

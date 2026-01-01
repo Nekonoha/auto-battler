@@ -29,13 +29,13 @@ export type WeaponTag =
   | 'precise'       // 高精度
   | 'elemental'     // 属性攻撃
   | 'cursed'        // 呪い系
-  | 'bleeding'      // 出血系
+  | 'bloodthirsty'  // 血渇系（シナジー用）
   | 'healing'       // 回復系
   | 'defensive'     // 防御系
   | 'versatile'     // 万能系
-  | 'poison'        // 毒系
-  | 'burning'       // 炎系
-  | 'freezing'      // 氷系
+  | 'venomous'      // 毒系（シナジー用）
+  | 'flame'         // 炎系（シナジー用）
+  | 'frost'         // 氷系（シナジー用）
 
 /**
  * 武器エンチャント（接頭辞/接尾辞）
@@ -253,6 +253,22 @@ export interface CombatLogEntry {
   turn: number
   message: string
   type: 'damage' | 'status' | 'info' | 'critical' | 'loot'
+}
+
+/**
+ * ダンジョンログのエントリ（ステージごと）
+ */
+export interface DungeonLogEntry {
+  stage: number
+  enemyName: string
+  enemyLevel: number
+  enemyTier: EnemyTier
+  playerHpBefore: number
+  playerHpAfter: number
+  result: 'victory' | 'defeat'
+  itemsDropped?: Weapon[]
+  goldEarned: number
+  combatTurns: number
 }
 
 /**

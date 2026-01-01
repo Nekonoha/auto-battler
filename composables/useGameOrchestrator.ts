@@ -136,7 +136,7 @@ export function useGameOrchestrator(
     infoMessages.value.push(msg)
     // 戦闘ログにも追加
     combatLogs.value.push({
-      turn: combat.value?.turnCount ?? 0,
+      turn: 0,
       message: msg,
       type: 'loot'
     })
@@ -171,16 +171,7 @@ export function useGameOrchestrator(
 
     const loot = handleVictoryLoot(enemy.value)
     if (loot.type === 'weapon') {
-      if (loot.status === 'limitbreak') {
-        addLoot(`${loot.weapon.name} が限界突破 +${loot.level}`)
-        if (loot.level >= (loot.weapon.limitBreakMax ?? 4)) {
-          addInfo(`${loot.weapon.name} は最大まで強化済み`)
-        }
-      } else if (loot.status === 'maxed') {
-        addInfo(`${loot.weapon.name} は既に最大突破`)
-      } else {
-        addLoot(`武器獲得: ${loot.weapon.name}`)
-      }
+      addLoot(`${loot.weapon.name} を獲得！`)
     }
     if (loot.type === 'chest') addInfo(loot.source === 'named' ? '豪華な宝箱が出現！' : '宝箱が出現！')
   }

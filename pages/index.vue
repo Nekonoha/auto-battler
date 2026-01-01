@@ -2,7 +2,10 @@
   <div id="app">
     <header class="app-header">
       <h1>⚔️ オートバトラー</h1>
-      <button class="btn btn-settings" @click="showSettings = true">⚙️ 設定</button>
+      <div style="display: flex; gap: 8px;">
+        <button class="btn btn-warning" @click="showSellMenu = true">💰 売却メニュー</button>
+        <button class="btn btn-settings" @click="showSettings = true">⚙️ 設定</button>
+      </div>
     </header>
 
     <div class="game-container">
@@ -131,6 +134,7 @@
       <div class="modal-content">
         <div class="modal-header">
           <h2>⚙️ 武器の付け替え</h2>
+          <div class="gold-display">💰 {{ player.gold }}G</div>
           <button @click="showWeaponSelection = false" class="btn-close">×</button>
         </div>
         <div class="modal-actions">
@@ -154,7 +158,6 @@
                 <div class="weapon-list-name">
                   {{ weapon.name }}
                   <span class="weapon-rarity-badge" :style="{ background: getWeaponRarityColor(weapon.rarity) }">{{ weapon.rarity }}</span>
-                  <span v-if="weapon.limitBreak && weapon.limitBreak > 0" class="limit-break-badge">⭐+{{ weapon.limitBreak }}</span>
                 </div>
                 <div class="weapon-list-type">{{ weapon.type }}</div>
                 <div class="weapon-description">{{ weapon.description }}</div>
@@ -219,15 +222,8 @@
                 <option value="melee">melee</option>
                 <option value="ranged">ranged</option>
                 <option value="magic">magic</option>
-                <option value="hybrid">hybrid</option>
+                <option value="dot">dot</option>
               </select>
-              <!-- タグフィルタ -->
-              <div class="tag-filters">
-                <label v-for="tag in availableTags" :key="tag" class="tag-filter-label">
-                  <input type="checkbox" :value="tag" v-model="selectedTags" />
-                  <span>{{ tag }}</span>
-                </label>
-              </div>
               <!-- ソート -->
               <select v-model="sortBy" class="filter-select">
                 <option value="name">名前順</option>
@@ -236,6 +232,28 @@
                 <option value="magic">魔法力順</option>
                 <option value="speed">速度順</option>
               </select>
+            </div>
+            
+            <!-- タグフィルタ（チップ形式） -->
+            <div class="filter-section">
+              <div class="filter-section-title">🏷️ タグフィルタ</div>
+              <div class="tag-filters">
+                <label v-for="tag in availableTags" :key="tag" class="tag-chip">
+                  <input type="checkbox" :value="tag" v-model="selectedTags" />
+                  <span>{{ tag }}</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- 効果フィルタ（チップ形式） -->
+            <div class="filter-section">
+              <div class="filter-section-title">✨ 効果フィルタ</div>
+              <div class="effect-filters">
+                <label v-for="effect in availableEffects" :key="effect" class="effect-chip">
+                  <input type="checkbox" :value="effect" v-model="selectedEffects" />
+                  <span>{{ effect }}</span>
+                </label>
+              </div>
             </div>
           </div>
           <div v-if="filteredWeapons.length === 0" class="empty-slot">
@@ -247,12 +265,13 @@
               :key="weapon.id"
               class="weapon-list-item"
               :style="{ borderColor: getWeaponRarityColor(weapon.rarity) }"
+              @click.stop="equipWeapon(weapon)"
+              style="cursor: pointer;"
             >
               <div class="weapon-list-info">
                 <div class="weapon-list-name">
                   {{ weapon.name }}
                   <span class="weapon-rarity-badge" :style="{ background: getWeaponRarityColor(weapon.rarity) }">{{ weapon.rarity }}</span>
-                  <span v-if="weapon.limitBreak && weapon.limitBreak > 0" class="limit-break-badge">⭐+{{ weapon.limitBreak }}</span>
                 </div>
                 <div class="weapon-list-type">{{ weapon.type }}</div>
                 <div class="weapon-description">{{ weapon.description }}</div>
@@ -287,13 +306,6 @@
                   </Tooltip>
                 </div>
               </div>
-              <button 
-                class="btn btn-primary btn-compact"
-                @click.stop="equipWeapon(weapon)"
-                :disabled="isRunLocked || player.weapons.length >= 3"
-              >
-                装備
-              </button>
             </div>
           </div>
         </div>
@@ -313,15 +325,16 @@
             <div class="stat-slider-header">
               <span class="stat-icon">❤️</span>
               <span class="stat-name">最大HP</span>
-              <span class="stat-value">+{{ tempStatAlloc.maxHp * 25 }}</span>
+              <span class="stat-value">{{ tempStatAlloc.maxHp >= 0 ? '+' : '' }}{{ tempStatAlloc.maxHp * 25 }}</span>
             </div>
             <input 
               type="range" 
-              min="0" 
-              :max="player.statPoints + tempStatAlloc.maxHp"
+              :min="-Math.floor(allocatedStats.maxHp / 25)" 
+              :max="player.statPoints"
               v-model.number="tempStatAlloc.maxHp"
               class="stat-slider"
               :disabled="isRunLocked"
+              @input="constrainTempAlloc"
             />
             <div class="stat-slider-info">
               現在: {{ player.maxHp }} → {{ player.maxHp + tempStatAlloc.maxHp * 25 }}
@@ -332,15 +345,16 @@
             <div class="stat-slider-header">
               <span class="stat-icon">⚔️</span>
               <span class="stat-name">攻撃力</span>
-              <span class="stat-value">+{{ tempStatAlloc.attack * 5 }}</span>
+              <span class="stat-value">{{ tempStatAlloc.attack >= 0 ? '+' : '' }}{{ tempStatAlloc.attack * 5 }}</span>
             </div>
             <input 
               type="range" 
-              min="0" 
-              :max="player.statPoints + tempStatAlloc.attack"
+              :min="-Math.floor(allocatedStats.attack / 5)" 
+              :max="player.statPoints"
               v-model.number="tempStatAlloc.attack"
               class="stat-slider"
               :disabled="isRunLocked"
+              @input="constrainTempAlloc"
             />
             <div class="stat-slider-info">
               現在: {{ player.stats.attack }} → {{ player.stats.attack + tempStatAlloc.attack * 5 }}
@@ -351,15 +365,16 @@
             <div class="stat-slider-header">
               <span class="stat-icon">🔮</span>
               <span class="stat-name">魔法力</span>
-              <span class="stat-value">+{{ tempStatAlloc.magic * 5 }}</span>
+              <span class="stat-value">{{ tempStatAlloc.magic >= 0 ? '+' : '' }}{{ tempStatAlloc.magic * 5 }}</span>
             </div>
             <input 
               type="range" 
-              min="0" 
-              :max="player.statPoints + tempStatAlloc.magic"
+              :min="-Math.floor(allocatedStats.magic / 5)" 
+              :max="player.statPoints"
               v-model.number="tempStatAlloc.magic"
               class="stat-slider"
               :disabled="isRunLocked"
+              @input="constrainTempAlloc"
             />
             <div class="stat-slider-info">
               現在: {{ player.stats.magic }} → {{ player.stats.magic + tempStatAlloc.magic * 5 }}
@@ -370,15 +385,16 @@
             <div class="stat-slider-header">
               <span class="stat-icon">🛡️</span>
               <span class="stat-name">防御力</span>
-              <span class="stat-value">+{{ tempStatAlloc.defense * 3 }}</span>
+              <span class="stat-value">{{ tempStatAlloc.defense >= 0 ? '+' : '' }}{{ tempStatAlloc.defense * 3 }}</span>
             </div>
             <input 
               type="range" 
-              min="0" 
-              :max="player.statPoints + tempStatAlloc.defense"
+              :min="-Math.floor(allocatedStats.defense / 3)" 
+              :max="player.statPoints"
               v-model.number="tempStatAlloc.defense"
               class="stat-slider"
               :disabled="isRunLocked"
+              @input="constrainTempAlloc"
             />
             <div class="stat-slider-info">
               現在: {{ player.stats.defense }} → {{ player.stats.defense + tempStatAlloc.defense * 3 }}
@@ -389,15 +405,16 @@
             <div class="stat-slider-header">
               <span class="stat-icon">✨</span>
               <span class="stat-name">魔法防御</span>
-              <span class="stat-value">+{{ tempStatAlloc.magicDefense * 3 }}</span>
+              <span class="stat-value">{{ tempStatAlloc.magicDefense >= 0 ? '+' : '' }}{{ tempStatAlloc.magicDefense * 3 }}</span>
             </div>
             <input 
               type="range" 
-              min="0" 
-              :max="player.statPoints + tempStatAlloc.magicDefense"
+              :min="-Math.floor(allocatedStats.magicDefense / 3)" 
+              :max="player.statPoints"
               v-model.number="tempStatAlloc.magicDefense"
               class="stat-slider"
               :disabled="isRunLocked"
+              @input="constrainTempAlloc"
             />
             <div class="stat-slider-info">
               現在: {{ player.stats.magicDefense }} → {{ player.stats.magicDefense + tempStatAlloc.magicDefense * 3 }}
@@ -408,15 +425,16 @@
             <div class="stat-slider-header">
               <span class="stat-icon">⚡</span>
               <span class="stat-name">速度</span>
-              <span class="stat-value">+{{ tempStatAlloc.speed * 2 }}</span>
+              <span class="stat-value">{{ tempStatAlloc.speed >= 0 ? '+' : '' }}{{ tempStatAlloc.speed * 2 }}</span>
             </div>
             <input 
               type="range" 
-              min="0" 
-              :max="player.statPoints + tempStatAlloc.speed"
+              :min="-Math.floor(allocatedStats.speed / 2)" 
+              :max="player.statPoints"
               v-model.number="tempStatAlloc.speed"
               class="stat-slider"
               :disabled="isRunLocked"
+              @input="constrainTempAlloc"
             />
             <div class="stat-slider-info">
               現在: {{ player.stats.speed }} → {{ player.stats.speed + tempStatAlloc.speed * 2 }}
@@ -432,7 +450,7 @@
             リセット
           </button>
           <button class="btn btn-danger" :disabled="isRunLocked" @click="handleResetStats">
-            全リセット ({{ resetCost }}G)
+            全リセット ({{ calculateResetCost() }}G)
           </button>
         </div>
       </div>
@@ -471,6 +489,355 @@
       </div>
     </div>
 
+    <!-- 売却メニューモーダル -->
+    <div v-if="showSellMenu" class="loot-modal">
+      <div class="loot-content" style="max-height: 80vh; overflow-y: auto;">
+        <div class="modal-header">
+          <h2>💰 武器を売却</h2>
+          <button @click="showSellMenu = false" class="btn-close">×</button>
+        </div>
+        <p class="loot-subtitle">
+          複数の武器を選択して一括売却できます
+        </p>
+        
+        <div v-if="availableWeapons.length === 0" style="text-align: center; padding: 20px; opacity: 0.6;">
+          売却可能な武器がありません
+        </div>
+        <div v-else>
+          <div style="margin-bottom: 15px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span>
+                選択中: {{ selectedSellWeapons.size }} 件
+                <span v-if="selectedSellWeapons.size > 0">
+                  (合計 {{ [...selectedSellWeapons].reduce((sum, id) => {
+                    const w = availableWeapons.find(weapon => weapon.id === id)
+                    return sum + ((w as any).sellValue || 10)
+                  }, 0) }}G)
+                </span>
+              </span>
+              <button 
+                v-if="selectedSellWeapons.size > 0"
+                class="btn btn-success"
+                @click="sellSelectedWeapons"
+              >
+                売却実行
+              </button>
+            </div>
+          </div>
+
+          <div class="weapons-grid">
+            <div 
+              v-for="weapon in availableWeapons"
+              :key="weapon.id"
+              class="sell-weapon-card"
+              :class="{ 'sell-selected': selectedSellWeapons.has(weapon.id), 'sell-disabled': !canSellWeapon(weapon) }"
+              :style="{ borderColor: selectedSellWeapons.has(weapon.id) ? '#4CAF50' : getWeaponRarityColor(weapon.rarity) }"
+              @click="canSellWeapon(weapon) && toggleSelectWeapon(weapon.id)"
+            >
+              <input 
+                type="checkbox"
+                :checked="selectedSellWeapons.has(weapon.id)"
+                :disabled="!canSellWeapon(weapon)"
+                class="sell-checkbox"
+              />
+              <div class="sell-weapon-info">
+                <div class="sell-weapon-name">{{ weapon.name }}</div>
+                <div class="sell-weapon-type">{{ weapon.type }}</div>
+                <div class="sell-weapon-rarity" :style="{ color: getWeaponRarityColor(weapon.rarity) }">
+                  {{ weapon.rarity }}
+                </div>
+                
+                <div class="sell-weapon-stats">
+                  <Tooltip v-if="weapon.stats.attack > 0" title="⚔️ 攻撃力" content="物理ダメージに影響">
+                    <span class="sell-stat">⚔️{{ weapon.stats.attack }}</span>
+                  </Tooltip>
+                  <Tooltip v-if="weapon.stats.magic > 0" title="✨ 魔法力" content="魔法ダメージに影響">
+                    <span class="sell-stat">✨{{ weapon.stats.magic }}</span>
+                  </Tooltip>
+                  <Tooltip v-if="weapon.stats.speed > 0" title="⚡ 速度" content="攻撃順序と頻度に影響">
+                    <span class="sell-stat">⚡{{ weapon.stats.speed }}</span>
+                  </Tooltip>
+                  <Tooltip v-if="weapon.stats.critChance > 0" title="🎯 クリティカル率" content="クリティカルヒットの発生確率">
+                    <span class="sell-stat">🎯{{ weapon.stats.critChance }}%</span>
+                  </Tooltip>
+                </div>
+                
+                <div class="sell-weapon-tags">
+                  <Tooltip v-for="tag in weapon.tags" :key="tag" :title="tag" :content="getTagDescription(tag)">
+                    <span class="sell-tag">{{ tag }}</span>
+                  </Tooltip>
+                  <Tooltip v-for="effect in weapon.effects" :key="effect.type" :title="effect.type" :content="getStatusDescription(effect.type)">
+                    <span class="sell-effect">{{ effect.type }}</span>
+                  </Tooltip>
+                </div>
+                
+                <div class="sell-weapon-value">
+                  売値: <strong>{{ (weapon as any).sellValue || 10 }}G</strong>
+                </div>
+                
+                <div v-if="!canSellWeapon(weapon)" class="sell-weapon-disabled">
+                  {{ weapon.id === initialWeapon.id ? '初期装備（売却不可）' : '装備中' }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <button class="btn btn-secondary" style="width: 100%; margin-top: 15px;" @click="showSellMenu = false">
+          閉じる
+        </button>
+      </div>
+    </div>
+
+    <!-- 装備置き換え選択モーダル -->
+    <div v-if="showEquipSelection && selectedWeapon" class="loot-modal">
+      <div class="loot-content" style="max-width: 1400px;">
+        <div class="modal-header">
+          <h2>⚔️ 装備を置き換え</h2>
+          <button @click="showEquipSelection = false" class="btn-close">×</button>
+        </div>
+        <p class="loot-subtitle">
+          {{ player.weapons.length < 4 ? '空きスロットまたは' : '' }}置き換える装備をクリックしてください
+        </p>
+        <div class="replacement-comparison-grid">
+          <!-- 既存の武器 -->
+          <div 
+            v-for="(weapon, index) in player.weapons" 
+            :key="weapon.id" 
+            class="replacement-comparison-card"
+            @click="replaceWeapon(index)"
+          >
+            <!-- 現在の装備 -->
+            <div class="comparison-weapon-section">
+              <div class="comparison-weapon-title">現在の装備</div>
+              <div class="comparison-weapon-name">{{ weapon.name }}</div>
+              <div class="comparison-weapon-type">{{ weapon.type }}</div>
+              
+              <div class="comparison-stats">
+                <Tooltip v-if="weapon.stats.attack > 0" title="⚔️ 攻撃力" content="物理ダメージに影響">
+                  <div class="stat-row">
+                    <span class="stat-label">⚔️</span>
+                    <span class="stat-value">{{ weapon.stats.attack }}</span>
+                  </div>
+                </Tooltip>
+                <Tooltip v-if="weapon.stats.magic > 0" title="✨ 魔法力" content="魔法ダメージに影響">
+                  <div class="stat-row">
+                    <span class="stat-label">✨</span>
+                    <span class="stat-value">{{ weapon.stats.magic }}</span>
+                  </div>
+                </Tooltip>
+                <Tooltip v-if="weapon.stats.speed > 0" title="⚡ 速度" content="攻撃順序と頻度に影響">
+                  <div class="stat-row">
+                    <span class="stat-label">⚡</span>
+                    <span class="stat-value">{{ weapon.stats.speed }}</span>
+                  </div>
+                </Tooltip>
+                <Tooltip v-if="weapon.stats.critChance > 0" title="🎯 クリティカル率" content="クリティカルヒットの発生確率">
+                  <div class="stat-row">
+                    <span class="stat-label">🎯</span>
+                    <span class="stat-value">{{ weapon.stats.critChance }}%</span>
+                  </div>
+                </Tooltip>
+                <Tooltip v-if="weapon.stats.critDamage > 0" title="💥 クリティカルダメージ" content="クリティカル時のダメージ増加">
+                  <div class="stat-row">
+                    <span class="stat-label">💥</span>
+                    <span class="stat-value">{{ weapon.stats.critDamage }}%</span>
+                  </div>
+                </Tooltip>
+                <Tooltip v-if="weapon.stats.statusPower > 0" title="🔮 状態異常威力" content="状態異常の効果を強化">
+                  <div class="stat-row">
+                    <span class="stat-label">🔮</span>
+                    <span class="stat-value">{{ weapon.stats.statusPower }}</span>
+                  </div>
+                </Tooltip>
+              </div>
+              
+              <div class="comparison-tags" v-if="weapon.tags.length > 0">
+                <Tooltip v-for="tag in weapon.tags" :key="tag" :title="tag" :content="getTagDescription(tag)">
+                  <span class="comparison-tag">{{ tag }}</span>
+                </Tooltip>
+              </div>
+              <div class="comparison-tags" v-if="weapon.effects.length > 0">
+                <Tooltip v-for="effect in weapon.effects" :key="effect.type" :title="effect.type" :content="getStatusDescription(effect.type)">
+                  <span class="comparison-effect">{{ effect.type }}</span>
+                </Tooltip>
+              </div>
+            </div>
+
+            <!-- 矢印 -->
+            <div class="comparison-arrow-section">
+              <div class="comparison-arrow">→</div>
+              <div class="comparison-click-hint">クリック</div>
+            </div>
+
+            <!-- 新しい装備 -->
+            <div class="comparison-weapon-section">
+              <div class="comparison-weapon-title">新しい装備</div>
+              <div class="comparison-weapon-name highlight">{{ selectedWeapon.name }}</div>
+              <div class="comparison-weapon-type">{{ selectedWeapon.type }}</div>
+              
+              <div class="comparison-stats">
+                <Tooltip v-if="selectedWeapon.stats.attack > 0" title="⚔️ 攻撃力" content="物理ダメージに影響">
+                  <div class="stat-row">
+                    <span class="stat-label">⚔️</span>
+                    <span class="stat-value" :class="{ improved: selectedWeapon.stats.attack > weapon.stats.attack }">
+                      {{ selectedWeapon.stats.attack }}
+                      <span v-if="selectedWeapon.stats.attack !== weapon.stats.attack" class="stat-diff">
+                        {{ selectedWeapon.stats.attack > weapon.stats.attack ? '+' : '' }}{{ selectedWeapon.stats.attack - weapon.stats.attack }}
+                      </span>
+                    </span>
+                  </div>
+                </Tooltip>
+                <Tooltip v-if="selectedWeapon.stats.magic > 0" title="✨ 魔法力" content="魔法ダメージに影響">
+                  <div class="stat-row">
+                    <span class="stat-label">✨</span>
+                    <span class="stat-value" :class="{ improved: selectedWeapon.stats.magic > weapon.stats.magic }">
+                      {{ selectedWeapon.stats.magic }}
+                      <span v-if="selectedWeapon.stats.magic !== weapon.stats.magic" class="stat-diff">
+                        {{ selectedWeapon.stats.magic > weapon.stats.magic ? '+' : '' }}{{ selectedWeapon.stats.magic - weapon.stats.magic }}
+                      </span>
+                    </span>
+                  </div>
+                </Tooltip>
+                <Tooltip v-if="selectedWeapon.stats.speed > 0" title="⚡ 速度" content="攻撃順序と頻度に影響">
+                  <div class="stat-row">
+                    <span class="stat-label">⚡</span>
+                    <span class="stat-value" :class="{ improved: selectedWeapon.stats.speed > weapon.stats.speed }">
+                      {{ selectedWeapon.stats.speed }}
+                      <span v-if="selectedWeapon.stats.speed !== weapon.stats.speed" class="stat-diff">
+                        {{ selectedWeapon.stats.speed > weapon.stats.speed ? '+' : '' }}{{ selectedWeapon.stats.speed - weapon.stats.speed }}
+                      </span>
+                    </span>
+                  </div>
+                </Tooltip>
+                <Tooltip v-if="selectedWeapon.stats.critChance > 0" title="🎯 クリティカル率" content="クリティカルヒットの発生確率">
+                  <div class="stat-row">
+                    <span class="stat-label">🎯</span>
+                    <span class="stat-value" :class="{ improved: selectedWeapon.stats.critChance > weapon.stats.critChance }">
+                      {{ selectedWeapon.stats.critChance }}%
+                      <span v-if="selectedWeapon.stats.critChance !== weapon.stats.critChance" class="stat-diff">
+                        {{ selectedWeapon.stats.critChance > weapon.stats.critChance ? '+' : '' }}{{ selectedWeapon.stats.critChance - weapon.stats.critChance }}%
+                      </span>
+                    </span>
+                  </div>
+                </Tooltip>
+                <Tooltip v-if="selectedWeapon.stats.critDamage > 0" title="💥 クリティカルダメージ" content="クリティカル時のダメージ増加">
+                  <div class="stat-row">
+                    <span class="stat-label">💥</span>
+                    <span class="stat-value" :class="{ improved: selectedWeapon.stats.critDamage > weapon.stats.critDamage }">
+                      {{ selectedWeapon.stats.critDamage }}%
+                      <span v-if="selectedWeapon.stats.critDamage !== weapon.stats.critDamage" class="stat-diff">
+                        {{ selectedWeapon.stats.critDamage > weapon.stats.critDamage ? '+' : '' }}{{ selectedWeapon.stats.critDamage - weapon.stats.critDamage }}%
+                      </span>
+                    </span>
+                  </div>
+                </Tooltip>
+                <Tooltip v-if="selectedWeapon.stats.statusPower > 0" title="🔮 状態異常威力" content="状態異常の効果を強化">
+                  <div class="stat-row">
+                    <span class="stat-label">🔮</span>
+                    <span class="stat-value" :class="{ improved: selectedWeapon.stats.statusPower > weapon.stats.statusPower }">
+                      {{ selectedWeapon.stats.statusPower }}
+                      <span v-if="selectedWeapon.stats.statusPower !== weapon.stats.statusPower" class="stat-diff">
+                        {{ selectedWeapon.stats.statusPower > weapon.stats.statusPower ? '+' : '' }}{{ selectedWeapon.stats.statusPower - weapon.stats.statusPower }}
+                      </span>
+                    </span>
+                  </div>
+                </Tooltip>
+              </div>
+              
+              <div class="comparison-tags" v-if="selectedWeapon.tags.length > 0">
+                <Tooltip v-for="tag in selectedWeapon.tags" :key="tag" :title="tag" :content="getTagDescription(tag)">
+                  <span class="comparison-tag">{{ tag }}</span>
+                </Tooltip>
+              </div>
+              <div class="comparison-tags" v-if="selectedWeapon.effects.length > 0">
+                <Tooltip v-for="effect in selectedWeapon.effects" :key="effect.type" :title="effect.type" :content="getStatusDescription(effect.type)">
+                  <span class="comparison-effect">{{ effect.type }}</span>
+                </Tooltip>
+              </div>
+            </div>
+          </div>
+          
+          <!-- 空きスロット -->
+          <div 
+            v-if="player.weapons.length < 4"
+            class="replacement-comparison-card empty-slot-card"
+            @click="addWeaponToEmptySlot()"
+          >
+            <div class="comparison-weapon-section empty-slot-section">
+              <div class="empty-slot-icon">➕</div>
+              <div class="empty-slot-text">空きスロット</div>
+              <div class="empty-slot-hint">クリックで追加</div>
+            </div>
+            
+            <div class="comparison-arrow-section">
+              <div class="comparison-arrow">→</div>
+              <div class="comparison-click-hint">クリック</div>
+            </div>
+            
+            <div class="comparison-weapon-section">
+              <div class="comparison-weapon-title">新しい装備</div>
+              <div class="comparison-weapon-name highlight">{{ selectedWeapon.name }}</div>
+              <div class="comparison-weapon-type">{{ selectedWeapon.type }}</div>
+              
+              <div class="comparison-stats">
+                <Tooltip v-if="selectedWeapon.stats.attack > 0" title="⚔️ 攻撃力" content="物理ダメージに影響">
+                  <div class="stat-row">
+                    <span class="stat-label">⚔️</span>
+                    <span class="stat-value">{{ selectedWeapon.stats.attack }}</span>
+                  </div>
+                </Tooltip>
+                <Tooltip v-if="selectedWeapon.stats.magic > 0" title="✨ 魔法力" content="魔法ダメージに影響">
+                  <div class="stat-row">
+                    <span class="stat-label">✨</span>
+                    <span class="stat-value">{{ selectedWeapon.stats.magic }}</span>
+                  </div>
+                </Tooltip>
+                <Tooltip v-if="selectedWeapon.stats.speed > 0" title="⚡ 速度" content="攻撃順序と頻度に影響">
+                  <div class="stat-row">
+                    <span class="stat-label">⚡</span>
+                    <span class="stat-value">{{ selectedWeapon.stats.speed }}</span>
+                  </div>
+                </Tooltip>
+                <Tooltip v-if="selectedWeapon.stats.critChance > 0" title="🎯 クリティカル率" content="クリティカルヒットの発生確率">
+                  <div class="stat-row">
+                    <span class="stat-label">🎯</span>
+                    <span class="stat-value">{{ selectedWeapon.stats.critChance }}%</span>
+                  </div>
+                </Tooltip>
+                <Tooltip v-if="selectedWeapon.stats.critDamage > 0" title="💥 クリティカルダメージ" content="クリティカル時のダメージ増加">
+                  <div class="stat-row">
+                    <span class="stat-label">💥</span>
+                    <span class="stat-value">{{ selectedWeapon.stats.critDamage }}%</span>
+                  </div>
+                </Tooltip>
+                <Tooltip v-if="selectedWeapon.stats.statusPower > 0" title="🔮 状態異常威力" content="状態異常の効果を強化">
+                  <div class="stat-row">
+                    <span class="stat-label">🔮</span>
+                    <span class="stat-value">{{ selectedWeapon.stats.statusPower }}</span>
+                  </div>
+                </Tooltip>
+              </div>
+              
+              <div class="comparison-tags" v-if="selectedWeapon.tags.length > 0">
+                <Tooltip v-for="tag in selectedWeapon.tags" :key="tag" :title="tag" :content="getTagDescription(tag)">
+                  <span class="comparison-tag">{{ tag }}</span>
+                </Tooltip>
+              </div>
+              <div class="comparison-tags" v-if="selectedWeapon.effects.length > 0">
+                <Tooltip v-for="effect in selectedWeapon.effects" :key="effect.type" :title="effect.type" :content="getStatusDescription(effect.type)">
+                  <span class="comparison-effect">{{ effect.type }}</span>
+                </Tooltip>
+              </div>
+            </div>
+          </div>
+        </div>
+        <button class="btn btn-secondary" style="width: 100%; margin-top: 15px;" @click="showEquipSelection = false">
+          キャンセル
+        </button>
+      </div>
+    </div>
+
     <div v-if="showChestModal && chestOptions" class="loot-modal">
       <div class="loot-content">
         <div class="confetti"></div>
@@ -494,15 +861,20 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch } from 'vue'
 import type { Player, Weapon, Dungeon } from '~/types'
-import { weaponDatabase } from '~/data/weapons'
+import { BASE_WEAPONS } from '~/data/baseWeapons'
+import { generateEnchantedWeapon, generateMultipleWeapons } from '~/systems/WeaponGenerationSystem'
 import { dungeons } from '~/data/dungeons'
 import { StatusEffectSystem } from '~/systems/StatusEffectSystem'
+import { TAG_DEFINITIONS } from '~/data/synergies'
 import Tooltip from '~/components/Tooltip.vue'
 import { useGameOrchestrator } from '~/composables/useGameOrchestrator'
 import PlayerInfo from '~/components/PlayerInfo.vue'
 import EnemyInfo from '~/components/EnemyInfo.vue'
 import CombatLog from '~/components/CombatLog.vue'
 import WeaponCard from '~/components/WeaponCard.vue'
+
+// 初期武器を生成
+const initialWeapon = generateEnchantedWeapon(BASE_WEAPONS[0], 0, 0) // エンチャントなしの錆びた剣
 
 const player = reactive<Player>({
   name: 'プレイヤー',
@@ -520,9 +892,9 @@ const player = reactive<Player>({
     magicDefense: 0,
     speed: 0
   },
-  gold: 0,
+  gold: 100, // 初期ゴールド
   weapons: [
-    weaponDatabase[0] // デフォルトは1つのみ
+    initialWeapon // 生成された初期武器
   ],
   statusEffects: [],
   stats: {
@@ -534,16 +906,19 @@ const player = reactive<Player>({
   }
 })
 
-// デバッグ用: 全武器を所持
-const availableWeapons = ref(weaponDatabase.filter(
-  w => !player.weapons.find(pw => pw.id === w.id)
-))
+// 利用可能な武器リスト（ランダム生成）
+const availableWeapons = ref(generateMultipleWeapons(BASE_WEAPONS, 20, 40, 15))
 
 // 武器フィルタ・ソート
 const rarityFilter = ref<string>('all')
 const typeFilter = ref<string>('all')
 const selectedTags = ref<string[]>([])
+const selectedEffects = ref<string[]>([])
 const sortBy = ref<string>('name')
+
+// 武器装備UI管理
+const selectedWeapon = ref<Weapon | null>(null)
+const showEquipSelection = ref(false)
 
 const availableTags = computed(() => {
   const allTags = new Set<string>()
@@ -551,6 +926,14 @@ const availableTags = computed(() => {
     w.tags.forEach(t => allTags.add(t))
   })
   return Array.from(allTags).sort()
+})
+
+const availableEffects = computed(() => {
+  const allEffects = new Set<string>()
+  availableWeapons.value.forEach(w => {
+    w.effects.forEach(e => allEffects.add(e.type))
+  })
+  return Array.from(allEffects).sort()
 })
 
 const filteredWeapons = computed(() => {
@@ -570,6 +953,13 @@ const filteredWeapons = computed(() => {
   if (selectedTags.value.length > 0) {
     filtered = filtered.filter(w => 
       selectedTags.value.some(tag => w.tags.includes(tag as any))
+    )
+  }
+
+  // 効果フィルタ
+  if (selectedEffects.value.length > 0) {
+    filtered = filtered.filter(w => 
+      selectedEffects.value.some(effect => w.effects.some(e => e.type === effect))
     )
   }
 
@@ -600,6 +990,8 @@ const selectedDungeon = computed<Dungeon | undefined>(() =>
 const showWeaponSelection = ref(false)
 const showStatManager = ref(false)
 const showSettings = ref(false)
+const showSellMenu = ref(false)
+const selectedSellWeapons = ref<Set<string>>(new Set())
 const isLoading = ref(false)
 const toastMessage = ref('')
 const toastType = ref<'info' | 'error' | 'loot' | ''>('')
@@ -619,6 +1011,37 @@ const totalTempAlloc = computed(() => {
          tempStatAlloc.defense + tempStatAlloc.magicDefense + tempStatAlloc.speed
 })
 
+// 初期ステータス（これより低くできない）
+const baseStats = { maxHp: 100, attack: 10, magic: 5, defense: 5, magicDefense: 5, speed: 10 }
+
+// 割り振り済みステータスポイント数を計算
+const allocatedStats = computed(() => {
+  return {
+    maxHp: player.maxHp - baseStats.maxHp,
+    attack: player.stats.attack - baseStats.attack,
+    magic: player.stats.magic - baseStats.magic,
+    defense: player.stats.defense - baseStats.defense,
+    magicDefense: player.stats.magicDefense - baseStats.magicDefense,
+    speed: player.stats.speed - baseStats.speed
+  }
+})
+
+// スライダーの合計が利用可能SPを超えないように制約
+const constrainTempAlloc = () => {
+  // リアルタイムでの制約は複雑なため、適用時にチェック
+}
+
+// リセットコストを計算（基本100G + 割り振り済みポイント数 * 10G）
+const calculateResetCost = () => {
+  const totalAllocated = Math.floor(allocatedStats.value.maxHp / 25) +
+                        Math.floor(allocatedStats.value.attack / 5) +
+                        Math.floor(allocatedStats.value.magic / 5) +
+                        Math.floor(allocatedStats.value.defense / 3) +
+                        Math.floor(allocatedStats.value.magicDefense / 3) +
+                        Math.floor(allocatedStats.value.speed / 2)
+  return totalAllocated > 0 ? 100 + totalAllocated * 10 : 0
+}
+
 const resetTempAllocation = () => {
   tempStatAlloc.maxHp = 0
   tempStatAlloc.attack = 0
@@ -635,28 +1058,71 @@ const applyStatAllocation = () => {
   }
   
   const total = totalTempAlloc.value
-  if (total > player.statPoints) {
+  
+  // マイナス値を含む場合はリセット処理
+  const hasNegative = tempStatAlloc.maxHp < 0 || tempStatAlloc.attack < 0 || 
+                      tempStatAlloc.magic < 0 || tempStatAlloc.defense < 0 || 
+                      tempStatAlloc.magicDefense < 0 || tempStatAlloc.speed < 0
+  
+  if (hasNegative) {
+    const resetPoints = -Math.min(tempStatAlloc.maxHp, tempStatAlloc.attack, tempStatAlloc.magic,
+                                   tempStatAlloc.defense, tempStatAlloc.magicDefense, tempStatAlloc.speed)
+    const cost = resetPoints * 10
+    if (player.gold < cost) {
+      showToast(`リセットには${cost}Gが必要です`, 'error')
+      return
+    }
+    player.gold -= cost
+    showToast(`${resetPoints}ポイントをリセットしました（-${cost}G）`, 'info')
+  } else if (total > player.statPoints) {
     showToast('ポイントが不足しています', 'error')
     return
   }
 
   // HP割り振り
-  for (let i = 0; i < tempStatAlloc.maxHp; i++) {
-    allocateMaxHp()
+  const hpChange = tempStatAlloc.maxHp
+  if (hpChange > 0) {
+    for (let i = 0; i < hpChange; i++) {
+      allocateMaxHp()
+    }
+  } else if (hpChange < 0) {
+    // 初期値より低くならないようにチェック
+    const newValue = player.maxHp + hpChange * 25
+    if (newValue < baseStats.maxHp) {
+      showToast('HPは初期値より低くできません', 'error')
+      return
+    }
+    player.maxHp = newValue
+    player.statPoints += -hpChange
   }
   
   // その他ステータス割り振り
   const stats: Array<'attack' | 'magic' | 'defense' | 'magicDefense' | 'speed'> = 
     ['attack', 'magic', 'defense', 'magicDefense', 'speed']
+  const multipliers = { attack: 5, magic: 5, defense: 3, magicDefense: 3, speed: 2 }
   
   stats.forEach(stat => {
-    for (let i = 0; i < tempStatAlloc[stat]; i++) {
-      allocateStat(stat)
+    const change = tempStatAlloc[stat]
+    if (change > 0) {
+      for (let i = 0; i < change; i++) {
+        allocateStat(stat)
+      }
+    } else if (change < 0) {
+      // 初期値より低くならないようにチェック
+      const newValue = player.stats[stat] + change * multipliers[stat]
+      if (newValue < baseStats[stat]) {
+        showToast(`${stat}は初期値より低くできません`, 'error')
+        return
+      }
+      player.stats[stat] = newValue
+      player.statPoints += -change
     }
   })
 
   resetTempAllocation()
-  showToast(`${total}ポイント割り振りました`, 'info')
+  if (!hasNegative && total > 0) {
+    showToast(`${total}ポイント割り振りました`, 'info')
+  }
 }
 
 const {
@@ -747,8 +1213,6 @@ const currentEventLabel = computed(() => {
   return '戦闘'
 })
 
-const resetCost = 100
-
 const addInfoOnce = (msg: string) => {
   if (!infoMessages.value.includes(msg)) {
     infoMessages.value.push(msg)
@@ -783,31 +1247,13 @@ const handleAbandon = () => {
   abandonDungeon()
 }
 
-const spendStatPoint = (stat: 'maxHp' | 'attack' | 'magic' | 'defense' | 'magicDefense' | 'speed') => {
-  if (isRunLocked.value) {
-    showToast('探索中はステータスを操作できません', 'error')
-    return
-  }
-  let res
-  if (stat === 'maxHp') {
-    res = allocateMaxHp()
-  } else {
-    res = allocateStat(stat)
-  }
-
-  if (!res?.ok) {
-    if (res?.reason === 'no-points') showToast('ポイントが不足しています', 'error')
-    else showToast('割り振りに失敗しました', 'error')
-    return
-  }
-}
-
 const handleResetStats = () => {
   if (isRunLocked.value) {
     showToast('探索中はリセットできません', 'error')
     return
   }
-  const res = resetAllocatedStats(resetCost)
+  const cost = calculateResetCost()
+  const res = resetAllocatedStats(cost)
   if (!res.ok) {
     if (res.reason === 'no-allocation') showToast('リセットする割り振りがありません', 'error')
     else if (res.reason === 'no-gold') showToast('ゴールドが不足しています', 'error')
@@ -819,13 +1265,49 @@ const handleResetStats = () => {
 
 function equipWeapon(weapon: Weapon) {
   if (isRunLocked.value) return
-  if (player.weapons.length >= 3) {
-    alert('武器は最大3つまで装備できます')
+  
+  // すでに装備されている場合は外す
+  const isEquipped = player.weapons.some(w => w.id === weapon.id)
+  if (isEquipped) {
+    removeWeapon(weapon)
     return
   }
+  
+  // まだ装備していない場合
+  if (player.weapons.length >= 3) {
+    // 3つ装備済み → 置き換え選択UIを表示
+    selectedWeapon.value = weapon
+    showEquipSelection.value = true
+  } else {
+    // 空いてる → 直接装備
+    player.weapons.push(weapon)
+    pruneAvailableWeapons()
+    showToast(`${weapon.name}を装備しました`, 'info')
+  }
+}
 
-  player.weapons.push(weapon)
+function replaceWeapon(oldIndex: number) {
+  if (!selectedWeapon.value) return
+  
+  const oldWeapon = player.weapons[oldIndex]
+  player.weapons[oldIndex] = selectedWeapon.value
+  addToAvailableIfNeeded(oldWeapon)
   pruneAvailableWeapons()
+  
+  showToast(`${oldWeapon.name}を${selectedWeapon.value.name}に置き換えました`, 'info')
+  selectedWeapon.value = null
+  showEquipSelection.value = false
+}
+
+function addWeaponToEmptySlot() {
+  if (!selectedWeapon.value) return
+  
+  player.weapons.push(selectedWeapon.value)
+  pruneAvailableWeapons()
+  
+  showToast(`${selectedWeapon.value.name}を装備しました`, 'info')
+  selectedWeapon.value = null
+  showEquipSelection.value = false
 }
 
 function removeWeapon(weapon: Weapon) {
@@ -836,6 +1318,46 @@ function removeWeapon(weapon: Weapon) {
     addToAvailableIfNeeded(weapon)
     pruneAvailableWeapons()
   }
+}
+
+function canSellWeapon(weapon: Weapon): boolean {
+  // 初期装備は売却不可
+  if (weapon.id === initialWeapon.id) return false
+  // 装備中の武器は売却不可
+  if (player.weapons.some(w => w.id === weapon.id)) return false
+  return true
+}
+
+function toggleSelectWeapon(weaponId: string) {
+  if (selectedSellWeapons.value.has(weaponId)) {
+    selectedSellWeapons.value.delete(weaponId)
+  } else {
+    selectedSellWeapons.value.add(weaponId)
+  }
+}
+
+function sellSelectedWeapons() {
+  let totalGold = 0
+  const weaponsToRemove: string[] = []
+  
+  availableWeapons.value.forEach(weapon => {
+    if (selectedSellWeapons.value.has(weapon.id)) {
+      const sellValue = (weapon as any).sellValue || 10
+      totalGold += sellValue
+      weaponsToRemove.push(weapon.id)
+    }
+  })
+  
+  // 武器を削除
+  availableWeapons.value = availableWeapons.value.filter(
+    w => !weaponsToRemove.includes(w.id)
+  )
+  
+  player.gold += totalGold
+  selectedSellWeapons.value.clear()
+  showSellMenu.value = false
+  
+  showToast(`${weaponsToRemove.length}個の武器を${totalGold}Gで売却しました`, 'info')
 }
 
 function getWeaponRarityColor(rarity: string) {
@@ -849,15 +1371,7 @@ function getWeaponRarityColor(rarity: string) {
 }
 
 function getTagDescription(tag: string) {
-  const descriptions: Record<string, string> = {
-    fast: '攻撃速度が速い',
-    heavy: '高ダメージだが遅い',
-    precise: 'クリティカル率が高い',
-    elemental: '属性攻撃を行う',
-    cursed: '状態異常を付与する',
-    bleeding: '出血効果を付与する'
-  }
-  return descriptions[tag] || ''
+  return TAG_DEFINITIONS[tag as keyof typeof TAG_DEFINITIONS]?.description || ''
 }
 
 function getStatusDescription(type: string) {
@@ -965,14 +1479,9 @@ function deserializeState(state: any) {
     speed: 10
   }
 
-  const toWeapon = (id: string) => weaponDatabase.find(w => w.id === id)
-  player.weapons = (state.player?.weapons ?? [])
-    .map((id: string) => toWeapon(id))
-    .filter(Boolean) as Weapon[]
-
-  availableWeapons.value = (state.availableWeapons ?? [])
-    .map((id: string) => toWeapon(id))
-    .filter(Boolean) as Weapon[]
+  // 武器データは新システムではIDで復元できないため、セーブデータからそのまま復元
+  player.weapons = state.player?.weapons ?? [initialWeapon]
+  availableWeapons.value = state.availableWeapons ?? generateMultipleWeapons(BASE_WEAPONS, 20, 40, 15)
 
   const dungeon = selectedDungeon.value
   if (dungeon) {
@@ -993,12 +1502,15 @@ function showToast(message: string, type: 'info' | 'error' | 'loot') {
 </script>
 
 <style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Orbitron:wght@400;700;900&display=swap');
+
 #app {
   max-width: 1400px;
   margin: 0 auto;
-  background: #0f0f1e;
+  background: #050505;
   min-height: 100vh;
   padding: 20px;
+  font-family: 'Orbitron', 'Arial', sans-serif;
 }
 
 .app-header {
@@ -1009,24 +1521,38 @@ function showToast(message: string, type: 'info' | 'error' | 'loot') {
   justify-content: space-between;
   align-items: center;
   padding: 0 20px;
+  background: linear-gradient(180deg, rgba(25, 118, 210, 0.15) 0%, rgba(0, 0, 0, 0) 100%);
+  border-bottom: 2px solid rgba(66, 165, 245, 0.3);
+  padding: 15px 20px;
+  margin: -20px -20px 20px -20px;
+  border-radius: 0 0 8px 8px;
 }
 
 .app-header h1 {
   flex: 1;
   text-align: center;
   margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  color: white;
+  text-shadow: 0 0 10px rgba(66, 165, 245, 0.6);
+  letter-spacing: 2px;
 }
 
 .btn-settings {
-  padding: 8px 16px;
+  padding: 10px 16px;
   font-size: 14px;
-  background: var(--color-bg-tertiary);
-  color: var(--color-text-primary);
-  border: 1px solid var(--color-border);
+  background: linear-gradient(135deg, rgba(76, 175, 80, 0.2), rgba(56, 142, 60, 0.2));
+  color: white;
+  border: 1px solid rgba(76, 175, 80, 0.4);
+  border-radius: 6px;
+  transition: all 0.2s ease;
 }
 
 .btn-settings:hover:not(:disabled) {
-  background: #363942;
+  background: linear-gradient(135deg, rgba(76, 175, 80, 0.3), rgba(56, 142, 60, 0.3));
+  border-color: rgba(76, 175, 80, 0.6);
+  transform: translateY(-1px);
 }
 
 .app-header h1 {
@@ -1160,51 +1686,76 @@ function showToast(message: string, type: 'info' | 'error' | 'loot') {
 }
 
 .stat-manager-content {
-  max-width: 600px;
+  max-width: 550px;
   width: 100%;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
 }
 
 .stat-sliders {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  margin: 20px 0;
+  gap: 12px;
+  margin: 15px 0;
+  overflow-y: auto;
+  max-height: 500px;
+  padding-right: 8px;
+}
+
+/* スクロールバースタイル */
+.stat-sliders::-webkit-scrollbar {
+  width: 8px;
+}
+
+.stat-sliders::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.stat-sliders::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+}
+
+.stat-sliders::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
 }
 
 .stat-slider-item {
   background: rgba(0, 0, 0, 0.3);
-  padding: 15px;
-  border-radius: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .stat-slider-header {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 10px;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
 .stat-icon {
-  font-size: 20px;
+  font-size: 18px;
 }
 
 .stat-name {
   flex: 1;
   font-weight: bold;
-  font-size: 16px;
+  font-size: 14px;
 }
 
 .stat-value {
   color: #4facfe;
   font-weight: bold;
-  font-size: 16px;
+  font-size: 14px;
 }
 
 .stat-slider {
   width: 100%;
-  height: 8px;
-  border-radius: 4px;
+  height: 6px;
+  border-radius: 3px;
   background: rgba(255, 255, 255, 0.1);
   outline: none;
   -webkit-appearance: none;
@@ -1215,34 +1766,34 @@ function showToast(message: string, type: 'info' | 'error' | 'loot') {
 .stat-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   cursor: pointer;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   transition: all 0.2s;
 }
 
 .stat-slider::-webkit-slider-thumb:hover {
-  transform: scale(1.2);
-  box-shadow: 0 3px 10px rgba(102, 126, 234, 0.6);
+  transform: scale(1.15);
+  box-shadow: 0 3px 8px rgba(102, 126, 234, 0.6);
 }
 
 .stat-slider::-moz-range-thumb {
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   cursor: pointer;
   border: none;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   transition: all 0.2s;
 }
 
 .stat-slider::-moz-range-thumb:hover {
-  transform: scale(1.2);
-  box-shadow: 0 3px 10px rgba(102, 126, 234, 0.6);
+  transform: scale(1.15);
+  box-shadow: 0 3px 8px rgba(102, 126, 234, 0.6);
 }
 
 .stat-slider:disabled {
@@ -1251,9 +1802,9 @@ function showToast(message: string, type: 'info' | 'error' | 'loot') {
 }
 
 .stat-slider-info {
-  margin-top: 8px;
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.7);
+  margin-top: 6px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
   text-align: right;
 }
 
@@ -1346,6 +1897,15 @@ function showToast(message: string, type: 'info' | 'error' | 'loot') {
   background: #e63028;
 }
 
+.btn-warning {
+  background: #FF9800;
+  color: white;
+}
+
+.btn-warning:hover:not(:disabled) {
+  background: #F57C00;
+}
+
 .battle-area {
   display: grid;
   grid-template-columns: 1fr 2fr 1fr;
@@ -1366,11 +1926,11 @@ function showToast(message: string, type: 'info' | 'error' | 'loot') {
 }
 
 .panel {
-  background: var(--color-bg-secondary);
-  border: 1px solid var(--color-border);
+  background: linear-gradient(135deg, rgba(10, 10, 15, 0.9) 0%, rgba(15, 15, 25, 0.9) 100%);
+  border: 1px solid rgba(66, 165, 245, 0.2);
   border-radius: 8px;
   padding: 20px;
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(66, 165, 245, 0.1);
 }
 
 .panel-header {
@@ -1380,13 +1940,14 @@ function showToast(message: string, type: 'info' | 'error' | 'loot') {
   gap: 8px;
   margin-bottom: 16px;
   padding-bottom: 12px;
-  border-bottom: 1px solid var(--color-divider);
+  border-bottom: 1px solid rgba(66, 165, 245, 0.2);
 }
 
 .panel-header h2 {
   font-size: 18px;
   font-weight: 600;
-  color: var(--color-text-primary);
+  color: white;
+  text-shadow: 0 0 8px rgba(66, 165, 245, 0.4);
 }
 
 .chips {
@@ -1396,24 +1957,19 @@ function showToast(message: string, type: 'info' | 'error' | 'loot') {
 }
 
 .chip {
-  background: var(--color-bg-tertiary);
+  background: rgba(66, 165, 245, 0.1);
   padding: 6px 12px;
   border-radius: 4px;
   font-size: 12px;
   font-weight: 500;
-  border: 1px solid var(--color-border);
-  color: var(--color-text-secondary);
+  border: 1px solid rgba(66, 165, 245, 0.3);
+  color: rgba(66, 165, 245, 0.8);
 }
 
 .chip.warning {
   background: rgba(255, 184, 0, 0.1);
-  color: var(--color-highlight);
-  border-color: rgba(255, 184, 0, 0.3);
-}
-
-.chip.warning {
-  background: rgba(255, 184, 0, 0.2);
-  border-color: rgba(255, 184, 0, 0.5);
+  color: rgba(255, 184, 0, 0.9);
+  border-color: rgba(255, 184, 0, 0.4);
 }
 
 .button-row {
@@ -1523,38 +2079,44 @@ function showToast(message: string, type: 'info' | 'error' | 'loot') {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 30px;
+  margin-bottom: 20px;
   position: relative;
-  background: transparent;
-  padding-bottom: 8px;
-}
-
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 12px;
-  gap: 8px;
+  background: linear-gradient(135deg, rgba(25, 118, 210, 0.1) 0%, rgba(63, 81, 181, 0.1) 100%);
+  padding: 16px 20px;
+  border-bottom: 2px solid rgba(66, 165, 245, 0.3);
+  border-radius: 8px 8px 0 0;
+  gap: 15px;
+  margin: -30px -30px 20px -30px;
+  padding-left: 30px;
+  padding-right: 30px;
 }
 
 .modal-header h2 {
-  font-size: 28px;
+  font-size: 24px;
+  margin: 0;
+  color: white;
 }
 
 .btn-close {
-  background: #e74c3c;
+  background: linear-gradient(135deg, #FF6B6B, #FF5252);
   color: white;
   border: none;
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
-  font-size: 24px;
+  font-size: 22px;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .btn-close:hover {
-  background: #c0392b;
-  transform: rotate(90deg);
+  background: linear-gradient(135deg, #FF5252, #FF1744);
+  transform: rotate(90deg) scale(1.1);
+  box-shadow: 0 4px 12px rgba(255, 82, 82, 0.4);
 }
 
 .current-weapons, .available-weapons {
@@ -1562,17 +2124,21 @@ function showToast(message: string, type: 'info' | 'error' | 'loot') {
 }
 
 .current-weapons h3, .available-weapons h3 {
-  font-size: 20px;
+  font-size: 18px;
   margin-bottom: 15px;
-  color: #ecf0f1;
+  color: white;
+  text-shadow: 0 0 8px rgba(66, 165, 245, 0.5);
+  font-weight: 700;
+  letter-spacing: 1px;
 }
 
 .empty-slot {
   padding: 40px 20px;
   text-align: center;
-  background: rgba(0, 0, 0, 0.2);
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px dashed rgba(66, 165, 245, 0.2);
   border-radius: 10px;
-  opacity: 0.7;
+  opacity: 0.6;
   font-size: 14px;
 }
 
@@ -1585,6 +2151,9 @@ function showToast(message: string, type: 'info' | 'error' | 'loot') {
 
 .weapons-header h3 {
   margin: 0;
+  color: white;
+  text-shadow: 0 0 8px rgba(66, 165, 245, 0.5);
+  font-weight: 700;
 }
 
 .filter-controls {
@@ -1610,38 +2179,87 @@ function showToast(message: string, type: 'info' | 'error' | 'loot') {
   border-color: rgba(255, 255, 255, 0.5);
 }
 
-.tag-filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+.filter-section {
+  margin-top: 12px;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
 }
 
-.tag-filter-label {
+.filter-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #f39c12;
+  margin-bottom: 8px;
+}
+
+.tag-filters,
+.effect-filters {
   display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag-chip,
+.effect-chip {
+  display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 4px 8px;
+  padding: 4px 10px;
   background: rgba(0, 0, 0, 0.3);
   border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 12px;
+  border-radius: 16px;
   font-size: 11px;
   cursor: pointer;
   transition: all 0.2s;
+  user-select: none;
 }
 
-.tag-filter-label:hover {
-  background: rgba(0, 0, 0, 0.5);
-  border-color: rgba(255, 255, 255, 0.4);
+.tag-chip:hover,
+.effect-chip:hover {
+  background: rgba(100, 100, 255, 0.3);
+  border-color: rgba(100, 100, 255, 0.5);
+  transform: translateY(-1px);
 }
 
-.tag-filter-label input[type="checkbox"] {
+.tag-chip input[type="checkbox"],
+.effect-chip input[type="checkbox"] {
   cursor: pointer;
+  margin: 0;
+}
+
+.tag-chip input[type="checkbox"]:checked + span,
+.effect-chip input[type="checkbox"]:checked + span {
+  color: #4facfe;
+  font-weight: 600;
 }
 
 .weapon-list {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  max-height: 500px;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+/* 武器リストスクロールバー */
+.weapon-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.weapon-list::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.weapon-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+}
+
+.weapon-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
 }
 
 .weapon-list-item {
@@ -1766,6 +2384,363 @@ function showToast(message: string, type: 'info' | 'error' | 'loot') {
   gap: 15px;
 }
 
+.sell-weapon-card {
+  position: relative;
+  padding: 14px;
+  background: linear-gradient(135deg, rgba(10, 10, 15, 0.8) 0%, rgba(15, 15, 25, 0.8) 100%);
+  border: 2px solid;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sell-weapon-card.sell-disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.sell-weapon-card.sell-selected {
+  background: linear-gradient(135deg, rgba(76, 175, 80, 0.2) 0%, rgba(56, 142, 60, 0.2) 100%);
+  box-shadow: 0 0 15px rgba(76, 175, 80, 0.4);
+}
+
+.sell-weapon-card:not(.sell-disabled):hover {
+  background: linear-gradient(135deg, rgba(15, 15, 20, 0.9) 0%, rgba(20, 20, 30, 0.9) 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(66, 165, 245, 0.3);
+}
+
+.sell-checkbox {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+}
+
+.sell-weapon-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sell-weapon-name {
+  font-size: 15px;
+  font-weight: bold;
+  color: white;
+  text-shadow: 0 0 6px rgba(66, 165, 245, 0.5);
+}
+
+.sell-weapon-type {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.sell-weapon-rarity {
+  font-size: 11px;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.sell-weapon-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.sell-stat {
+  padding: 3px 8px;
+  background: rgba(66, 165, 245, 0.15);
+  border: 1px solid rgba(66, 165, 245, 0.3);
+  border-radius: 4px;
+  font-size: 12px;
+  color: rgba(66, 165, 245, 0.9);
+  cursor: help;
+}
+
+.sell-weapon-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 4px;
+}
+
+.sell-tag {
+  padding: 3px 7px;
+  background: rgba(66, 165, 245, 0.2);
+  border: 1px solid rgba(66, 165, 245, 0.4);
+  border-radius: 4px;
+  font-size: 10px;
+  color: rgba(66, 165, 245, 0.8);
+  cursor: help;
+}
+
+.sell-effect {
+  padding: 3px 7px;
+  background: rgba(156, 39, 176, 0.2);
+  border: 1px solid rgba(156, 39, 176, 0.4);
+  border-radius: 4px;
+  font-size: 10px;
+  color: rgba(156, 39, 176, 0.8);
+  cursor: help;
+}
+
+.sell-weapon-value {
+  margin-top: 6px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.sell-weapon-value strong {
+  color: #FFD700;
+  font-size: 14px;
+}
+
+.sell-weapon-disabled {
+  margin-top: 4px;
+  font-size: 11px;
+  color: #F44336;
+  font-weight: bold;
+}
+
+.replacement-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.replacement-slot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: linear-gradient(135deg, rgba(25, 118, 210, 0.15) 0%, rgba(63, 81, 181, 0.15) 100%);
+  border: 2px solid rgba(66, 165, 245, 0.4);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.replacement-slot:hover {
+  background: linear-gradient(135deg, rgba(25, 118, 210, 0.25) 0%, rgba(63, 81, 181, 0.25) 100%);
+  border-color: rgba(66, 165, 245, 0.6);
+  transform: translateX(4px);
+  box-shadow: 0 4px 12px rgba(66, 165, 245, 0.2);
+}
+
+.replacement-slot-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.replacement-weapon-name {
+  font-weight: bold;
+  font-size: 14px;
+  color: white;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.replacement-weapon-type {
+  font-size: 11px;
+  opacity: 0.7;
+  text-transform: uppercase;
+}
+
+.replacement-arrow {
+  font-size: 20px;
+  color: rgba(66, 165, 245, 0.8);
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+.replacement-new-weapon-name {
+  flex: 1;
+  font-weight: bold;
+  font-size: 14px;
+  color: rgba(76, 175, 80, 0.9);
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.replacement-comparison-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.replacement-comparison-card {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 16px;
+  align-items: stretch;
+  padding: 20px;
+  background: linear-gradient(135deg, rgba(15, 15, 20, 0.8) 0%, rgba(20, 20, 30, 0.8) 100%);
+  border: 2px solid rgba(66, 165, 245, 0.4);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.replacement-comparison-card:hover {
+  background: linear-gradient(135deg, rgba(25, 118, 210, 0.2) 0%, rgba(63, 81, 181, 0.2) 100%);
+  border-color: rgba(76, 175, 80, 0.6);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(66, 165, 245, 0.3);
+}
+
+.comparison-weapon-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.comparison-weapon-title {
+  font-size: 12px;
+  font-weight: bold;
+  text-transform: uppercase;
+  opacity: 0.6;
+  letter-spacing: 1px;
+}
+
+.comparison-weapon-name {
+  font-weight: bold;
+  font-size: 16px;
+  color: white;
+}
+
+.comparison-weapon-name.highlight {
+  color: rgba(76, 175, 80, 0.95);
+}
+
+.comparison-weapon-type {
+  font-size: 12px;
+  opacity: 0.7;
+  text-transform: uppercase;
+}
+
+.comparison-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+}
+
+.stat-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.stat-label {
+  width: 20px;
+  text-align: center;
+}
+
+.stat-value {
+  flex: 1;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.stat-value.improved {
+  color: rgba(76, 175, 80, 0.95);
+  font-weight: bold;
+}
+
+.stat-diff {
+  margin-left: 4px;
+  font-size: 11px;
+  color: rgba(76, 175, 80, 0.8);
+  font-weight: bold;
+}
+
+.comparison-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.comparison-tag {
+  padding: 4px 8px;
+  background: rgba(66, 165, 245, 0.2);
+  border: 1px solid rgba(66, 165, 245, 0.4);
+  border-radius: 4px;
+  font-size: 11px;
+  color: rgba(66, 165, 245, 0.8);
+  cursor: help;
+}
+
+.comparison-effect {
+  padding: 4px 8px;
+  background: rgba(156, 39, 176, 0.2);
+  border: 1px solid rgba(156, 39, 176, 0.4);
+  border-radius: 4px;
+  font-size: 11px;
+  color: rgba(156, 39, 176, 0.8);
+  cursor: help;
+}
+
+.empty-slot-card {
+  opacity: 0.9;
+}
+
+.empty-slot-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 200px;
+}
+
+.empty-slot-icon {
+  font-size: 48px;
+  color: rgba(66, 165, 245, 0.4);
+}
+
+.empty-slot-text {
+  font-size: 18px;
+  font-weight: bold;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.empty-slot-hint {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.comparison-arrow-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.comparison-arrow {
+  font-size: 28px;
+  font-weight: bold;
+  color: rgba(76, 175, 80, 0.8);
+}
+
+.comparison-click-hint {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  text-align: center;
+  font-weight: bold;
+}
+
 .loot-modal {
   position: fixed;
   inset: 0;
@@ -1779,15 +2754,16 @@ function showToast(message: string, type: 'info' | 'error' | 'loot') {
 }
 
 .loot-content {
-  background: #1f2937;
+  background: linear-gradient(135deg, rgba(10, 10, 15, 0.95) 0%, rgba(15, 15, 25, 0.95) 100%);
   color: white;
   padding: 30px;
-  border-radius: 18px;
+  border-radius: 12px;
   width: 100%;
   max-width: 1200px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(66, 165, 245, 0.15);
   position: relative;
   overflow: hidden;
+  border: 1px solid rgba(66, 165, 245, 0.2);
 }
 
 .confetti {
@@ -1811,8 +2787,13 @@ function showToast(message: string, type: 'info' | 'error' | 'loot') {
 }
 
 .loot-subtitle {
-  margin-bottom: 16px;
-  opacity: 0.85;
+  margin-bottom: 20px;
+  padding: 12px 16px;
+  background: rgba(66, 165, 245, 0.1);
+  border-left: 3px solid rgba(66, 165, 245, 0.6);
+  border-radius: 4px;
+  opacity: 0.9;
+  font-size: 14px;
 }
 
 .loot-option {

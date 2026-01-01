@@ -1,15 +1,26 @@
 <template>
-  <div class="tooltip-wrapper" @mouseenter="showTooltip = true" @mouseleave="showTooltip = false">
+  <div 
+    ref="wrapperRef"
+    class="tooltip-wrapper" 
+    @mouseenter="handleMouseEnter" 
+    @mouseleave="handleMouseLeave"
+  >
     <slot></slot>
-    <div v-if="showTooltip" class="tooltip">
-      <div class="tooltip-title">{{ title }}</div>
-      <div class="tooltip-content">{{ content }}</div>
-    </div>
+    <Teleport to="body">
+      <div 
+        v-if="showTooltip" 
+        class="tooltip"
+        :style="tooltipStyle"
+      >
+        <div class="tooltip-title">{{ title }}</div>
+        <div class="tooltip-content">{{ content }}</div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 
 defineProps<{
   title: string
@@ -17,6 +28,28 @@ defineProps<{
 }>()
 
 const showTooltip = ref(false)
+const wrapperRef = ref<HTMLElement | null>(null)
+const tooltipPosition = ref({ x: 0, y: 0 })
+
+const handleMouseEnter = () => {
+  if (wrapperRef.value) {
+    const rect = wrapperRef.value.getBoundingClientRect()
+    tooltipPosition.value = {
+      x: rect.left + rect.width / 2,
+      y: rect.top
+    }
+  }
+  showTooltip.value = true
+}
+
+const handleMouseLeave = () => {
+  showTooltip.value = false
+}
+
+const tooltipStyle = computed(() => ({
+  left: `${tooltipPosition.value.x}px`,
+  top: `${tooltipPosition.value.y}px`
+}))
 </script>
 
 <style scoped>
@@ -26,21 +59,21 @@ const showTooltip = ref(false)
 }
 
 .tooltip {
-  position: absolute;
-  bottom: 120%;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.9);
+  position: fixed;
+  transform: translate(-50%, calc(-100% - 12px));
+  background: rgba(0, 0, 0, 0.95);
   color: white;
   padding: 8px 12px;
   border-radius: 8px;
   white-space: nowrap;
   font-size: 12px;
-  z-index: 1000;
+  z-index: 9999;
   pointer-events: none;
   border: 1px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
   animation: slideUp 0.2s ease;
+  max-width: 300px;
+  white-space: normal;
 }
 
 .tooltip::after {
@@ -50,7 +83,7 @@ const showTooltip = ref(false)
   left: 50%;
   transform: translateX(-50%);
   border: 6px solid transparent;
-  border-top-color: rgba(0, 0, 0, 0.9);
+  border-top-color: rgba(0, 0, 0, 0.95);
 }
 
 .tooltip-title {
@@ -62,16 +95,17 @@ const showTooltip = ref(false)
 .tooltip-content {
   font-size: 11px;
   opacity: 0.9;
+  line-height: 1.4;
 }
 
 @keyframes slideUp {
   from {
     opacity: 0;
-    transform: translateX(-50%) translateY(8px);
+    transform: translate(-50%, calc(-100% - 4px));
   }
   to {
     opacity: 1;
-    transform: translateX(-50%) translateY(0);
+    transform: translate(-50%, calc(-100% - 12px));
   }
 }
 </style>

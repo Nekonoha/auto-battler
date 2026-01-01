@@ -10,14 +10,29 @@ export class WeaponSystem {
   /**
    * 武器で攻撃を行う
    */
-  static attack(weapon: Weapon, attacker: CombatUnit, target: CombatUnit): DamageResult {
+  static attack(
+    weapon: Weapon, 
+    attacker: CombatUnit, 
+    target: CombatUnit,
+    synergyBonus?: { attackBonus?: number; magicBonus?: number; speedBonus?: number; critChanceBonus?: number; critDamageBonus?: number; statusPowerBonus?: number } | null
+  ): DamageResult {
+    // シナジーボーナスを適用した武器ステータスを計算（元のステータスは変更しない）
+    const effectiveStats = {
+      attack: weapon.stats.attack * (1 + (synergyBonus?.attackBonus || 0) / 100),
+      magic: weapon.stats.magic * (1 + (synergyBonus?.magicBonus || 0) / 100),
+      speed: weapon.stats.speed * (1 + (synergyBonus?.speedBonus || 0) / 100),
+      critChance: weapon.stats.critChance + (synergyBonus?.critChanceBonus || 0),
+      critDamage: weapon.stats.critDamage + (synergyBonus?.critDamageBonus || 0) / 100,
+      statusPower: weapon.stats.statusPower + (synergyBonus?.statusPowerBonus || 0)
+    }
+    
     // 武器タイプに応じたダメージ計算
-    let baseDamage = this.calculateBaseDamage(weapon, attacker)
+    let baseDamage = this.calculateBaseDamageWithStats(weapon.type, effectiveStats)
     
     // クリティカル判定
-    const isCritical = Math.random() * 100 < weapon.stats.critChance
+    const isCritical = Math.random() * 100 < effectiveStats.critChance
     if (isCritical) {
-      baseDamage *= weapon.stats.critDamage
+      baseDamage *= effectiveStats.critDamage
     }
     
     // 状態異常による攻撃力補正
@@ -35,7 +50,7 @@ export class WeaponSystem {
       // 確率判定
       if (Math.random() * 100 < effect.chance) {
         // statusPowerでスタック数を補正
-        const stacks = Math.max(1, Math.floor(effect.stacks * (1 + weapon.stats.statusPower / 100)))
+        const stacks = Math.max(1, Math.floor(effect.stacks * (1 + effectiveStats.statusPower / 100)))
         StatusEffectSystem.applyStatusEffect(target, effect.type, stacks, effect.duration)
         return true
       }
@@ -50,28 +65,31 @@ export class WeaponSystem {
   }
 
   /**
-   * 武器タイプ別の基礎ダメージ計算
+   * 武器タイプ別の基礎ダメージ計算（効果適用済みステータスを使用）
    */
-  private static calculateBaseDamage(weapon: Weapon, attacker: CombatUnit): number {
-    switch (weapon.type) {
+  private static calculateBaseDamageWithStats(
+    weaponType: WeaponType,
+    stats: { attack: number; magic: number; speed: number; statusPower: number }
+  ): number {
+    switch (weaponType) {
       case 'melee':
         // 近接武器: 攻撃力が主、速度が副
-        return weapon.stats.attack * 1.2 + weapon.stats.speed * 0.3
+        return stats.attack * 1.2 + stats.speed * 0.3
       
       case 'ranged':
         // 遠距離武器: 攻撃力と速度のバランス型
-        return weapon.stats.attack * 1.0 + weapon.stats.speed * 0.5
+        return stats.attack * 1.0 + stats.speed * 0.5
       
       case 'magic':
         // 魔法武器: 魔法攻撃力が主
-        return weapon.stats.magic * 1.5 + weapon.stats.attack * 0.2
+        return stats.magic * 1.5 + stats.attack * 0.2
       
       case 'dot':
         // 状態異常特化: 直接ダメージは低いが状態異常が強力
-        return weapon.stats.attack * 0.5 + weapon.stats.statusPower * 0.8
+        return stats.attack * 0.5 + stats.statusPower * 0.8
       
       default:
-        return weapon.stats.attack
+        return stats.attack
     }
   }
 
