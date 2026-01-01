@@ -8,7 +8,8 @@ export const dungeons: Dungeon[] = [
     levelRange: [1, 3],
     tierWeights: { normal: 0.75, elite: 0.2, named: 0.05, boss: 0 },
     lootWeights: { common: 0.7, rare: 0.25, epic: 0.05, legendary: 0.0 },
-    chestChance: 0.08
+    chestChance: 0.08,
+    enemyPool: ['wolf', 'viper', 'bandit', 'skeleton']
   },
   {
     id: 'ancient-ruins',
@@ -17,7 +18,8 @@ export const dungeons: Dungeon[] = [
     levelRange: [4, 7],
     tierWeights: { normal: 0.55, elite: 0.3, named: 0.15, boss: 0 },
     lootWeights: { common: 0.45, rare: 0.35, epic: 0.18, legendary: 0.02 },
-    chestChance: 0.12
+    chestChance: 0.12,
+    enemyPool: ['skeleton', 'zombie', 'ghost', 'knight', 'mage', 'gargoyle']
   },
   {
     id: 'abyssal-depths',
@@ -26,6 +28,7 @@ export const dungeons: Dungeon[] = [
     levelRange: [8, 12],
     tierWeights: { normal: 0.35, elite: 0.4, named: 0.25, boss: 0 },
     lootWeights: { common: 0.2, rare: 0.35, epic: 0.3, legendary: 0.15 },
-    chestChance: 0.15
+    chestChance: 0.15,
+    enemyPool: ['lich', 'demon_warrior', 'fire_elemental', 'ice_elemental', 'storm_elemental', 'drake', 'golem', 'assassin']
   }
 ]

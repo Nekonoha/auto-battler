@@ -100,6 +100,13 @@ export class CombatSystem {
    * プレイヤー攻撃フェーズ
    */
   private playerAttackPhase(): void {
+    // 行動不能状態チェック
+    const cannotAct = StatusEffectSystem.cannotAct(this.player)
+    if (cannotAct) {
+      this.addLog('プレイヤーは行動できない！', 'status')
+      return
+    }
+
     if (this.player.weapons.length === 0) {
       this.addLog('プレイヤーは武器を装備していない！', 'info')
       return
@@ -143,6 +150,13 @@ export class CombatSystem {
   private enemyAttackPhase(): void {
     if (this.enemy.currentHp <= 0) return
 
+    // 行動不能状態チェック
+    const cannotAct = StatusEffectSystem.cannotAct(this.enemy)
+    if (cannotAct) {
+      this.addLog(`${this.enemy.name}は行動できない！`, 'status')
+      return
+    }
+
     // 敵の速度に応じた攻撃回数（最低1回、最大3回）
     const numAttacks = Math.min(3, Math.max(1, Math.floor(this.enemy.stats.speed / 25)))
     
@@ -150,7 +164,11 @@ export class CombatSystem {
       if (this.player.currentHp <= 0) break
 
       // 敵の基本攻撃（物理防御を考慮）
-      const baseDamage = this.enemy.stats.attack
+      let baseDamage = this.enemy.stats.attack
+      
+      // weak/fearによるダメージ減少
+      baseDamage = StatusEffectSystem.applyDamageModifiers(this.enemy, baseDamage)
+      
       const variance = 0.8 + Math.random() * 0.4 // 80%～120%のランダム性
       const attackDamage = baseDamage * variance
       const finalDamage = DamageSystem.calculateDamage(attackDamage, this.player, false)

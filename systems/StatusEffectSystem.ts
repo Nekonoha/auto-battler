@@ -233,4 +233,48 @@ export class StatusEffectSystem {
     const def = getStatusEffectDefinition(type)
     return def ? def.name : type
   }
+
+  /**
+   * 行動不能状態かチェック（stun, frozen, sleep, petrification）
+   */
+  static cannotAct(unit: CombatUnit): boolean {
+    return unit.statusEffects.some(e => 
+      e.type === 'stun' || 
+      e.type === 'frozen' || 
+      e.type === 'sleep' || 
+      e.type === 'petrification'
+    )
+  }
+
+  /**
+   * ダメージ修正を適用（weak, fear, vulnerable）
+   */
+  static applyDamageModifiers(unit: CombatUnit, baseDamage: number): number {
+    let modifier = 1.0
+
+    // weak: 攻撃力25%減少（スタック数に応じて増加）
+    const weak = unit.statusEffects.find(e => e.type === 'weak')
+    if (weak) {
+      modifier *= Math.max(0.1, 1 - (weak.stacks * 0.25))
+    }
+
+    // fear: 攻撃力20%減少
+    const fear = unit.statusEffects.find(e => e.type === 'fear')
+    if (fear) {
+      modifier *= 0.8
+    }
+
+    return Math.round(baseDamage * modifier)
+  }
+
+  /**
+   * 被ダメージ修正を適用（vulnerable）
+   */
+  static applyVulnerabilityModifier(unit: CombatUnit, incomingDamage: number): number {
+    const vulnerable = unit.statusEffects.find(e => e.type === 'vulnerable')
+    if (vulnerable) {
+      return Math.round(incomingDamage * (1 + vulnerable.stacks * 0.25))
+    }
+    return incomingDamage
+  }
 }

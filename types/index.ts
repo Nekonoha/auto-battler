@@ -30,6 +30,42 @@ export type WeaponTag =
   | 'elemental'     // 属性攻撃
   | 'cursed'        // 呪い系
   | 'bleeding'      // 出血系
+  | 'healing'       // 回復系
+  | 'defensive'     // 防御系
+  | 'versatile'     // 万能系
+  | 'poison'        // 毒系
+  | 'burning'       // 炎系
+  | 'freezing'      // 氷系
+
+/**
+ * 武器エンチャント（接頭辞/接尾辞）
+ */
+export interface WeaponEnchantment {
+  id: string
+  name: string                    // 接頭辞/接尾辞の名前（「すばやい」「重い」など）
+  position: 'prefix' | 'suffix'   // 接頭辞か接尾辞か
+  rarityBonus: number             // レアリティ上昇（0=なし, 1=1段階上昇）
+  statModifiers?: {               // ステータス修正（乗算）
+    attack?: number
+    magic?: number
+    speed?: number
+    critChance?: number
+    critDamage?: number
+    statusPower?: number
+  }
+  addTags?: WeaponTag[]           // 追加されるタグ
+  addEffects?: WeaponEffect[]     // 追加される効果
+  weight: number                  // 出現確率の重み
+}
+
+/**
+ * エンチャントされた武器インスタンス
+ */
+export interface EnchantedWeapon extends Weapon {
+  baseWeaponId: string            // ベース武器のID
+  enchantments: string[]          // 適用されているエンチャントID
+  sellValue: number               // 売却価格
+}
 
 /**
  * 状態異常の種類
@@ -62,8 +98,6 @@ export interface Weapon {
   name: string
   type: WeaponType
   rarity: WeaponRarity
-  limitBreak?: number      // 限界突破回数（0-4）
-  limitBreakMax?: number   // 最大限界突破回数
   stats: WeaponStats
   tags: WeaponTag[]
   effects: WeaponEffect[]
@@ -147,6 +181,34 @@ export interface Player extends CombatUnit {
  */
 export type EnemyTier = 'normal' | 'elite' | 'named' | 'boss'
 
+/**
+ * 敵の特性
+ */
+export interface EnemyTraits {
+  physicalResistance?: number     // 物理耐性（%）
+  magicalResistance?: number      // 魔法耐性（%）
+  statusImmunities?: StatusEffectType[]  // 無効な状態異常
+  attackImmunities?: WeaponType[]        // 無効な攻撃タイプ
+  inflictsStatus?: {                     // 攻撃時に付与する状態異常
+    type: StatusEffectType
+    chance: number
+    stacks: number
+    duration: number
+  }[]
+}
+
+/**
+ * 敵のタイプ（見た目・特性の分類）
+ */
+export type EnemyType = 
+  | 'beast'      // 獣系
+  | 'undead'     // アンデッド系
+  | 'demon'      // 悪魔系
+  | 'elemental'  // 精霊系
+  | 'humanoid'   // 人型
+  | 'dragon'     // ドラゴン系
+  | 'construct'  // 構造物系
+
 export interface EnemyStats {
   attack: number
   magic: number
@@ -157,6 +219,8 @@ export interface EnemyStats {
 
 export interface Enemy extends CombatUnit {
   tier: EnemyTier
+  type?: EnemyType
+  traits?: EnemyTraits
   stats: EnemyStats
   level: number
 }
@@ -167,6 +231,7 @@ export interface Dungeon {
   description: string
   levelRange: [number, number]
   tierWeights: Record<EnemyTier, number>
+  enemyPool?: string[]  // 出現する敵のIDリスト（未指定時はランダム生成）
   lootWeights: Record<'common' | 'rare' | 'epic' | 'legendary', number>
   chestChance?: number
 }

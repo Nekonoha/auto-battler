@@ -202,13 +202,48 @@
 
         <!-- 利用可能な武器 -->
         <div class="available-weapons">
-          <h3>利用可能な武器 ({{ availableWeapons.length }})</h3>
-          <div v-if="availableWeapons.length === 0" class="empty-slot">
-            利用可能な武器がありません
+          <div class="weapons-header">
+            <h3>利用可能な武器 ({{ filteredWeapons.length }})</h3>
+            <div class="filter-controls">
+              <!-- レア度フィルタ -->
+              <select v-model="rarityFilter" class="filter-select">
+                <option value="all">全レア度</option>
+                <option value="common">Common</option>
+                <option value="rare">Rare</option>
+                <option value="epic">Epic</option>
+                <option value="legendary">Legendary</option>
+              </select>
+              <!-- タイプフィルタ -->
+              <select v-model="typeFilter" class="filter-select">
+                <option value="all">全タイプ</option>
+                <option value="melee">melee</option>
+                <option value="ranged">ranged</option>
+                <option value="magic">magic</option>
+                <option value="hybrid">hybrid</option>
+              </select>
+              <!-- タグフィルタ -->
+              <div class="tag-filters">
+                <label v-for="tag in availableTags" :key="tag" class="tag-filter-label">
+                  <input type="checkbox" :value="tag" v-model="selectedTags" />
+                  <span>{{ tag }}</span>
+                </label>
+              </div>
+              <!-- ソート -->
+              <select v-model="sortBy" class="filter-select">
+                <option value="name">名前順</option>
+                <option value="rarity">レア度順</option>
+                <option value="attack">攻撃力順</option>
+                <option value="magic">魔法力順</option>
+                <option value="speed">速度順</option>
+              </select>
+            </div>
+          </div>
+          <div v-if="filteredWeapons.length === 0" class="empty-slot">
+            条件に一致する武器がありません
           </div>
           <div v-else class="weapon-list">
             <div 
-              v-for="weapon in availableWeapons"
+              v-for="weapon in filteredWeapons"
               :key="weapon.id"
               class="weapon-list-item"
               :style="{ borderColor: getWeaponRarityColor(weapon.rarity) }"
@@ -266,20 +301,139 @@
     </div>
 
     <div v-if="showStatManager" class="loot-modal">
-      <div class="loot-content">
+      <div class="loot-content stat-manager-content">
         <div class="modal-header">
           <h2>🧠 ステータス割り振り</h2>
           <button @click="showStatManager = false" class="btn-close">×</button>
         </div>
-        <p class="loot-subtitle">SP: {{ player.statPoints }}</p>
-        <div class="stat-buttons">
-          <button class="btn btn-secondary btn-compact" :disabled="player.statPoints === 0 || isRunLocked" @click="spendStatPoint('maxHp')">HP +25</button>
-          <button class="btn btn-secondary btn-compact" :disabled="player.statPoints === 0 || isRunLocked" @click="spendStatPoint('attack')">攻撃 +5</button>
-          <button class="btn btn-secondary btn-compact" :disabled="player.statPoints === 0 || isRunLocked" @click="spendStatPoint('magic')">魔法 +5</button>
-          <button class="btn btn-secondary btn-compact" :disabled="player.statPoints === 0 || isRunLocked" @click="spendStatPoint('defense')">防御 +3</button>
-          <button class="btn btn-secondary btn-compact" :disabled="player.statPoints === 0 || isRunLocked" @click="spendStatPoint('magicDefense')">魔防 +3</button>
-          <button class="btn btn-secondary btn-compact" :disabled="player.statPoints === 0 || isRunLocked" @click="spendStatPoint('speed')">速度 +2</button>
-          <button class="btn btn-primary btn-compact" :disabled="isRunLocked" @click="handleResetStats">リセット ({{ resetCost }}G)</button>
+        <p class="loot-subtitle">残りSP: {{ player.statPoints }}</p>
+        
+        <div class="stat-sliders">
+          <div class="stat-slider-item">
+            <div class="stat-slider-header">
+              <span class="stat-icon">❤️</span>
+              <span class="stat-name">最大HP</span>
+              <span class="stat-value">+{{ tempStatAlloc.maxHp * 25 }}</span>
+            </div>
+            <input 
+              type="range" 
+              min="0" 
+              :max="player.statPoints + tempStatAlloc.maxHp"
+              v-model.number="tempStatAlloc.maxHp"
+              class="stat-slider"
+              :disabled="isRunLocked"
+            />
+            <div class="stat-slider-info">
+              現在: {{ player.maxHp }} → {{ player.maxHp + tempStatAlloc.maxHp * 25 }}
+            </div>
+          </div>
+
+          <div class="stat-slider-item">
+            <div class="stat-slider-header">
+              <span class="stat-icon">⚔️</span>
+              <span class="stat-name">攻撃力</span>
+              <span class="stat-value">+{{ tempStatAlloc.attack * 5 }}</span>
+            </div>
+            <input 
+              type="range" 
+              min="0" 
+              :max="player.statPoints + tempStatAlloc.attack"
+              v-model.number="tempStatAlloc.attack"
+              class="stat-slider"
+              :disabled="isRunLocked"
+            />
+            <div class="stat-slider-info">
+              現在: {{ player.stats.attack }} → {{ player.stats.attack + tempStatAlloc.attack * 5 }}
+            </div>
+          </div>
+
+          <div class="stat-slider-item">
+            <div class="stat-slider-header">
+              <span class="stat-icon">🔮</span>
+              <span class="stat-name">魔法力</span>
+              <span class="stat-value">+{{ tempStatAlloc.magic * 5 }}</span>
+            </div>
+            <input 
+              type="range" 
+              min="0" 
+              :max="player.statPoints + tempStatAlloc.magic"
+              v-model.number="tempStatAlloc.magic"
+              class="stat-slider"
+              :disabled="isRunLocked"
+            />
+            <div class="stat-slider-info">
+              現在: {{ player.stats.magic }} → {{ player.stats.magic + tempStatAlloc.magic * 5 }}
+            </div>
+          </div>
+
+          <div class="stat-slider-item">
+            <div class="stat-slider-header">
+              <span class="stat-icon">🛡️</span>
+              <span class="stat-name">防御力</span>
+              <span class="stat-value">+{{ tempStatAlloc.defense * 3 }}</span>
+            </div>
+            <input 
+              type="range" 
+              min="0" 
+              :max="player.statPoints + tempStatAlloc.defense"
+              v-model.number="tempStatAlloc.defense"
+              class="stat-slider"
+              :disabled="isRunLocked"
+            />
+            <div class="stat-slider-info">
+              現在: {{ player.stats.defense }} → {{ player.stats.defense + tempStatAlloc.defense * 3 }}
+            </div>
+          </div>
+
+          <div class="stat-slider-item">
+            <div class="stat-slider-header">
+              <span class="stat-icon">✨</span>
+              <span class="stat-name">魔法防御</span>
+              <span class="stat-value">+{{ tempStatAlloc.magicDefense * 3 }}</span>
+            </div>
+            <input 
+              type="range" 
+              min="0" 
+              :max="player.statPoints + tempStatAlloc.magicDefense"
+              v-model.number="tempStatAlloc.magicDefense"
+              class="stat-slider"
+              :disabled="isRunLocked"
+            />
+            <div class="stat-slider-info">
+              現在: {{ player.stats.magicDefense }} → {{ player.stats.magicDefense + tempStatAlloc.magicDefense * 3 }}
+            </div>
+          </div>
+
+          <div class="stat-slider-item">
+            <div class="stat-slider-header">
+              <span class="stat-icon">⚡</span>
+              <span class="stat-name">速度</span>
+              <span class="stat-value">+{{ tempStatAlloc.speed * 2 }}</span>
+            </div>
+            <input 
+              type="range" 
+              min="0" 
+              :max="player.statPoints + tempStatAlloc.speed"
+              v-model.number="tempStatAlloc.speed"
+              class="stat-slider"
+              :disabled="isRunLocked"
+            />
+            <div class="stat-slider-info">
+              現在: {{ player.stats.speed }} → {{ player.stats.speed + tempStatAlloc.speed * 2 }}
+            </div>
+          </div>
+        </div>
+
+        <div class="stat-manager-actions">
+          <button class="btn btn-primary" :disabled="totalTempAlloc === 0 || isRunLocked" @click="applyStatAllocation">
+            適用 ({{ totalTempAlloc }}SP使用)
+          </button>
+          <button class="btn btn-secondary" @click="resetTempAllocation">
+            リセット
+          </button>
+          <button class="btn btn-danger" :disabled="isRunLocked" @click="handleResetStats">
+            全リセット ({{ resetCost }}G)
+          </button>
         </div>
       </div>
     </div>
@@ -385,6 +539,58 @@ const availableWeapons = ref(weaponDatabase.filter(
   w => !player.weapons.find(pw => pw.id === w.id)
 ))
 
+// 武器フィルタ・ソート
+const rarityFilter = ref<string>('all')
+const typeFilter = ref<string>('all')
+const selectedTags = ref<string[]>([])
+const sortBy = ref<string>('name')
+
+const availableTags = computed(() => {
+  const allTags = new Set<string>()
+  availableWeapons.value.forEach(w => {
+    w.tags.forEach(t => allTags.add(t))
+  })
+  return Array.from(allTags).sort()
+})
+
+const filteredWeapons = computed(() => {
+  let filtered = availableWeapons.value
+
+  // レア度フィルタ
+  if (rarityFilter.value !== 'all') {
+    filtered = filtered.filter(w => w.rarity === rarityFilter.value)
+  }
+
+  // タイプフィルタ
+  if (typeFilter.value !== 'all') {
+    filtered = filtered.filter(w => w.type === typeFilter.value)
+  }
+
+  // タグフィルタ
+  if (selectedTags.value.length > 0) {
+    filtered = filtered.filter(w => 
+      selectedTags.value.some(tag => w.tags.includes(tag as any))
+    )
+  }
+
+  // ソート
+  filtered = [...filtered]
+  if (sortBy.value === 'name') {
+    filtered.sort((a, b) => a.name.localeCompare(b.name, 'ja'))
+  } else if (sortBy.value === 'rarity') {
+    const rarityOrder: Record<string, number> = { common: 1, rare: 2, epic: 3, legendary: 4 }
+    filtered.sort((a, b) => rarityOrder[b.rarity] - rarityOrder[a.rarity])
+  } else if (sortBy.value === 'attack') {
+    filtered.sort((a, b) => b.stats.attack - a.stats.attack)
+  } else if (sortBy.value === 'magic') {
+    filtered.sort((a, b) => b.stats.magic - a.stats.magic)
+  } else if (sortBy.value === 'speed') {
+    filtered.sort((a, b) => b.stats.speed - a.stats.speed)
+  }
+
+  return filtered
+})
+
 const currentLevel = ref(1)
 const selectedDungeonId = ref<string>(dungeons[0]?.id || '')
 const selectedDungeon = computed<Dungeon | undefined>(() =>
@@ -397,6 +603,61 @@ const showSettings = ref(false)
 const isLoading = ref(false)
 const toastMessage = ref('')
 const toastType = ref<'info' | 'error' | 'loot' | ''>('')
+
+// ステータス割り振り用の一時変数
+const tempStatAlloc = reactive({
+  maxHp: 0,
+  attack: 0,
+  magic: 0,
+  defense: 0,
+  magicDefense: 0,
+  speed: 0
+})
+
+const totalTempAlloc = computed(() => {
+  return tempStatAlloc.maxHp + tempStatAlloc.attack + tempStatAlloc.magic + 
+         tempStatAlloc.defense + tempStatAlloc.magicDefense + tempStatAlloc.speed
+})
+
+const resetTempAllocation = () => {
+  tempStatAlloc.maxHp = 0
+  tempStatAlloc.attack = 0
+  tempStatAlloc.magic = 0
+  tempStatAlloc.defense = 0
+  tempStatAlloc.magicDefense = 0
+  tempStatAlloc.speed = 0
+}
+
+const applyStatAllocation = () => {
+  if (isRunLocked.value) {
+    showToast('探索中はステータスを操作できません', 'error')
+    return
+  }
+  
+  const total = totalTempAlloc.value
+  if (total > player.statPoints) {
+    showToast('ポイントが不足しています', 'error')
+    return
+  }
+
+  // HP割り振り
+  for (let i = 0; i < tempStatAlloc.maxHp; i++) {
+    allocateMaxHp()
+  }
+  
+  // その他ステータス割り振り
+  const stats: Array<'attack' | 'magic' | 'defense' | 'magicDefense' | 'speed'> = 
+    ['attack', 'magic', 'defense', 'magicDefense', 'speed']
+  
+  stats.forEach(stat => {
+    for (let i = 0; i < tempStatAlloc[stat]; i++) {
+      allocateStat(stat)
+    }
+  })
+
+  resetTempAllocation()
+  showToast(`${total}ポイント割り振りました`, 'info')
+}
 
 const {
   enemy,
@@ -434,6 +695,42 @@ const isRunLocked = computed(() => isDungeonRunning.value && !(combat.value?.isG
 
 const saveList = ref<Array<{ id: string; name: string; updatedAt: number }>>([])
 const newSaveName = ref('Save')
+
+// オートセーブ機能
+let autoSaveTimer: ReturnType<typeof setTimeout> | null = null
+const triggerAutoSave = () => {
+  if (autoSaveTimer) clearTimeout(autoSaveTimer)
+  autoSaveTimer = setTimeout(async () => {
+    await autoSaveData()
+  }, 1000) // 1秒後にオートセーブ
+}
+
+const autoSaveData = async () => {
+  try {
+    const saveData = {
+      player: player,
+      availableWeapons: availableWeapons.value,
+      selectedDungeonId: selectedDungeonId.value
+    }
+    const res = await $fetch('/api/save', {
+      method: 'POST',
+      body: { id: 'autosave', name: 'AutoSave', data: saveData }
+    })
+    console.log('オートセーブ完了:', res)
+  } catch (e) {
+    console.error('オートセーブエラー:', e)
+  }
+}
+
+// プレイヤーのステータス変更を監視
+watch(() => player.stats, () => {
+  triggerAutoSave()
+}, { deep: true })
+
+// 装備している武器の変更を監視
+watch(() => player.weapons, () => {
+  triggerAutoSave()
+}, { deep: true })
 
 watch(selectedDungeonId, (next) => {
   const dungeon = dungeons.find(d => d.id === next)
@@ -862,6 +1159,112 @@ function showToast(message: string, type: 'info' | 'error' | 'loot') {
   flex-wrap: wrap;
 }
 
+.stat-manager-content {
+  max-width: 600px;
+  width: 100%;
+}
+
+.stat-sliders {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin: 20px 0;
+}
+
+.stat-slider-item {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 15px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.stat-slider-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.stat-icon {
+  font-size: 20px;
+}
+
+.stat-name {
+  flex: 1;
+  font-weight: bold;
+  font-size: 16px;
+}
+
+.stat-value {
+  color: #4facfe;
+  font-weight: bold;
+  font-size: 16px;
+}
+
+.stat-slider {
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+
+.stat-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s;
+}
+
+.stat-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 3px 10px rgba(102, 126, 234, 0.6);
+}
+
+.stat-slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s;
+}
+
+.stat-slider::-moz-range-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 3px 10px rgba(102, 126, 234, 0.6);
+}
+
+.stat-slider:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.stat-slider-info {
+  margin-top: 8px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.7);
+  text-align: right;
+}
+
+.stat-manager-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 20px;
+}
+
 .btn {
   padding: 10px 20px;
   font-size: 14px;
@@ -1171,6 +1574,68 @@ function showToast(message: string, type: 'info' | 'error' | 'loot') {
   border-radius: 10px;
   opacity: 0.7;
   font-size: 14px;
+}
+
+.weapons-header {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.weapons-header h3 {
+  margin: 0;
+}
+
+.filter-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.filter-select {
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.filter-select:hover {
+  background: rgba(0, 0, 0, 0.7);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.tag-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tag-filter-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tag-filter-label:hover {
+  background: rgba(0, 0, 0, 0.5);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.tag-filter-label input[type="checkbox"] {
+  cursor: pointer;
 }
 
 .weapon-list {
