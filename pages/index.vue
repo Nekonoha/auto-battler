@@ -299,7 +299,7 @@
                 <!-- タグと効果（Tooltipつき） -->
                 <div class="weapon-list-tags-effects">
                   <Tooltip v-for="tag in weapon.tags" :key="tag" :title="tag" :content="getTagDescription(tag)">
-                    <span class="mini-tag">{{ tag }}</span>
+                    <span class="mini-tag">#{{ tag }}</span>
                   </Tooltip>
                   <Tooltip v-for="effect in weapon.effects" :key="effect.type" :title="effect.type" :content="getStatusDescription(effect.type)">
                     <span class="mini-effect">{{ effect.type }}</span>
@@ -463,27 +463,46 @@
           <button @click="showSettings = false" class="btn-close">×</button>
         </div>
 
-        <div class="save-input-area" style="margin-bottom: 20px;">
-          <label style="display: block; margin-bottom: 6px; font-weight: bold;">セーブ名</label>
-          <div style="display: flex; gap: 8px;">
-            <input v-model="newSaveName" type="text" placeholder="Save" style="flex: 1; padding: 8px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); color: white;" />
-            <button class="btn btn-primary" @click="saveState" :disabled="isLoading">💾 セーブ</button>
+        <div class="settings-section">
+          <h3 class="settings-title">💾 セーブデータ管理</h3>
+          <div class="settings-buttons">
+            <button class="btn btn-primary" @click="downloadSaveData" style="width: 100%;">
+              📥 セーブデータをダウンロード
+            </button>
+            <div class="upload-area">
+              <input 
+                type="file" 
+                ref="fileInput" 
+                accept=".json" 
+                @change="uploadSaveData" 
+                style="display: none;"
+              />
+              <button class="btn btn-success" @click="$refs.fileInput.click()" style="width: 100%;">
+                📤 セーブデータをアップロード
+              </button>
+            </div>
           </div>
         </div>
 
-        <div class="save-list-area">
-          <label style="display: block; margin-bottom: 8px; font-weight: bold;">セーブデータ</label>
-          <div v-if="saveList.length === 0" style="text-align: center; opacity: 0.6; padding: 20px;">
-            セーブデータはまだありません
-          </div>
-          <div v-else style="display: flex; flex-direction: column; gap: 8px;">
-            <div v-for="save in saveList" :key="save.id" style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.3); padding: 10px 12px; border-radius: 8px;">
-              <div style="flex: 1;">
-                <div style="font-weight: bold;">{{ save.name }}</div>
-                <div style="font-size: 12px; opacity: 0.7;">{{ new Date(save.updatedAt).toLocaleString() }}</div>
-              </div>
-              <button class="btn btn-primary" @click="loadState(save.id)" :disabled="isLoading">ロード</button>
-            </div>
+        <div class="settings-section">
+          <h3 class="settings-title">📊 ログエクスポート</h3>
+          <div class="settings-buttons">
+            <button 
+              class="btn btn-info" 
+              @click="exportCombatLog" 
+              :disabled="combatLogs.length === 0"
+              style="width: 100%;"
+            >
+              📝 戦闘ログをエクスポート ({{ combatLogs.length }}件)
+            </button>
+            <button 
+              class="btn btn-info" 
+              @click="exportDungeonLog" 
+              :disabled="dungeonLogs.length === 0"
+              style="width: 100%;"
+            >
+              🏰 ダンジョンログをエクスポート ({{ dungeonLogs.length }}件)
+            </button>
           </div>
         </div>
       </div>
@@ -541,11 +560,12 @@
                 class="sell-checkbox"
               />
               <div class="sell-weapon-info">
-                <div class="sell-weapon-name">{{ weapon.name }}</div>
-                <div class="sell-weapon-type">{{ weapon.type }}</div>
-                <div class="sell-weapon-rarity" :style="{ color: getWeaponRarityColor(weapon.rarity) }">
-                  {{ weapon.rarity }}
+                <div class="sell-weapon-name">
+                  {{ weapon.name }}
+                  <span class="weapon-rarity-badge" :style="{ background: getWeaponRarityColor(weapon.rarity) }">{{ weapon.rarity }}</span>
                 </div>
+                <div class="sell-weapon-type">{{ weapon.type }}</div>
+                <div class="sell-weapon-desc">{{ weapon.description }}</div>
                 
                 <div class="sell-weapon-stats">
                   <Tooltip v-if="weapon.stats.attack > 0" title="⚔️ 攻撃力" content="物理ダメージに影響">
@@ -560,11 +580,17 @@
                   <Tooltip v-if="weapon.stats.critChance > 0" title="🎯 クリティカル率" content="クリティカルヒットの発生確率">
                     <span class="sell-stat">🎯{{ weapon.stats.critChance }}%</span>
                   </Tooltip>
+                  <Tooltip v-if="weapon.stats.critDamage > 0" title="💥 クリティカルダメージ" content="クリティカル時のダメージ増加">
+                    <span class="sell-stat">💥{{ weapon.stats.critDamage }}%</span>
+                  </Tooltip>
+                  <Tooltip v-if="weapon.stats.statusPower > 0" title="🔮 状態異常威力" content="状態異常の効果を強化">
+                    <span class="sell-stat">🔮{{ weapon.stats.statusPower }}</span>
+                  </Tooltip>
                 </div>
                 
                 <div class="sell-weapon-tags">
                   <Tooltip v-for="tag in weapon.tags" :key="tag" :title="tag" :content="getTagDescription(tag)">
-                    <span class="sell-tag">{{ tag }}</span>
+                    <span class="sell-tag">#{{ tag }}</span>
                   </Tooltip>
                   <Tooltip v-for="effect in weapon.effects" :key="effect.type" :title="effect.type" :content="getStatusDescription(effect.type)">
                     <span class="sell-effect">{{ effect.type }}</span>
@@ -612,52 +638,33 @@
               <div class="comparison-weapon-title">現在の装備</div>
               <div class="comparison-weapon-name">{{ weapon.name }}</div>
               <div class="comparison-weapon-type">{{ weapon.type }}</div>
+              <div class="comparison-weapon-desc">{{ weapon.description }}</div>
               
               <div class="comparison-stats">
                 <Tooltip v-if="weapon.stats.attack > 0" title="⚔️ 攻撃力" content="物理ダメージに影響">
-                  <div class="stat-row">
-                    <span class="stat-label">⚔️</span>
-                    <span class="stat-value">{{ weapon.stats.attack }}</span>
-                  </div>
+                  <span class="stat-item">⚔️{{ weapon.stats.attack }}</span>
                 </Tooltip>
                 <Tooltip v-if="weapon.stats.magic > 0" title="✨ 魔法力" content="魔法ダメージに影響">
-                  <div class="stat-row">
-                    <span class="stat-label">✨</span>
-                    <span class="stat-value">{{ weapon.stats.magic }}</span>
-                  </div>
+                  <span class="stat-item">✨{{ weapon.stats.magic }}</span>
                 </Tooltip>
                 <Tooltip v-if="weapon.stats.speed > 0" title="⚡ 速度" content="攻撃順序と頻度に影響">
-                  <div class="stat-row">
-                    <span class="stat-label">⚡</span>
-                    <span class="stat-value">{{ weapon.stats.speed }}</span>
-                  </div>
+                  <span class="stat-item">⚡{{ weapon.stats.speed }}</span>
                 </Tooltip>
                 <Tooltip v-if="weapon.stats.critChance > 0" title="🎯 クリティカル率" content="クリティカルヒットの発生確率">
-                  <div class="stat-row">
-                    <span class="stat-label">🎯</span>
-                    <span class="stat-value">{{ weapon.stats.critChance }}%</span>
-                  </div>
+                  <span class="stat-item">🎯{{ weapon.stats.critChance }}%</span>
                 </Tooltip>
                 <Tooltip v-if="weapon.stats.critDamage > 0" title="💥 クリティカルダメージ" content="クリティカル時のダメージ増加">
-                  <div class="stat-row">
-                    <span class="stat-label">💥</span>
-                    <span class="stat-value">{{ weapon.stats.critDamage }}%</span>
-                  </div>
+                  <span class="stat-item">💥{{ weapon.stats.critDamage }}%</span>
                 </Tooltip>
                 <Tooltip v-if="weapon.stats.statusPower > 0" title="🔮 状態異常威力" content="状態異常の効果を強化">
-                  <div class="stat-row">
-                    <span class="stat-label">🔮</span>
-                    <span class="stat-value">{{ weapon.stats.statusPower }}</span>
-                  </div>
+                  <span class="stat-item">🔮{{ weapon.stats.statusPower }}</span>
                 </Tooltip>
               </div>
               
-              <div class="comparison-tags" v-if="weapon.tags.length > 0">
+              <div class="comparison-tags" v-if="weapon.tags.length > 0 || weapon.effects.length > 0">
                 <Tooltip v-for="tag in weapon.tags" :key="tag" :title="tag" :content="getTagDescription(tag)">
-                  <span class="comparison-tag">{{ tag }}</span>
+                  <span class="comparison-tag">#{{ tag }}</span>
                 </Tooltip>
-              </div>
-              <div class="comparison-tags" v-if="weapon.effects.length > 0">
                 <Tooltip v-for="effect in weapon.effects" :key="effect.type" :title="effect.type" :content="getStatusDescription(effect.type)">
                   <span class="comparison-effect">{{ effect.type }}</span>
                 </Tooltip>
@@ -675,82 +682,63 @@
               <div class="comparison-weapon-title">新しい装備</div>
               <div class="comparison-weapon-name highlight">{{ selectedWeapon.name }}</div>
               <div class="comparison-weapon-type">{{ selectedWeapon.type }}</div>
+              <div class="comparison-weapon-desc">{{ selectedWeapon.description }}</div>
               
               <div class="comparison-stats">
                 <Tooltip v-if="selectedWeapon.stats.attack > 0" title="⚔️ 攻撃力" content="物理ダメージに影響">
-                  <div class="stat-row">
-                    <span class="stat-label">⚔️</span>
-                    <span class="stat-value" :class="{ improved: selectedWeapon.stats.attack > weapon.stats.attack }">
-                      {{ selectedWeapon.stats.attack }}
-                      <span v-if="selectedWeapon.stats.attack !== weapon.stats.attack" class="stat-diff">
-                        {{ selectedWeapon.stats.attack > weapon.stats.attack ? '+' : '' }}{{ selectedWeapon.stats.attack - weapon.stats.attack }}
-                      </span>
+                  <span class="stat-item" :class="{ improved: selectedWeapon.stats.attack > weapon.stats.attack }">
+                    ⚔️{{ selectedWeapon.stats.attack }}
+                    <span v-if="selectedWeapon.stats.attack !== weapon.stats.attack" class="stat-diff">
+                      {{ selectedWeapon.stats.attack > weapon.stats.attack ? '+' : '' }}{{ selectedWeapon.stats.attack - weapon.stats.attack }}
                     </span>
-                  </div>
+                  </span>
                 </Tooltip>
                 <Tooltip v-if="selectedWeapon.stats.magic > 0" title="✨ 魔法力" content="魔法ダメージに影響">
-                  <div class="stat-row">
-                    <span class="stat-label">✨</span>
-                    <span class="stat-value" :class="{ improved: selectedWeapon.stats.magic > weapon.stats.magic }">
-                      {{ selectedWeapon.stats.magic }}
-                      <span v-if="selectedWeapon.stats.magic !== weapon.stats.magic" class="stat-diff">
-                        {{ selectedWeapon.stats.magic > weapon.stats.magic ? '+' : '' }}{{ selectedWeapon.stats.magic - weapon.stats.magic }}
-                      </span>
+                  <span class="stat-item" :class="{ improved: selectedWeapon.stats.magic > weapon.stats.magic }">
+                    ✨{{ selectedWeapon.stats.magic }}
+                    <span v-if="selectedWeapon.stats.magic !== weapon.stats.magic" class="stat-diff">
+                      {{ selectedWeapon.stats.magic > weapon.stats.magic ? '+' : '' }}{{ selectedWeapon.stats.magic - weapon.stats.magic }}
                     </span>
-                  </div>
+                  </span>
                 </Tooltip>
                 <Tooltip v-if="selectedWeapon.stats.speed > 0" title="⚡ 速度" content="攻撃順序と頻度に影響">
-                  <div class="stat-row">
-                    <span class="stat-label">⚡</span>
-                    <span class="stat-value" :class="{ improved: selectedWeapon.stats.speed > weapon.stats.speed }">
-                      {{ selectedWeapon.stats.speed }}
-                      <span v-if="selectedWeapon.stats.speed !== weapon.stats.speed" class="stat-diff">
-                        {{ selectedWeapon.stats.speed > weapon.stats.speed ? '+' : '' }}{{ selectedWeapon.stats.speed - weapon.stats.speed }}
-                      </span>
+                  <span class="stat-item" :class="{ improved: selectedWeapon.stats.speed > weapon.stats.speed }">
+                    ⚡{{ selectedWeapon.stats.speed }}
+                    <span v-if="selectedWeapon.stats.speed !== weapon.stats.speed" class="stat-diff">
+                      {{ selectedWeapon.stats.speed > weapon.stats.speed ? '+' : '' }}{{ selectedWeapon.stats.speed - weapon.stats.speed }}
                     </span>
-                  </div>
+                  </span>
                 </Tooltip>
                 <Tooltip v-if="selectedWeapon.stats.critChance > 0" title="🎯 クリティカル率" content="クリティカルヒットの発生確率">
-                  <div class="stat-row">
-                    <span class="stat-label">🎯</span>
-                    <span class="stat-value" :class="{ improved: selectedWeapon.stats.critChance > weapon.stats.critChance }">
-                      {{ selectedWeapon.stats.critChance }}%
-                      <span v-if="selectedWeapon.stats.critChance !== weapon.stats.critChance" class="stat-diff">
-                        {{ selectedWeapon.stats.critChance > weapon.stats.critChance ? '+' : '' }}{{ selectedWeapon.stats.critChance - weapon.stats.critChance }}%
-                      </span>
+                  <span class="stat-item" :class="{ improved: selectedWeapon.stats.critChance > weapon.stats.critChance }">
+                    🎯{{ selectedWeapon.stats.critChance }}%
+                    <span v-if="selectedWeapon.stats.critChance !== weapon.stats.critChance" class="stat-diff">
+                      {{ selectedWeapon.stats.critChance > weapon.stats.critChance ? '+' : '' }}{{ selectedWeapon.stats.critChance - weapon.stats.critChance }}%
                     </span>
-                  </div>
+                  </span>
                 </Tooltip>
                 <Tooltip v-if="selectedWeapon.stats.critDamage > 0" title="💥 クリティカルダメージ" content="クリティカル時のダメージ増加">
-                  <div class="stat-row">
-                    <span class="stat-label">💥</span>
-                    <span class="stat-value" :class="{ improved: selectedWeapon.stats.critDamage > weapon.stats.critDamage }">
-                      {{ selectedWeapon.stats.critDamage }}%
-                      <span v-if="selectedWeapon.stats.critDamage !== weapon.stats.critDamage" class="stat-diff">
-                        {{ selectedWeapon.stats.critDamage > weapon.stats.critDamage ? '+' : '' }}{{ selectedWeapon.stats.critDamage - weapon.stats.critDamage }}%
-                      </span>
+                  <span class="stat-item" :class="{ improved: selectedWeapon.stats.critDamage > weapon.stats.critDamage }">
+                    💥{{ selectedWeapon.stats.critDamage }}%
+                    <span v-if="selectedWeapon.stats.critDamage !== weapon.stats.critDamage" class="stat-diff">
+                      {{ selectedWeapon.stats.critDamage > weapon.stats.critDamage ? '+' : '' }}{{ selectedWeapon.stats.critDamage - weapon.stats.critDamage }}%
                     </span>
-                  </div>
+                  </span>
                 </Tooltip>
                 <Tooltip v-if="selectedWeapon.stats.statusPower > 0" title="🔮 状態異常威力" content="状態異常の効果を強化">
-                  <div class="stat-row">
-                    <span class="stat-label">🔮</span>
-                    <span class="stat-value" :class="{ improved: selectedWeapon.stats.statusPower > weapon.stats.statusPower }">
-                      {{ selectedWeapon.stats.statusPower }}
-                      <span v-if="selectedWeapon.stats.statusPower !== weapon.stats.statusPower" class="stat-diff">
-                        {{ selectedWeapon.stats.statusPower > weapon.stats.statusPower ? '+' : '' }}{{ selectedWeapon.stats.statusPower - weapon.stats.statusPower }}
-                      </span>
+                  <span class="stat-item" :class="{ improved: selectedWeapon.stats.statusPower > weapon.stats.statusPower }">
+                    🔮{{ selectedWeapon.stats.statusPower }}
+                    <span v-if="selectedWeapon.stats.statusPower !== weapon.stats.statusPower" class="stat-diff">
+                      {{ selectedWeapon.stats.statusPower > weapon.stats.statusPower ? '+' : '' }}{{ selectedWeapon.stats.statusPower - weapon.stats.statusPower }}
                     </span>
-                  </div>
+                  </span>
                 </Tooltip>
               </div>
               
-              <div class="comparison-tags" v-if="selectedWeapon.tags.length > 0">
+              <div class="comparison-tags" v-if="selectedWeapon.tags.length > 0 || selectedWeapon.effects.length > 0">
                 <Tooltip v-for="tag in selectedWeapon.tags" :key="tag" :title="tag" :content="getTagDescription(tag)">
-                  <span class="comparison-tag">{{ tag }}</span>
+                  <span class="comparison-tag">#{{ tag }}</span>
                 </Tooltip>
-              </div>
-              <div class="comparison-tags" v-if="selectedWeapon.effects.length > 0">
                 <Tooltip v-for="effect in selectedWeapon.effects" :key="effect.type" :title="effect.type" :content="getStatusDescription(effect.type)">
                   <span class="comparison-effect">{{ effect.type }}</span>
                 </Tooltip>
@@ -779,52 +767,33 @@
               <div class="comparison-weapon-title">新しい装備</div>
               <div class="comparison-weapon-name highlight">{{ selectedWeapon.name }}</div>
               <div class="comparison-weapon-type">{{ selectedWeapon.type }}</div>
+              <div class="comparison-weapon-desc">{{ selectedWeapon.description }}</div>
               
               <div class="comparison-stats">
                 <Tooltip v-if="selectedWeapon.stats.attack > 0" title="⚔️ 攻撃力" content="物理ダメージに影響">
-                  <div class="stat-row">
-                    <span class="stat-label">⚔️</span>
-                    <span class="stat-value">{{ selectedWeapon.stats.attack }}</span>
-                  </div>
+                  <span class="stat-item">⚔️{{ selectedWeapon.stats.attack }}</span>
                 </Tooltip>
                 <Tooltip v-if="selectedWeapon.stats.magic > 0" title="✨ 魔法力" content="魔法ダメージに影響">
-                  <div class="stat-row">
-                    <span class="stat-label">✨</span>
-                    <span class="stat-value">{{ selectedWeapon.stats.magic }}</span>
-                  </div>
+                  <span class="stat-item">✨{{ selectedWeapon.stats.magic }}</span>
                 </Tooltip>
                 <Tooltip v-if="selectedWeapon.stats.speed > 0" title="⚡ 速度" content="攻撃順序と頻度に影響">
-                  <div class="stat-row">
-                    <span class="stat-label">⚡</span>
-                    <span class="stat-value">{{ selectedWeapon.stats.speed }}</span>
-                  </div>
+                  <span class="stat-item">⚡{{ selectedWeapon.stats.speed }}</span>
                 </Tooltip>
                 <Tooltip v-if="selectedWeapon.stats.critChance > 0" title="🎯 クリティカル率" content="クリティカルヒットの発生確率">
-                  <div class="stat-row">
-                    <span class="stat-label">🎯</span>
-                    <span class="stat-value">{{ selectedWeapon.stats.critChance }}%</span>
-                  </div>
+                  <span class="stat-item">🎯{{ selectedWeapon.stats.critChance }}%</span>
                 </Tooltip>
                 <Tooltip v-if="selectedWeapon.stats.critDamage > 0" title="💥 クリティカルダメージ" content="クリティカル時のダメージ増加">
-                  <div class="stat-row">
-                    <span class="stat-label">💥</span>
-                    <span class="stat-value">{{ selectedWeapon.stats.critDamage }}%</span>
-                  </div>
+                  <span class="stat-item">💥{{ selectedWeapon.stats.critDamage }}%</span>
                 </Tooltip>
                 <Tooltip v-if="selectedWeapon.stats.statusPower > 0" title="🔮 状態異常威力" content="状態異常の効果を強化">
-                  <div class="stat-row">
-                    <span class="stat-label">🔮</span>
-                    <span class="stat-value">{{ selectedWeapon.stats.statusPower }}</span>
-                  </div>
+                  <span class="stat-item">🔮{{ selectedWeapon.stats.statusPower }}</span>
                 </Tooltip>
               </div>
               
-              <div class="comparison-tags" v-if="selectedWeapon.tags.length > 0">
+              <div class="comparison-tags" v-if="selectedWeapon.tags.length > 0 || selectedWeapon.effects.length > 0">
                 <Tooltip v-for="tag in selectedWeapon.tags" :key="tag" :title="tag" :content="getTagDescription(tag)">
-                  <span class="comparison-tag">{{ tag }}</span>
+                  <span class="comparison-tag">#{{ tag }}</span>
                 </Tooltip>
-              </div>
-              <div class="comparison-tags" v-if="selectedWeapon.effects.length > 0">
                 <Tooltip v-for="effect in selectedWeapon.effects" :key="effect.type" :title="effect.type" :content="getStatusDescription(effect.type)">
                   <span class="comparison-effect">{{ effect.type }}</span>
                 </Tooltip>
@@ -1159,44 +1128,128 @@ const {
 
 const isRunLocked = computed(() => isDungeonRunning.value && !(combat.value?.isGameOver()))
 
-const saveList = ref<Array<{ id: string; name: string; updatedAt: number }>>([])
-const newSaveName = ref('Save')
+const fileInput = ref<HTMLInputElement | null>(null)
 
-// オートセーブ機能
-let autoSaveTimer: ReturnType<typeof setTimeout> | null = null
-const triggerAutoSave = () => {
-  if (autoSaveTimer) clearTimeout(autoSaveTimer)
-  autoSaveTimer = setTimeout(async () => {
-    await autoSaveData()
-  }, 1000) // 1秒後にオートセーブ
-}
-
-const autoSaveData = async () => {
+// セーブデータをJSONファイルとしてダウンロード
+function downloadSaveData() {
   try {
     const saveData = {
+      version: '1.0',
+      timestamp: Date.now(),
       player: player,
       availableWeapons: availableWeapons.value,
-      selectedDungeonId: selectedDungeonId.value
+      selectedDungeonId: selectedDungeonId.value,
+      currentLevel: currentLevel.value
     }
-    const res = await $fetch('/api/save', {
-      method: 'POST',
-      body: { id: 'autosave', name: 'AutoSave', data: saveData }
-    })
-    console.log('オートセーブ完了:', res)
+    
+    const json = JSON.stringify(saveData, null, 2)
+    const blob = new Blob([json], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `auto-battler-save-${new Date().toISOString().slice(0, 10)}.json`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    
+    showToast('セーブデータをダウンロードしました', 'info')
   } catch (e) {
-    console.error('オートセーブエラー:', e)
+    console.error('セーブエラー:', e)
+    showToast('セーブに失敗しました', 'error')
   }
 }
 
-// プレイヤーのステータス変更を監視
-watch(() => player.stats, () => {
-  triggerAutoSave()
-}, { deep: true })
+// JSONファイルからセーブデータをアップロード
+async function uploadSaveData(event: Event) {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file) return
+  
+  try {
+    const text = await file.text()
+    const saveData = JSON.parse(text)
+    
+    // データ検証
+    if (!saveData.player || !saveData.availableWeapons) {
+      throw new Error('無効なセーブデータです')
+    }
+    
+    // データ復元
+    Object.assign(player, saveData.player)
+    availableWeapons.value = saveData.availableWeapons
+    selectedDungeonId.value = saveData.selectedDungeonId || dungeons[0]?.id
+    currentLevel.value = saveData.currentLevel || 1
+    
+    showToast('セーブデータを読み込みました', 'info')
+    showSettings.value = false
+  } catch (e) {
+    console.error('ロードエラー:', e)
+    showToast('セーブデータの読み込みに失敗しました', 'error')
+  } finally {
+    // ファイル選択をリセット
+    target.value = ''
+  }
+}
 
-// 装備している武器の変更を監視
-watch(() => player.weapons, () => {
-  triggerAutoSave()
-}, { deep: true })
+// 戦闘ログをエクスポート
+function exportCombatLog() {
+  try {
+    const logData = {
+      exportDate: new Date().toISOString(),
+      playerName: player.name,
+      playerLevel: player.level,
+      dungeon: selectedDungeon.value?.name || 'Unknown',
+      logs: combatLogs.value
+    }
+    
+    const json = JSON.stringify(logData, null, 2)
+    const blob = new Blob([json], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `combat-log-${new Date().toISOString().slice(0, 10)}.json`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    
+    showToast('戦闘ログをエクスポートしました', 'info')
+  } catch (e) {
+    console.error('エクスポートエラー:', e)
+    showToast('エクスポートに失敗しました', 'error')
+  }
+}
+
+// ダンジョンログをエクスポート
+function exportDungeonLog() {
+  try {
+    const logData = {
+      exportDate: new Date().toISOString(),
+      playerName: player.name,
+      playerLevel: player.level,
+      dungeon: selectedDungeon.value?.name || 'Unknown',
+      totalStages: dungeonLogs.value.length,
+      logs: dungeonLogs.value
+    }
+    
+    const json = JSON.stringify(logData, null, 2)
+    const blob = new Blob([json], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `dungeon-log-${new Date().toISOString().slice(0, 10)}.json`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    
+    showToast('ダンジョンログをエクスポートしました', 'info')
+  } catch (e) {
+    console.error('エクスポートエラー:', e)
+    showToast('エクスポートに失敗しました', 'error')
+  }
+}
 
 watch(selectedDungeonId, (next) => {
   const dungeon = dungeons.find(d => d.id === next)
@@ -1273,17 +1326,9 @@ function equipWeapon(weapon: Weapon) {
     return
   }
   
-  // まだ装備していない場合
-  if (player.weapons.length >= 3) {
-    // 3つ装備済み → 置き換え選択UIを表示
-    selectedWeapon.value = weapon
-    showEquipSelection.value = true
-  } else {
-    // 空いてる → 直接装備
-    player.weapons.push(weapon)
-    pruneAvailableWeapons()
-    showToast(`${weapon.name}を装備しました`, 'info')
-  }
+  // 常に置き換えUIを表示（空きスロットも含む）
+  selectedWeapon.value = weapon
+  showEquipSelection.value = true
 }
 
 function replaceWeapon(oldIndex: number) {
@@ -1376,122 +1421,6 @@ function getTagDescription(tag: string) {
 
 function getStatusDescription(type: string) {
   return StatusEffectSystem.getStatusDescription(type as any)
-}
-
-async function saveState() {
-  try {
-    isLoading.value = true
-    const payload = serializeState()
-    const profileId = `save_${Date.now()}`
-    await $fetch('/api/save', {
-      method: 'POST',
-      body: {
-        profileId,
-        profileName: newSaveName.value,
-        state: payload
-      }
-    })
-    await fetchSaveList()
-    newSaveName.value = 'Save'
-    showToast('セーブしました', 'info')
-  } catch (e: any) {
-    console.error(e)
-    showToast('セーブに失敗しました', 'error')
-  } finally {
-    isLoading.value = false
-  }
-}
-
-async function fetchSaveList() {
-  try {
-    const res = await $fetch<{ profiles: Array<{ id: string; name: string; updatedAt: number }> }>('/api/saves')
-    saveList.value = res.profiles || []
-  } catch (e) {
-    console.error('Failed to fetch save list', e)
-  }
-}
-
-async function loadState(profileId?: string) {
-  try {
-    isLoading.value = true
-    const id = profileId || saveList.value[0]?.id || 'default'
-    const res = await $fetch<{ state: any }>('/api/load', { query: { profileId: id } })
-    deserializeState(res.state)
-    stopAuto()
-    showToast('ロードしました', 'info')
-    showSettings.value = false
-  } catch (e) {
-    showToast('ロードに失敗しました', 'error')
-  } finally {
-    isLoading.value = false
-  }
-}
-
-function serializeState() {
-  return {
-    selectedDungeonId: selectedDungeonId.value,
-    currentLevel: currentLevel.value,
-    player: {
-      name: player.name,
-      level: player.level,
-      exp: player.exp,
-      nextLevelExp: player.nextLevelExp,
-      maxHp: player.maxHp,
-      currentHp: player.currentHp,
-      statPoints: player.statPoints,
-      allocatedStats: player.allocatedStats,
-      gold: player.gold,
-      statusEffects: player.statusEffects,
-      stats: player.stats,
-      weapons: player.weapons.map(w => w.id)
-    },
-    availableWeapons: availableWeapons.value.map(w => w.id)
-  }
-}
-
-function deserializeState(state: any) {
-  if (!state) return
-  selectedDungeonId.value = state.selectedDungeonId ?? selectedDungeonId.value
-  currentLevel.value = state.currentLevel ?? 1
-
-  player.name = state.player?.name ?? 'プレイヤー'
-  player.level = state.player?.level ?? 1
-  player.exp = state.player?.exp ?? 0
-  player.nextLevelExp = state.player?.nextLevelExp ?? 100
-  player.maxHp = state.player?.maxHp ?? 200
-  player.currentHp = state.player?.currentHp ?? player.maxHp
-  player.statPoints = state.player?.statPoints ?? 0
-  player.allocatedStats = state.player?.allocatedStats ?? {
-    maxHp: 0,
-    attack: 0,
-    magic: 0,
-    defense: 0,
-    magicDefense: 0,
-    speed: 0
-  }
-  player.gold = state.player?.gold ?? 0
-  player.statusEffects = state.player?.statusEffects ?? []
-  player.stats = state.player?.stats ?? {
-    attack: 15,
-    magic: 10,
-    defense: 5,
-    magicDefense: 4,
-    speed: 10
-  }
-
-  // 武器データは新システムではIDで復元できないため、セーブデータからそのまま復元
-  player.weapons = state.player?.weapons ?? [initialWeapon]
-  availableWeapons.value = state.availableWeapons ?? generateMultipleWeapons(BASE_WEAPONS, 20, 40, 15)
-
-  const dungeon = selectedDungeon.value
-  if (dungeon) {
-    currentLevel.value = Math.min(
-      dungeon.levelRange[1],
-      Math.max(dungeon.levelRange[0], currentLevel.value)
-    )
-  }
-
-  pruneAvailableWeapons()
 }
 
 function showToast(message: string, type: 'info' | 'error' | 'loot') {
@@ -2349,18 +2278,19 @@ function showToast(message: string, type: 'info' | 'error' | 'loot') {
 }
 
 .mini-tag {
-  padding: 2px 6px;
-  background: rgba(100, 150, 255, 0.3);
-  border: 1px solid rgba(100, 150, 255, 0.6);
-  border-radius: 4px;
-  font-size: 10px;
+  padding: 0;
+  background: none;
+  border: none;
+  font-size: 11px;
   color: #6b9dff;
   cursor: help;
   transition: all 0.2s;
+  font-weight: 500;
 }
 
 .mini-tag:hover {
-  background: rgba(100, 150, 255, 0.5);
+  color: #8fb3ff;
+  text-shadow: 0 0 8px rgba(107, 157, 255, 0.5);
 }
 
 .mini-effect {
@@ -2430,11 +2360,21 @@ function showToast(message: string, type: 'info' | 'error' | 'loot') {
   font-weight: bold;
   color: white;
   text-shadow: 0 0 6px rgba(66, 165, 245, 0.5);
+  margin-bottom: 4px;
 }
 
 .sell-weapon-type {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.sell-weapon-desc {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 8px;
+  line-height: 1.4;
 }
 
 .sell-weapon-rarity {
@@ -2447,16 +2387,13 @@ function showToast(message: string, type: 'info' | 'error' | 'loot') {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 4px;
+  margin-top: 8px;
+  margin-bottom: 8px;
 }
 
 .sell-stat {
-  padding: 3px 8px;
-  background: rgba(66, 165, 245, 0.15);
-  border: 1px solid rgba(66, 165, 245, 0.3);
-  border-radius: 4px;
   font-size: 12px;
-  color: rgba(66, 165, 245, 0.9);
+  color: rgba(255, 255, 255, 0.8);
   cursor: help;
 }
 
@@ -2468,23 +2405,28 @@ function showToast(message: string, type: 'info' | 'error' | 'loot') {
 }
 
 .sell-tag {
-  padding: 3px 7px;
-  background: rgba(66, 165, 245, 0.2);
-  border: 1px solid rgba(66, 165, 245, 0.4);
-  border-radius: 4px;
-  font-size: 10px;
-  color: rgba(66, 165, 245, 0.8);
+  padding: 0;
+  background: none;
+  border: none;
+  font-size: 11px;
+  color: #6b9dff;
   cursor: help;
+  font-weight: 500;
 }
 
 .sell-effect {
   padding: 3px 7px;
-  background: rgba(156, 39, 176, 0.2);
-  border: 1px solid rgba(156, 39, 176, 0.4);
+  background: rgba(255, 183, 94, 0.3);
+  border: 1px solid rgba(255, 183, 94, 0.6);
   border-radius: 4px;
   font-size: 10px;
-  color: rgba(156, 39, 176, 0.8);
+  color: #ffb75a;
   cursor: help;
+  transition: all 0.2s;
+}
+
+.sell-effect:hover {
+  background: rgba(255, 183, 94, 0.5);
 }
 
 .sell-weapon-value {
@@ -2615,6 +2557,7 @@ function showToast(message: string, type: 'info' | 'error' | 'loot') {
   font-weight: bold;
   font-size: 16px;
   color: white;
+  margin-bottom: 2px;
 }
 
 .comparison-weapon-name.highlight {
@@ -2622,38 +2565,36 @@ function showToast(message: string, type: 'info' | 'error' | 'loot') {
 }
 
 .comparison-weapon-type {
-  font-size: 12px;
-  opacity: 0.7;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
   text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.comparison-weapon-desc {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 10px;
+  line-height: 1.4;
 }
 
 .comparison-stats {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: 10px;
   padding: 12px;
   background: rgba(0, 0, 0, 0.3);
   border-radius: 8px;
+  margin-bottom: 10px;
 }
 
-.stat-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.stat-item {
   font-size: 13px;
-}
-
-.stat-label {
-  width: 20px;
-  text-align: center;
-}
-
-.stat-value {
-  flex: 1;
   color: rgba(255, 255, 255, 0.8);
+  cursor: help;
 }
 
-.stat-value.improved {
+.stat-item.improved {
   color: rgba(76, 175, 80, 0.95);
   font-weight: bold;
 }
@@ -2672,23 +2613,28 @@ function showToast(message: string, type: 'info' | 'error' | 'loot') {
 }
 
 .comparison-tag {
-  padding: 4px 8px;
-  background: rgba(66, 165, 245, 0.2);
-  border: 1px solid rgba(66, 165, 245, 0.4);
-  border-radius: 4px;
+  padding: 0;
+  background: none;
+  border: none;
   font-size: 11px;
-  color: rgba(66, 165, 245, 0.8);
+  color: #6b9dff;
   cursor: help;
+  font-weight: 500;
 }
 
 .comparison-effect {
   padding: 4px 8px;
-  background: rgba(156, 39, 176, 0.2);
-  border: 1px solid rgba(156, 39, 176, 0.4);
+  background: rgba(255, 183, 94, 0.3);
+  border: 1px solid rgba(255, 183, 94, 0.6);
   border-radius: 4px;
   font-size: 11px;
-  color: rgba(156, 39, 176, 0.8);
+  color: #ffb75a;
   cursor: help;
+  transition: all 0.2s;
+}
+
+.comparison-effect:hover {
+  background: rgba(255, 183, 94, 0.5);
 }
 
 .empty-slot-card {
@@ -2764,6 +2710,32 @@ function showToast(message: string, type: 'info' | 'error' | 'loot') {
   position: relative;
   overflow: hidden;
   border: 1px solid rgba(66, 165, 245, 0.2);
+}
+
+.settings-section {
+  margin-bottom: 30px;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(66, 165, 245, 0.2);
+  border-radius: 10px;
+}
+
+.settings-title {
+  margin: 0 0 15px 0;
+  color: rgba(66, 165, 245, 0.9);
+  font-size: 16px;
+  font-weight: bold;
+  text-shadow: 0 0 8px rgba(66, 165, 245, 0.5);
+}
+
+.settings-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.upload-area {
+  position: relative;
 }
 
 .confetti {

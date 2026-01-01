@@ -157,15 +157,10 @@
                 <Tooltip 
                   v-for="tag in weapon.tags"
                   :key="tag"
-                  :title="`📌 ${tag}`"
+                  :title="tag"
                   :content="getTagDescription(tag)"
                 >
-                  <span 
-                    class="tag"
-                    :style="{ backgroundColor: getTagColor(tag) }"
-                  >
-                    {{ tag }}
-                  </span>
+                  <span class="tag">#{{ tag }}</span>
                 </Tooltip>
               </div>
               <!-- 付与効果表示 -->
@@ -589,6 +584,7 @@ h3 {
   padding: 2px 6px;
   background: rgba(255, 255, 255, 0.1);
   border-radius: 4px;
+  cursor: help;
 }
 
 .weapon-tags-effects {
@@ -600,7 +596,7 @@ h3 {
 
 .weapon-tags {
   display: flex;
-  gap: 4px;
+  gap: 6px;
   flex-wrap: wrap;
 }
 
@@ -617,15 +613,28 @@ h3 {
   border-radius: 4px;
   font-size: 10px;
   color: #ffb75a;
+  cursor: help;
+  transition: all 0.2s;
+}
+
+.effect-badge:hover {
+  background: rgba(255, 183, 94, 0.5);
 }
 
 .tag {
-  padding: 2px 8px;
-  border-radius: 4px;
+  padding: 0;
+  background: none;
+  border: none;
   font-size: 11px;
-  font-weight: bold;
-  color: white;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  color: #6b9dff;
+  cursor: help;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.tag:hover {
+  color: #8fb3ff;
+  text-shadow: 0 0 8px rgba(107, 157, 255, 0.5);
 }
 
 .synergies-display {

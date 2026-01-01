@@ -35,6 +35,7 @@ export function useGameOrchestrator(
     enemy,
     combat,
     combatLogs,
+    dungeonLogs,
     startBattle,
     runTurn,
     goNextBattle
@@ -273,6 +274,7 @@ export function useGameOrchestrator(
     stopAuto()
     resetPlayerState()
     combatLogs.value = [] // ダンジョン開始時にログをクリア
+    dungeonLogs.value = [] // ダンジョン開始時にログをクリア
     isDungeonRunning.value = true
     currentStage.value = 0
     currentEvent.value = null
@@ -314,6 +316,7 @@ export function useGameOrchestrator(
     enemy,
     combat,
     combatLogs,
+    dungeonLogs,
     showChestModal,
     chestOptions,
     chestQueue,
