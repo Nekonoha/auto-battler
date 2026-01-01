@@ -1,0 +1,17 @@
+services:
+  app:
+    build: .
+    container_name: auto-battler-dev
+    ports:
+      - "3002:3002"
+    volumes:
+      # ソースコードをマウント（ホットリロード対応）
+      - .:/app
+      # node_modulesは除外（コンテナ内のものを使用）
+      - /app/node_modules
+      # .nuxtフォルダも除外
+      - /app/.nuxt
+    environment:
+      - NODE_ENV=development
+    stdin_open: true
+    tty: true

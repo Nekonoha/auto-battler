@@ -1,0 +1,41 @@
+{
+  "id": "save_1767282854332",
+  "name": "Save",
+  "state": {
+    "selectedDungeonId": "beginner-cave",
+    "currentLevel": 3,
+    "player": {
+      "name": "プレイヤー",
+      "level": 1,
+      "exp": 0,
+      "nextLevelExp": 100,
+      "maxHp": 200,
+      "currentHp": 178,
+      "statusEffects": [],
+      "stats": {
+        "attack": 15,
+        "magic": 10,
+        "defense": 5,
+        "magicDefense": 4,
+        "speed": 10
+      },
+      "weapons": [
+        "melee_common_sword",
+        "ranged_common_bow",
+        "dot_rare_poison_dagger"
+      ]
+    },
+    "availableWeapons": [
+      "melee_rare_axe",
+      "melee_epic_katana",
+      "ranged_rare_crossbow",
+      "ranged_legendary_sniper",
+      "magic_common_wand",
+      "magic_epic_staff",
+      "magic_legendary_tome",
+      "dot_epic_cursed_blade",
+      "dot_legendary_plague"
+    ]
+  },
+  "updatedAt": 1767282854336
+}
