@@ -1,5 +1,5 @@
 import { ref, type Ref } from 'vue'
-import type { Player, Weapon, PlayerAllocatedStats, PlayerStats, EnemyTier, Dungeon } from '~/types'
+import type { Player, PlayerAllocatedStats, PlayerStats, EnemyTier, Dungeon } from '~/types'
 import { useExperience } from './useExperience'
 import { useLootSystem } from './useLootSystem'
 import { useBattleFlow } from './useBattleFlow'
@@ -18,14 +18,13 @@ export function useGameOrchestrator(
   const { grantExpForEnemy } = useExperience(player)
   const {
     showChestModal,
-    chestOptions,
-    chestQueue,
     lastLootSource,
     hasPendingChest,
     chestCount,
     handleVictoryLoot,
-    chooseChestWeapon: baseChooseChestWeapon,
     openPendingChest,
+    openChests,
+    chestLootHistory,
     addToAvailableIfNeeded,
     pruneAvailableWeapons,
     spawnChest
@@ -312,11 +311,6 @@ export function useGameOrchestrator(
     addInfo('探索を中断しました')
   }
 
-  const chooseChestWeapon = (weapon: Weapon) => {
-    const res = baseChooseChestWeapon(weapon)
-    return res
-  }
-
   const changeSpeed = (speed: BattleSpeed) => {
     battleSpeed.value = speed
     if (isAutoRunning.value) {
@@ -332,8 +326,6 @@ export function useGameOrchestrator(
     explorationCombatLogs,
     dungeonLogs,
     showChestModal,
-    chestOptions,
-    chestQueue,
     lastLootSource,
     hasPendingChest,
     isDungeonRunning,
@@ -342,13 +334,14 @@ export function useGameOrchestrator(
     currentEvent,
     chestCount,
     infoMessages,
+    chestLootHistory,
     battleSpeed,
     isAutoRunning,
     startDungeonRun,
     proceedNextBattle,
     processVictory,
-    chooseChestWeapon,
     openPendingChest,
+    openChests,
     abandonDungeon,
     addToAvailableIfNeeded,
     pruneAvailableWeapons,

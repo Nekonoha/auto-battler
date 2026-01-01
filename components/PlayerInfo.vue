@@ -7,6 +7,18 @@
         <div class="resource-item">✨ {{ player.statPoints }}SP</div>
       </div>
     </div>
+
+    <div class="player-actions-row">
+      <button class="btn btn-secondary btn-compact" @click="$emit('openWeaponManager')" :disabled="isRunLocked">
+        🛡️ 武器管理
+      </button>
+      <button class="btn btn-secondary btn-compact" @click="$emit('openSellMenu')" :disabled="isRunLocked">
+        💰 売却
+      </button>
+      <button class="btn btn-secondary btn-compact" @click="$emit('openStatManager')" :disabled="isRunLocked">
+        🧠 ステ振り
+      </button>
+    </div>
     
     <!-- レベルと経験値 -->
     <div class="level-section">
@@ -35,9 +47,6 @@
     <div class="section-with-action">
       <div class="section-header">
         <h3>⚖️ ステータス</h3>
-        <button class="btn btn-secondary btn-compact" @click="$emit('openStatManager')" :disabled="isRunLocked">
-          割り振り
-        </button>
       </div>
       <div class="stats-display">
       <div class="stat-row">
@@ -104,9 +113,6 @@
     <div class="section-with-action">
       <div class="section-header">
         <h3>⚔️ 装備武器</h3>
-        <button class="btn btn-secondary btn-compact" @click="$emit('openWeaponManager')" :disabled="isRunLocked">
-          武器変更
-        </button>
       </div>
       <div class="weapons-section">
       <div v-if="player.weapons.length === 0" class="no-weapons">
@@ -213,6 +219,7 @@ const props = defineProps<{
 defineEmits<{
   openWeaponManager: []
   openStatManager: []
+  openSellMenu: []
 }>()
 
 const hpPercentage = computed(() => {
@@ -323,6 +330,51 @@ const getSynergyDescription = (synergyId: string) => {
 .player-resources {
   display: flex;
   gap: 12px;
+}
+
+.player-actions-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.btn {
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: linear-gradient(135deg, #232a38 0%, #1a202c 100%);
+  color: #d8deea;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+}
+
+.btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #2c3446 0%, #202735 100%);
+  transform: translateY(-1px);
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: linear-gradient(135deg, #232a38 0%, #1a202c 100%);
+  color: #d8deea;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #2c3446 0%, #202735 100%);
+}
+
+.btn-compact {
+  padding: 7px 12px;
+  font-size: 12px;
 }
 
 .resource-item {

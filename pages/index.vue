@@ -2,11 +2,16 @@
   <div id="app">
     <header class="app-header">
       <h1>⚔️ オートバトラー</h1>
-      <div style="display: flex; gap: 8px;">
-        <button class="btn btn-warning" @click="showSellMenu = true">💰 売却メニュー</button>
+    </header>
+
+    <div class="top-actions">
+      <div class="top-actions-left">
+        <button class="btn btn-primary" @click="showSaveMenu = true">💾 セーブ / ロード</button>
+      </div>
+      <div class="top-actions-right">
         <button class="btn btn-settings" @click="showSettings = true">⚙️ 設定</button>
       </div>
-    </header>
+    </div>
 
     <div class="game-container">
       <div class="control-grid">
@@ -110,6 +115,7 @@
           :isRunLocked="isRunLocked"
           @openWeaponManager="showWeaponSelection = true"
           @openStatManager="showStatManager = true"
+          @openSellMenu="showSellMenu = true"
         />
 
         <div>
@@ -499,28 +505,7 @@
         </div>
 
         <div class="settings-section">
-          <h3 class="settings-title">💾 セーブデータ管理</h3>
-          <div class="settings-buttons">
-            <button class="btn btn-primary" @click="downloadSaveData" style="width: 100%;">
-              📥 セーブデータをダウンロード
-            </button>
-            <div class="upload-area">
-              <input 
-                type="file" 
-                ref="fileInput" 
-                accept=".json" 
-                @change="uploadSaveData" 
-                style="display: none;"
-              />
-              <button class="btn btn-success" @click="$refs.fileInput.click()" style="width: 100%;">
-                📤 セーブデータをアップロード
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div class="settings-section">
-          <h3 class="settings-title">📊 ログ & セーブ管理</h3>
+          <h3 class="settings-title">📊 ログエクスポート</h3>
           <div class="settings-buttons">
             <button 
               class="btn btn-info" 
@@ -546,19 +531,69 @@
             >
               🏰 ダンジョンログをエクスポート ({{ dungeonLogs.length }}件)
             </button>
-            <button 
-              class="btn btn-primary" 
-              @click="downloadSaveData"
-              style="width: 100%;"
-            >
-              💾 セーブデータをダウンロード
-            </button>
-            <button 
-              class="btn btn-danger" 
-              @click="clearLocalSave"
-              style="width: 100%;"
-            >
-              🗑️ ローカルセーブを削除
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="showSaveMenu" class="loot-modal">
+      <div class="loot-content" style="max-width: 640px;">
+        <div class="modal-header">
+          <h2>💾 セーブ / ロード</h2>
+          <button @click="showSaveMenu = false" class="btn-close">×</button>
+        </div>
+
+        <div class="settings-section">
+          <h3 class="settings-title">💾 セーブスロット</h3>
+          <div class="save-slot-list">
+            <div v-for="entry in saveEntries" :key="entry.id" class="save-slot-item">
+              <div class="save-slot-info">
+                <div class="save-slot-name">{{ entry.label }}</div>
+                <div class="save-slot-meta">
+                  <span v-if="entry.savedAt">保存: {{ formatTime(entry.savedAt) }}</span>
+                  <span v-else>未保存</span>
+                </div>
+              </div>
+              <div class="save-slot-actions">
+                <button 
+                  class="btn btn-primary"
+                  :disabled="entry.kind === 'auto'"
+                  @click="handleSaveEntry(entry)"
+                >
+                  上書き保存
+                </button>
+                <button 
+                  class="btn btn-secondary" 
+                  :disabled="!entry.savedAt"
+                  @click="handleLoadEntry(entry)"
+                >ロード</button>
+                <button 
+                  class="btn btn-info" 
+                  :disabled="!entry.savedAt"
+                  @click="handleDownloadEntry(entry)"
+                >DL</button>
+                <button 
+                  class="btn btn-danger" 
+                  :disabled="entry.kind === 'auto' || !entry.savedAt"
+                  @click="handleDeleteEntry(entry)"
+                >削除</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h3 class="settings-title">📤 セーブデータをアップロード</h3>
+          <div class="upload-area">
+            <input 
+              type="file" 
+              ref="fileInput" 
+              accept=".json" 
+              @change="uploadSaveData" 
+              style="display: none;"
+            />
+            <button class="btn btn-success" @click="(fileInput as any)?.$el?.click() || ($refs.fileInput as HTMLInputElement)?.click()" style="width: 100%;">
+              📤 ファイルからロード
             </button>
           </div>
         </div>
@@ -616,56 +651,54 @@
                 :disabled="!canSellWeapon(weapon)"
                 class="sell-checkbox"
               />
-              <div class="sell-weapon-info">
-                <div class="sell-weapon-name">
-                  {{ weapon.name }}
-                  <span class="weapon-rarity-badge" :style="{ background: getWeaponRarityColor(weapon.rarity) }">{{ weapon.rarity }}</span>
-                </div>
-                <div class="sell-weapon-type">{{ weapon.type }}</div>
-                <div class="sell-weapon-desc">{{ weapon.description }}</div>
-                
-                <div class="sell-weapon-stats">
-                  <Tooltip v-if="weapon.stats.attack > 0" title="⚔️ 攻撃力" content="物理ダメージに影響">
-                    <span class="sell-stat">⚔️{{ weapon.stats.attack }}</span>
-                  </Tooltip>
-                  <Tooltip v-if="weapon.stats.magic > 0" title="✨ 魔法力" content="魔法ダメージに影響">
-                    <span class="sell-stat">✨{{ weapon.stats.magic }}</span>
-                  </Tooltip>
-                  <Tooltip v-if="weapon.stats.speed > 0" title="⚡ 速度" content="攻撃順序と頻度に影響">
-                    <span class="sell-stat">⚡{{ weapon.stats.speed }}</span>
-                  </Tooltip>
-                  <Tooltip v-if="weapon.stats.critChance > 0" title="🎯 クリティカル率" content="クリティカルヒットの発生確率">
-                    <span class="sell-stat">🎯{{ weapon.stats.critChance }}%</span>
-                  </Tooltip>
-                  <Tooltip v-if="weapon.stats.critDamage > 0" title="💥 クリティカルダメージ" content="クリティカル時のダメージ増加">
-                    <span class="sell-stat">💥{{ weapon.stats.critDamage }}%</span>
-                  </Tooltip>
-                  <Tooltip v-if="weapon.stats.statusPower > 0" title="🔮 状態異常威力" content="状態異常の効果を強化">
-                    <span class="sell-stat">🔮{{ weapon.stats.statusPower }}</span>
-                  </Tooltip>
-                </div>
-                
-                <div class="sell-weapon-tags">
-                  <Tooltip v-for="tag in weapon.tags" :key="tag" :title="tag" :content="getTagDescription(tag)">
-                    <span class="sell-tag">#{{ tag }}</span>
-                  </Tooltip>
-                  <Tooltip v-for="effect in weapon.effects" :key="effect.type" :title="effect.type" :content="getStatusDescription(effect.type)">
-                    <span class="sell-effect">{{ effect.type }}</span>
-                  </Tooltip>
-                </div>
-                
-                <div class="sell-weapon-value">
-                  売値: <strong>{{ (weapon as any).sellValue || 10 }}G</strong>
-                </div>
-                
-                <div v-if="!canSellWeapon(weapon)" class="sell-weapon-disabled">
-                  {{ weapon.id === initialWeapon.id ? '初期装備（売却不可）' : '装備中' }}
-                </div>
+
+              <div class="sell-weapon-header">
+                <div class="sell-weapon-name">{{ weapon.name }}</div>
+                <span class="weapon-rarity-badge" :style="{ background: getWeaponRarityColor(weapon.rarity) }">{{ weapon.rarity }}</span>
+              </div>
+              <div class="sell-weapon-type">{{ weapon.type }}</div>
+              <div class="sell-weapon-desc">{{ weapon.description }}</div>
+
+              <div class="sell-weapon-stats">
+                <Tooltip v-if="weapon.stats.attack > 0" title="⚔️ 攻撃力" content="物理ダメージに影響">
+                  <span class="sell-stat">⚔️{{ weapon.stats.attack }}</span>
+                </Tooltip>
+                <Tooltip v-if="weapon.stats.magic > 0" title="✨ 魔法力" content="魔法ダメージに影響">
+                  <span class="sell-stat">✨{{ weapon.stats.magic }}</span>
+                </Tooltip>
+                <Tooltip v-if="weapon.stats.speed > 0" title="⚡ 速度" content="攻撃順序と頻度に影響">
+                  <span class="sell-stat">⚡{{ weapon.stats.speed }}</span>
+                </Tooltip>
+                <Tooltip v-if="weapon.stats.critChance > 0" title="🎯 クリティカル率" content="クリティカルヒットの発生確率">
+                  <span class="sell-stat">🎯{{ weapon.stats.critChance }}%</span>
+                </Tooltip>
+                <Tooltip v-if="weapon.stats.critDamage > 0" title="💥 クリティカルダメージ" content="クリティカル時のダメージ増加">
+                  <span class="sell-stat">💥{{ weapon.stats.critDamage }}%</span>
+                </Tooltip>
+                <Tooltip v-if="weapon.stats.statusPower > 0" title="🔮 状態異常威力" content="状態異常の効果を強化">
+                  <span class="sell-stat">🔮{{ weapon.stats.statusPower }}</span>
+                </Tooltip>
+              </div>
+              
+              <div class="sell-weapon-tags">
+                <Tooltip v-for="tag in weapon.tags" :key="tag" :title="tag" :content="getTagDescription(tag)">
+                  <span class="sell-tag">#{{ tag }}</span>
+                </Tooltip>
+                <Tooltip v-for="effect in weapon.effects" :key="effect.type" :title="effect.type" :content="getStatusDescription(effect.type)">
+                  <span class="sell-effect">{{ effect.type }}</span>
+                </Tooltip>
+              </div>
+              
+              <div class="sell-weapon-value">
+                売値: <strong>{{ (weapon as any).sellValue || 10 }}G</strong>
+              </div>
+              
+              <div v-if="!canSellWeapon(weapon)" class="sell-weapon-disabled">
+                {{ weapon.id === initialWeapon.id ? '初期装備（売却不可）' : '装備中' }}
               </div>
             </div>
           </div>
         </div>
-
         <button class="btn btn-secondary" style="width: 100%; margin-top: 15px;" @click="showSellMenu = false">
           閉じる
         </button>
@@ -864,19 +897,61 @@
       </div>
     </div>
 
-    <div v-if="showChestModal && chestOptions" class="loot-modal">
-      <div class="loot-content">
+    <div v-if="showChestModal && hasPendingChest" class="loot-modal">
+      <div class="loot-content chest-open-content">
         <div class="confetti"></div>
         <div class="modal-header">
-          <h2>🧰 宝箱がドロップ！</h2>
+          <h2>🎁 宝箱を開封</h2>
+          <button @click="showChestModal = false" class="btn-close">×</button>
         </div>
-        <p class="loot-subtitle">
-          {{ lastLootSource === 'named' ? 'ネームドからの豪華報酬' : 'エリートからの報酬' }} - 好きな武器を選択してください
-        </p>
-        <div class="weapons-grid">
-          <div v-for="weapon in chestOptions" :key="weapon.id" class="loot-option">
-            <WeaponCard :weapon="weapon" />
-            <button class="btn btn-primary" @click="chooseChestWeapon(weapon)">この武器を拾う</button>
+
+        <div class="chest-visual" :class="{ opening: isChestOpening }">
+          <div class="chest-lid"></div>
+          <div class="chest-box"></div>
+          <div class="chest-count-chip">保留中 {{ chestCount }} 個</div>
+        </div>
+
+        <div class="chest-controls">
+          <div class="chest-control-row">
+            <label>開封する数 (最大10個)</label>
+            <input
+              type="number"
+              class="chest-count-input"
+              v-model.number="chestOpenCount"
+              :min="1"
+              :max="Math.min(10, chestCount)"
+              :disabled="chestCount === 0"
+            />
+            <button class="btn btn-primary" @click="handleOpenChests()" :disabled="chestCount === 0 || isChestOpening">
+              開封する
+            </button>
+            <button class="btn btn-secondary" @click="handleOpenChests(Math.min(10, chestCount))" :disabled="chestCount === 0 || isChestOpening">
+              最大開封
+            </button>
+          </div>
+          <div class="chest-hint">最新のドロップ元: {{ lastLootSourceLabel }} / まとめて最大10個まで開封できます</div>
+        </div>
+
+        <div class="chest-log">
+          <div class="chest-log-header">
+            <span>📜 入手ログ</span>
+            <span class="chest-log-count">最新 {{ Math.min(10, chestLootHistory.length) }} 件表示</span>
+          </div>
+          <div v-if="chestLootHistory.length === 0" class="chest-log-empty">まだ入手ログがありません</div>
+          <div v-else class="chest-log-list">
+            <div
+              v-for="entry in chestLootHistory.slice(0, 10)"
+              :key="entry.id"
+              class="chest-log-item"
+            >
+              <span class="rarity-tag" :class="entry.rarity">{{ entry.rarity.toUpperCase() }}</span>
+              <span class="chest-log-name">{{ entry.name }}</span>
+              <span class="chest-log-status" :class="entry.status">
+                {{ entry.status === 'limitbreak' ? `限界突破 +${entry.level}` : entry.status === 'maxed' ? 'MAX' : 'NEW' }}
+              </span>
+              <span class="chest-log-tier">{{ entry.tier.toUpperCase() }}</span>
+              <span class="chest-log-time">{{ formatTime(entry.timestamp) }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -897,7 +972,6 @@ import { useGameOrchestrator } from '~/composables/useGameOrchestrator'
 import PlayerInfo from '~/components/PlayerInfo.vue'
 import EnemyInfo from '~/components/EnemyInfo.vue'
 import CombatLog from '~/components/CombatLog.vue'
-import WeaponCard from '~/components/WeaponCard.vue'
 import { compressToUint8Array, decompressFromUint8Array } from '~/utils/lzString'
 
 // 初期武器を生成
@@ -1017,9 +1091,11 @@ const selectedDungeon = computed<Dungeon | undefined>(() =>
 const showWeaponSelection = ref(false)
 const showStatManager = ref(false)
 const showSettings = ref(false)
+const showSaveMenu = ref(false)
 const showSellMenu = ref(false)
+const chestOpenCount = ref(1)
+const isChestOpening = ref(false)
 const selectedSellWeapons = ref<Set<string>>(new Set())
-const isLoading = ref(false)
 const toastMessage = ref('')
 const toastType = ref<'info' | 'error' | 'loot' | ''>('')
 
@@ -1159,8 +1235,6 @@ const {
   explorationCombatLogs,
   dungeonLogs,
   showChestModal,
-  chestOptions,
-  // chestQueue, // 未使用
   lastLootSource,
   hasPendingChest,
   chestCount,
@@ -1169,12 +1243,13 @@ const {
   totalStages,
   currentEvent,
   infoMessages,
+  chestLootHistory,
   battleSpeed,
   isAutoRunning,
   startDungeonRun,
   proceedNextBattle,
-  chooseChestWeapon,
   openPendingChest,
+  openChests,
   addToAvailableIfNeeded,
   pruneAvailableWeapons,
   changeSpeed,
@@ -1188,8 +1263,15 @@ const {
 
 const isRunLocked = computed(() => isDungeonRunning.value && !(combat.value?.isGameOver()))
 
+const lastLootSourceLabel = computed(() => {
+  const map: Record<string, string> = { boss: 'ボス', named: 'ネームド', elite: 'エリート', normal: '通常' }
+  if (!lastLootSource.value) return '不明'
+  return map[lastLootSource.value] ?? lastLootSource.value
+})
+
 const fileInput = ref<HTMLInputElement | null>(null)
 const SAVE_KEY = 'auto-battler-save'
+const SAVE_SLOTS_KEY = 'auto-battler-manual-saves'
 const SAVE_VERSION = '1.1'
 let isRestoring = false
 const SAVE_PASSPHRASE = 'auto-battler-local-key'
@@ -1211,6 +1293,15 @@ interface StoredSaveEnvelope {
   raw?: SaveData
 }
 
+type SaveSlotId = 'slot1' | 'slot2'
+
+interface ManualSlotEntry {
+  id: SaveSlotId
+  label: string
+  savedAt: number | null
+  envelope?: StoredSaveEnvelope
+}
+
 interface SaveData {
   version: string
   timestamp: number
@@ -1227,6 +1318,14 @@ const clampLevel = (level: number, dungeon?: Dungeon) => {
   const min = dungeon?.levelRange?.[0] ?? 1
   const max = dungeon?.levelRange?.[1] ?? Math.max(level, 1)
   return Math.min(Math.max(level, min), max)
+}
+
+const buildEnvelope = async (data?: SaveData): Promise<StoredSaveEnvelope> => {
+  const payload = data ?? buildSaveData()
+  const envelope: StoredSaveEnvelope = { raw: payload }
+  const encoded = await encryptAndCompress(JSON.stringify(payload))
+  if (encoded) envelope.encoded = encoded
+  return envelope
 }
 
 const buildSaveData = (): SaveData => {
@@ -1277,7 +1376,7 @@ const applySaveData = (data: SaveData, opts: { silent?: boolean } = {}) => {
   if (!player.weapons.length) player.weapons.push(initialWeapon)
   player.currentHp = Math.min(player.currentHp, player.maxHp)
 
-  availableWeapons.value = Array.isArray(data.availableWeapons) ? data.availableWeapons : []
+  availableWeapons.value = Array.isArray(data.availableWeapons) ? (data.availableWeapons as any) : []
   combatLogs.value = Array.isArray(data.combatLogs) ? data.combatLogs : []
   explorationCombatLogs.value = Array.isArray(data.explorationCombatLogs) ? data.explorationCombatLogs : []
   dungeonLogs.value = Array.isArray(data.dungeonLogs) ? data.dungeonLogs : []
@@ -1296,13 +1395,12 @@ const saveToLocal = async (payload?: SaveData) => {
   if (typeof window === 'undefined') return
   if (isRestoring) return
   const data = payload ?? buildSaveData()
-  const envelope: StoredSaveEnvelope = { raw: data }
-  const encoded = await encryptAndCompress(JSON.stringify(data))
-  if (encoded) envelope.encoded = encoded
+  const envelope = await buildEnvelope(data)
   localStorage.setItem(SAVE_KEY, JSON.stringify(envelope))
+  autosaveMeta.value = { savedAt: data.timestamp }
 }
 
-const loadFromLocal = async () => {
+const loadFromLocal = async (opts: { silent?: boolean } = { silent: true }) => {
   if (typeof window === 'undefined') return
   const raw = localStorage.getItem(SAVE_KEY)
   if (!raw) return
@@ -1331,7 +1429,8 @@ const loadFromLocal = async () => {
     if (!validateSaveData(payload)) {
       throw new Error('無効なセーブデータです')
     }
-    applySaveData(payload, { silent: true })
+    applySaveData(payload, { silent: opts.silent })
+    autosaveMeta.value = { savedAt: payload.timestamp }
   } catch (e) {
     console.error('ロードエラー:', e)
     showToast('セーブデータの読み込みに失敗しました', 'error')
@@ -1340,6 +1439,7 @@ const loadFromLocal = async () => {
 
 onMounted(() => {
   loadFromLocal()
+  refreshManualSlots()
 })
 
 watch(
@@ -1401,7 +1501,9 @@ async function uploadSaveData(event: Event) {
     
     applySaveData(payload)
     saveToLocal(payload)
+    refreshManualSlots()
     showSettings.value = false
+    showSaveMenu.value = false
   } catch (e) {
     console.error('ロードエラー:', e)
     showToast('セーブデータの読み込みに失敗しました', 'error')
@@ -1508,6 +1610,17 @@ watch(selectedDungeonId, (next) => {
   }
 })
 
+watch(chestCount, (next) => {
+  const max = Math.min(10, next)
+  if (next <= 0) {
+    chestOpenCount.value = 0
+  } else if (chestOpenCount.value === 0) {
+    chestOpenCount.value = 1
+  } else {
+    chestOpenCount.value = Math.min(chestOpenCount.value, max)
+  }
+})
+
 const currentEventLabel = computed(() => {
   if (!isDungeonRunning.value) return '待機'
   if (hasPendingChest.value) return '宝箱'
@@ -1531,8 +1644,8 @@ const addInfoOnce = (msg: string) => {
 }
 
 const remindPendingChest = () => {
-  if (chestOptions.value?.length) {
-    addInfoOnce('宝箱から1つ選んでください')
+  if (hasPendingChest.value) {
+    addInfoOnce('宝箱を開封してください')
     return true
   }
   return false
@@ -1556,6 +1669,30 @@ const toggleAuto = () => {
 const handleAbandon = () => {
   if (!isDungeonRunning.value) return
   abandonDungeon()
+}
+
+const handleOpenChests = (count?: number) => {
+  if (!hasPendingChest.value) {
+    showToast('開封する宝箱がありません', 'error')
+    return
+  }
+
+  const maxOpen = Math.min(10, chestCount.value)
+  const desired = typeof count === 'number' ? count : chestOpenCount.value
+  const openCount = Math.min(Math.max(1, desired), maxOpen)
+
+  isChestOpening.value = true
+  setTimeout(() => { isChestOpening.value = false }, 900)
+  const results = openChests(openCount)
+  results.forEach(res => {
+    const statusLabel = res.status === 'limitbreak' ? `限界突破 +${res.level}` : res.status === 'maxed' ? 'MAX' : '入手'
+    const msg = `${res.weapon.name} (${res.weapon.rarity}) を${statusLabel}`
+    infoMessages.value.push(msg)
+    combatLogs.value.push({ turn: 0, message: msg, type: 'loot' as const })
+  })
+  showToast(`${openCount}個の宝箱を開封！`, 'loot')
+
+  chestOpenCount.value = chestCount.value > 0 ? 1 : 0
 }
 
 const handleResetStats = () => {
@@ -1740,7 +1877,7 @@ const encryptAndCompress = async (plaintext: string): Promise<StoredSave | null>
     const cipher = await crypto.subtle.encrypt(
       { name: 'AES-GCM', iv },
       key,
-      compressed
+      new Uint8Array(compressed)
     )
     return {
       version: SAVE_VERSION,
@@ -1781,6 +1918,165 @@ const clearLocalSave = () => {
   showToast('ローカルセーブを削除しました', 'info')
 }
 
+const envelopeToPayload = async (envelope: StoredSaveEnvelope | StoredSave | SaveData): Promise<SaveData | null> => {
+  try {
+    if ((envelope as StoredSaveEnvelope).encoded || (envelope as StoredSaveEnvelope).raw) {
+      const env = envelope as StoredSaveEnvelope
+      if (env.encoded) {
+        const decrypted = await decryptAndDecompress(env.encoded)
+        if (decrypted) return JSON.parse(decrypted)
+      }
+      if (env.raw) return env.raw
+    } else if ((envelope as StoredSave).data && (envelope as StoredSave).iv) {
+      const decrypted = await decryptAndDecompress(envelope as StoredSave)
+      if (decrypted) return JSON.parse(decrypted)
+    } else {
+      return envelope as SaveData
+    }
+  } catch (e) {
+    console.error('envelopeToPayload error:', e)
+  }
+  return null
+}
+
+const manualSlots = ref<ManualSlotEntry[]>([
+  { id: 'slot1', label: 'セーブスロット 1', savedAt: null },
+  { id: 'slot2', label: 'セーブスロット 2', savedAt: null }
+])
+
+const autosaveMeta = ref<{ savedAt: number } | null>(null)
+
+const saveEntries = computed(() => {
+  const autoEntry = {
+    id: 'autosave' as const,
+    label: 'オートセーブ',
+    savedAt: autosaveMeta.value?.savedAt ?? null,
+    kind: 'auto' as const
+  }
+  const manual = manualSlots.value.map(s => ({ ...s, kind: 'manual' as const }))
+  return [autoEntry, ...manual]
+})
+
+const refreshManualSlots = () => {
+  if (typeof window === 'undefined') return
+  const raw = localStorage.getItem(SAVE_SLOTS_KEY)
+  if (!raw) {
+    manualSlots.value = manualSlots.value.map(s => ({ ...s, savedAt: null, envelope: undefined }))
+    return
+  }
+  try {
+    const parsed = JSON.parse(raw) as Array<{ id: SaveSlotId; label?: string; savedAt: number; envelope: StoredSaveEnvelope }>
+    const merged = manualSlots.value.map(slot => {
+      const found = parsed.find(p => p.id === slot.id)
+      return found
+        ? { ...slot, label: found.label || slot.label, savedAt: found.savedAt, envelope: found.envelope }
+        : { ...slot, savedAt: null, envelope: undefined }
+    })
+    manualSlots.value = merged
+  } catch (e) {
+    console.error('手動セーブ読み込み失敗:', e)
+  }
+}
+
+const persistManualSlots = (slots: ManualSlotEntry[]) => {
+  if (typeof window === 'undefined') return
+  const payload = slots
+    .filter(s => s.envelope)
+    .map(s => ({ id: s.id, label: s.label, savedAt: s.savedAt || Date.now(), envelope: s.envelope }))
+  localStorage.setItem(SAVE_SLOTS_KEY, JSON.stringify(payload))
+}
+
+const saveManualSlot = async (slotId: SaveSlotId) => {
+  const env = await buildEnvelope()
+  const now = Date.now()
+  manualSlots.value = manualSlots.value.map(slot =>
+    slot.id === slotId ? { ...slot, savedAt: now, envelope: env } : slot
+  )
+  persistManualSlots(manualSlots.value)
+  showToast(`${manualSlots.value.find(s => s.id === slotId)?.label || 'スロット'}に保存しました`, 'info')
+}
+
+const loadManualSlot = async (slotId: SaveSlotId) => {
+  const slot = manualSlots.value.find(s => s.id === slotId)
+  if (!slot?.envelope) {
+    showToast('このスロットにはセーブがありません', 'error')
+    return
+  }
+  const payload = await envelopeToPayload(slot.envelope)
+  if (!payload || !validateSaveData(payload)) {
+    showToast('セーブデータが壊れています', 'error')
+    return
+  }
+  applySaveData(payload)
+  saveToLocal(payload)
+  showToast(`${slot.label}をロードしました`, 'info')
+}
+
+const downloadSlot = async (slotId: SaveSlotId) => {
+  const slot = manualSlots.value.find(s => s.id === slotId)
+  if (!slot?.envelope) return
+  const json = JSON.stringify(slot.envelope, null, 2)
+  const blob = new Blob([json], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${slotId}-save-${new Date().toISOString().slice(0, 10)}.json`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+  showToast(`${slot.label}をダウンロードしました`, 'info')
+}
+
+const clearManualSlot = (slotId: SaveSlotId) => {
+  manualSlots.value = manualSlots.value.map(slot =>
+    slot.id === slotId ? { ...slot, savedAt: null, envelope: undefined } : slot
+  )
+  persistManualSlots(manualSlots.value)
+  showToast('スロットを削除しました', 'info')
+}
+
+const handleSaveEntry = async (entry: { id: 'autosave' | SaveSlotId; kind: 'auto' | 'manual' }) => {
+  if (entry.kind === 'auto') {
+    await saveToLocal()
+    showToast('オートセーブを保存しました', 'info')
+    return
+  }
+  await saveManualSlot(entry.id as SaveSlotId)
+}
+
+const handleLoadEntry = async (entry: { id: 'autosave' | SaveSlotId; kind: 'auto' | 'manual' }) => {
+  if (entry.kind === 'auto') {
+    await loadFromLocal({ silent: false })
+    return
+  }
+  await loadManualSlot(entry.id as SaveSlotId)
+}
+
+const handleDownloadEntry = async (entry: { id: 'autosave' | SaveSlotId; kind: 'auto' | 'manual' }) => {
+  if (entry.kind === 'auto') {
+    downloadSaveData()
+    return
+  }
+  await downloadSlot(entry.id as SaveSlotId)
+}
+
+const handleDeleteEntry = (entry: { id: 'autosave' | SaveSlotId; kind: 'auto' | 'manual' }) => {
+  if (entry.kind === 'auto') {
+    clearLocalSave()
+    autosaveMeta.value = null
+    return
+  }
+  clearManualSlot(entry.id as SaveSlotId)
+}
+
+const formatTime = (ts?: number | null) => {
+  if (!ts) return '未保存'
+  const d = new Date(ts)
+  const pad = (n: number) => n.toString().padStart(2, '0')
+  return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 </script>
 
 <style scoped>
@@ -1819,6 +2115,21 @@ const clearLocalSave = () => {
   color: white;
   text-shadow: 0 0 10px rgba(66, 165, 245, 0.6);
   letter-spacing: 2px;
+}
+
+.top-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 14px 0;
+}
+
+.top-actions-left,
+.top-actions-right {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .btn-settings {
@@ -1937,6 +2248,46 @@ const clearLocalSave = () => {
 .exploration-log-details .turn {
   color: #ffdf6b;
   margin-right: 6px;
+}
+
+.save-slot-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.save-slot-item {
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.save-slot-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.save-slot-name {
+  font-weight: 700;
+  color: #e3f2fd;
+}
+
+.save-slot-meta {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.save-slot-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .chip.tier.elite { background: rgba(76, 175, 80, 0.15); border: 1px solid rgba(76, 175, 80, 0.4); }
@@ -2185,14 +2536,16 @@ const clearLocalSave = () => {
 }
 
 .btn {
-  padding: 10px 20px;
+  padding: 10px 18px;
   font-size: 14px;
-  font-weight: 500;
-  border: none;
-  border-radius: 6px;
+  font-weight: 600;
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: var(--shadow-sm);
+  background: linear-gradient(135deg, #1e2533 0%, #161c27 100%);
+  color: #e5ecf7;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
 .btn-compact {
@@ -2220,58 +2573,63 @@ const clearLocalSave = () => {
 }
 
 .btn-primary {
-  background: var(--color-accent-primary);
-  color: white;
+  background: linear-gradient(135deg, #3a6dd8 0%, #223865 100%);
+  color: #e9f2ff;
+  border: 1px solid rgba(58, 109, 216, 0.5);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #3a8eef;
+  background: linear-gradient(135deg, #3f7af3 0%, #2a4474 100%);
 }
 
 .btn-action {
-  background: var(--color-accent-primary);
-  color: white;
+  background: linear-gradient(135deg, #3a6dd8 0%, #223865 100%);
+  color: #e9f2ff;
+  border: 1px solid rgba(58, 109, 216, 0.5);
 }
 
 .btn-action:hover:not(:disabled) {
-  background: #3a8eef;
+  background: linear-gradient(135deg, #3f7af3 0%, #2a4474 100%);
 }
 
 .btn-success {
-  background: var(--color-success);
-  color: white;
+  background: linear-gradient(135deg, #2d8f6a 0%, #1c3f34 100%);
+  color: #e8fff6;
+  border: 1px solid rgba(45, 143, 106, 0.5);
 }
 
 .btn-success:hover:not(:disabled) {
-  background: #00b548;
+  background: linear-gradient(135deg, #33a77c 0%, #205143 100%);
 }
 
 .btn-secondary {
-  background: var(--color-bg-tertiary);
-  color: var(--color-text-primary);
-  border: 1px solid var(--color-border);
+  background: linear-gradient(135deg, #232a38 0%, #1a202c 100%);
+  color: #d8deea;
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: #363942;
+  background: linear-gradient(135deg, #2c3446 0%, #202735 100%);
 }
 
 .btn-danger {
-  background: var(--color-danger);
-  color: white;
+  background: linear-gradient(135deg, #c44b4b 0%, #4d1f1f 100%);
+  color: #ffecec;
+  border: 1px solid rgba(196, 75, 75, 0.5);
 }
 
 .btn-danger:hover:not(:disabled) {
-  background: #e63028;
+  background: linear-gradient(135deg, #d95c5c 0%, #5a2525 100%);
 }
 
 .btn-warning {
-  background: #FF9800;
-  color: white;
+  background: linear-gradient(135deg, #c18a2b 0%, #4a3313 100%);
+  color: #fff3d6;
+  border: 1px solid rgba(193, 138, 43, 0.5);
 }
 
 .btn-warning:hover:not(:disabled) {
-  background: #F57C00;
+  background: linear-gradient(135deg, #d6a23c 0%, #553c17 100%);
 }
 
 .battle-area {
@@ -2282,7 +2640,7 @@ const clearLocalSave = () => {
 
 .control-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
   gap: 16px;
   margin-bottom: 16px;
 }
@@ -3196,6 +3554,184 @@ const clearLocalSave = () => {
   50% { transform: translateY(10px) rotate(180deg); }
   100% { transform: translateY(-10px) rotate(360deg); }
 }
+
+.chest-open-content {
+  max-width: 760px;
+}
+
+.chest-visual {
+  position: relative;
+  margin: 0 auto 20px;
+  width: 260px;
+  height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 12px 20px rgba(0,0,0,0.4));
+}
+
+.chest-lid,
+.chest-box {
+  position: absolute;
+  width: 220px;
+  border-radius: 12px;
+}
+
+.chest-box {
+  height: 120px;
+  bottom: 0;
+  background: linear-gradient(135deg, #b0792e 0%, #5a3a1d 100%);
+  border: 2px solid rgba(255, 204, 128, 0.6);
+}
+
+.chest-lid {
+  height: 70px;
+  top: 0;
+  background: linear-gradient(135deg, #d49c3f 0%, #6c441d 100%);
+  border: 2px solid rgba(255, 222, 173, 0.7);
+  transform-origin: bottom center;
+  transition: transform 0.4s ease;
+}
+
+.chest-visual.opening .chest-lid {
+  transform: rotateX(55deg);
+}
+
+.chest-count-chip {
+  position: absolute;
+  bottom: -12px;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  color: #e8f2ff;
+  font-weight: 700;
+}
+
+.chest-controls {
+  margin-bottom: 18px;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.chest-control-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.chest-count-input {
+  width: 90px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.4);
+  color: #e8f2ff;
+}
+
+.chest-hint {
+  margin-top: 6px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.chest-log {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.chest-log-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  color: #e8f2ff;
+  font-weight: 600;
+}
+
+.chest-log-count {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.chest-log-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.chest-log-item {
+  display: grid;
+  grid-template-columns: 90px 1fr 120px 80px 120px;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.chest-log-name {
+  color: #e8f2ff;
+  font-weight: 600;
+}
+
+.chest-log-status {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.chest-log-status.limitbreak {
+  color: #7dd3a5;
+  border-color: rgba(125, 211, 165, 0.4);
+}
+
+.chest-log-status.maxed {
+  color: #ffcf5d;
+  border-color: rgba(255, 207, 93, 0.4);
+}
+
+.chest-log-tier {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  text-align: center;
+}
+
+.chest-log-time {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.55);
+  text-align: right;
+}
+
+.chest-log-empty {
+  padding: 12px;
+  text-align: center;
+  opacity: 0.7;
+}
+
+.rarity-tag {
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.rarity-tag.common { background: rgba(149, 165, 166, 0.2); color: #d5dcdd; }
+.rarity-tag.rare { background: rgba(58, 134, 255, 0.18); color: #9fc3ff; }
+.rarity-tag.epic { background: rgba(131, 56, 236, 0.18); color: #d5b2ff; }
+.rarity-tag.legendary { background: rgba(255, 184, 0, 0.2); color: #ffe08a; }
 
 .loot-subtitle {
   margin-bottom: 20px;

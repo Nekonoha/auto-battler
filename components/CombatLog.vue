@@ -8,7 +8,7 @@
         class="log-entry"
         :class="`log-${entry.type}`"
       >
-        <span class="log-turn">[T{{ entry.turn }}]</span>
+        <span class="log-turn">[{{ formatTurn(entry) }}]</span>
         <span class="log-message">{{ entry.message }}</span>
       </div>
       <div v-if="logs.length === 0" class="log-empty">
@@ -19,11 +19,17 @@
 </template>
 
 <script setup lang="ts">
+import { ref, watch, nextTick } from 'vue'
 import type { CombatLogEntry } from '~/types'
 
 const props = defineProps<{
   logs: CombatLogEntry[]
 }>()
+
+const formatTurn = (entry: CombatLogEntry) => {
+  if (!entry.turn || entry.turn <= 0 || entry.type === 'loot') return '--'
+  return `T${entry.turn}`
+}
 
 const logContainer = ref<HTMLElement | null>(null)
 

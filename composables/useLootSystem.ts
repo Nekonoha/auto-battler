@@ -20,11 +20,11 @@ export function useLootSystem(
   selectedDungeon: ComputedRef<Dungeon | undefined>
 ) {
   const showChestModal = ref(false)
-  const chestQueue = ref<Array<{ options: Weapon[]; source: EnemyTier }>>([])
-  const chestOptions = computed<Weapon[] | null>(() => chestQueue.value[0]?.options ?? null)
-  const lastLootSource = computed<EnemyTier | null>(() => chestQueue.value[0]?.source ?? null)
+  const chestQueue = ref<Array<{ tier: EnemyTier }>>([])
+  const lastLootSource = computed<EnemyTier | null>(() => chestQueue.value[0]?.tier ?? null)
   const hasPendingChest = computed<boolean>(() => chestQueue.value.length > 0)
   const chestCount = computed<number>(() => chestQueue.value.length)
+  const chestLootHistory = ref<Array<{ id: string; name: string; rarity: WeaponRarity; tier: EnemyTier; status: 'new' | 'limitbreak' | 'maxed'; level: number; timestamp: number }>>([])
 
   const cloneWeapon = (weapon: Weapon): Weapon => ({
     ...weapon,
@@ -132,18 +132,17 @@ export function useLootSystem(
     return { status: 'new' as const, weapon: ownedCopy, level: ownedCopy.limitBreak ?? 0 }
   }
 
-  const createChestOptions = (
+  const getBumpedWeights = (
     tier: EnemyTier,
     base: Record<'common' | 'rare' | 'epic' | 'legendary', number>
-  ): Weapon[] => {
+  ) => {
     const bump = tier === 'boss' ? 2.0 : tier === 'named' ? 1.6 : 1.2
-    const weights = {
+    return {
       common: base.common * 0.6,
       rare: base.rare * bump,
       epic: base.epic * bump,
       legendary: base.legendary * bump
     }
-    return Array.from({ length: 3 }, () => rollWeaponByWeights(weights))
   }
 
   const rollWeaponByWeights = (
@@ -179,21 +178,26 @@ export function useLootSystem(
     return generateEnchantedWeapon(baseWeapon, enchantChance, multiEnchantChance)
   }
 
+  const rollChestReward = (tier: EnemyTier, base: Record<'common' | 'rare' | 'epic' | 'legendary', number>): Weapon => {
+    const weights = getBumpedWeights(tier, base)
+    return rollWeaponByWeights(weights)
+  }
+
   const rollReward = (target: Enemy): LootResult => {
     const normalDropChance = 0.2
     const dungeon = selectedDungeon.value
     const baseWeights = dungeon?.lootWeights || DEFAULT_WEIGHTS
 
     if (target.tier === 'boss') {
-      return { type: 'chest', options: createChestOptions('boss', baseWeights), source: 'boss' }
+      return { type: 'chest', options: [], source: 'boss' }
     }
 
     if (target.tier === 'named') {
-      return { type: 'chest', options: createChestOptions('named', baseWeights), source: 'named' }
+      return { type: 'chest', options: [], source: 'named' }
     }
 
     if (target.tier === 'elite' && Math.random() < 0.35) {
-      return { type: 'chest', options: createChestOptions('elite', baseWeights), source: 'elite' }
+      return { type: 'chest', options: [], source: 'elite' }
     }
 
     if (Math.random() < normalDropChance) {
@@ -207,7 +211,7 @@ export function useLootSystem(
     const reward = rollReward(target)
 
     if (reward.type === 'chest') {
-      chestQueue.value.push({ options: reward.options, source: reward.source })
+      chestQueue.value.push({ tier: reward.source })
       return reward
     }
 
@@ -222,34 +226,53 @@ export function useLootSystem(
   const spawnChest = (tier: EnemyTier) => {
     const dungeon = selectedDungeon.value
     const baseWeights = dungeon?.lootWeights || DEFAULT_WEIGHTS
-    chestQueue.value.push({ options: createChestOptions(tier, baseWeights), source: tier })
+    // queue only tier; reward is rolled at open time
+    chestQueue.value.push({ tier })
     showChestModal.value = false
   }
 
-  const chooseChestWeapon = (weapon: Weapon) => {
-    addWeaponToInventory(weapon)
-    chestQueue.value.shift()
-    showChestModal.value = false
-    return { weapon }
+  const openChests = (count: number) => {
+    const dungeon = selectedDungeon.value
+    const baseWeights = dungeon?.lootWeights || DEFAULT_WEIGHTS
+    const openCount = Math.min(Math.max(1, count), Math.min(10, chestQueue.value.length))
+    const results: Array<{ weapon: Weapon; status: 'new' | 'limitbreak' | 'maxed'; level: number; tier: EnemyTier }> = []
+
+    for (let i = 0; i < openCount; i++) {
+      const entry = chestQueue.value.shift()
+      if (!entry) break
+      const reward = rollChestReward(entry.tier, baseWeights)
+      const result = addWeaponToInventory(reward)
+      chestLootHistory.value.unshift({
+        id: `${reward.id}-${Date.now()}-${i}`,
+        name: reward.name,
+        rarity: reward.rarity,
+        tier: entry.tier,
+        status: result.status,
+        level: result.level,
+        timestamp: Date.now()
+      })
+      chestLootHistory.value = chestLootHistory.value.slice(0, 20)
+      results.push({ weapon: reward, status: result.status, level: result.level, tier: entry.tier })
+    }
+
+    showChestModal.value = chestQueue.value.length > 0
+    return results
   }
 
   const openPendingChest = () => {
-    if (chestOptions.value?.length) {
-      showChestModal.value = true
-    }
+    if (hasPendingChest.value) showChestModal.value = true
   }
 
   return {
     showChestModal,
-    chestOptions,
-    chestQueue,
     lastLootSource,
     hasPendingChest,
     chestCount,
     resetLoot,
     handleVictoryLoot,
-    chooseChestWeapon,
     openPendingChest,
+    openChests,
+    chestLootHistory,
     addWeaponToInventory,
     addToAvailableIfNeeded,
     pruneAvailableWeapons,
