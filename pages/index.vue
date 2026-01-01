@@ -493,7 +493,15 @@
               :disabled="combatLogs.length === 0"
               style="width: 100%;"
             >
-              📝 戦闘ログをエクスポート ({{ combatLogs.length }}件)
+              📝 現在の戦闘ログをエクスポート ({{ combatLogs.length }}件)
+            </button>
+            <button 
+              class="btn btn-info" 
+              @click="exportExplorationCombatLog" 
+              :disabled="explorationCombatLogs.length === 0"
+              style="width: 100%;"
+            >
+              🧭 探索戦闘ログをエクスポート ({{ explorationCombatLogs.length }}件)
             </button>
             <button 
               class="btn btn-info" 
@@ -828,7 +836,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import type { Player, Weapon, Dungeon } from '~/types'
 import { BASE_WEAPONS } from '~/data/baseWeapons'
 import { generateEnchantedWeapon, generateMultipleWeapons } from '~/systems/WeaponGenerationSystem'
@@ -1098,6 +1106,8 @@ const {
   enemy,
   combat,
   combatLogs,
+  explorationCombatLogs,
+  dungeonLogs,
   showChestModal,
   chestOptions,
   // chestQueue, // 未使用
@@ -1129,19 +1139,116 @@ const {
 const isRunLocked = computed(() => isDungeonRunning.value && !(combat.value?.isGameOver()))
 
 const fileInput = ref<HTMLInputElement | null>(null)
+const SAVE_KEY = 'auto-battler-save'
+const SAVE_VERSION = '1.1'
+let isRestoring = false
+
+interface SaveData {
+  version: string
+  timestamp: number
+  player: Player
+  availableWeapons: Weapon[]
+  selectedDungeonId: string
+  currentLevel: number
+}
+
+const clampLevel = (level: number, dungeon?: Dungeon) => {
+  const min = dungeon?.levelRange?.[0] ?? 1
+  const max = dungeon?.levelRange?.[1] ?? Math.max(level, 1)
+  return Math.min(Math.max(level, min), max)
+}
+
+const buildSaveData = (): SaveData => {
+  const dungeonId = selectedDungeonId.value || dungeons[0]?.id || ''
+  const dungeon = dungeons.find(d => d.id === dungeonId)
+  const safeLevel = clampLevel(currentLevel.value, dungeon)
+
+  return {
+    version: SAVE_VERSION,
+    timestamp: Date.now(),
+    player: JSON.parse(JSON.stringify(player)),
+    availableWeapons: JSON.parse(JSON.stringify(availableWeapons.value)),
+    selectedDungeonId: dungeonId,
+    currentLevel: safeLevel
+  }
+}
+
+const validateSaveData = (data: any): data is SaveData => {
+  return !!data
+    && typeof data === 'object'
+    && typeof data.player === 'object'
+    && Array.isArray(data.availableWeapons)
+    && typeof data.selectedDungeonId === 'string'
+    && typeof data.currentLevel === 'number'
+}
+
+const applySaveData = (data: SaveData, opts: { silent?: boolean } = {}) => {
+  const dungeon = dungeons.find(d => d.id === data.selectedDungeonId) ?? dungeons[0]
+  const dungeonId = dungeon?.id ?? selectedDungeonId.value
+  const safeLevel = clampLevel(data.currentLevel ?? dungeon?.levelRange?.[0] ?? 1, dungeon)
+  const restoredPlayer = data.player ?? {}
+
+  Object.assign(player, {
+    ...player,
+    ...restoredPlayer,
+    stats: { ...player.stats, ...(restoredPlayer.stats ?? {}) },
+    allocatedStats: { ...player.allocatedStats, ...(restoredPlayer.allocatedStats ?? {}) },
+    weapons: Array.isArray(restoredPlayer.weapons) && restoredPlayer.weapons.length > 0 ? restoredPlayer.weapons : player.weapons,
+    statusEffects: restoredPlayer.statusEffects ?? []
+  })
+
+  if (!player.weapons.length) player.weapons.push(initialWeapon)
+  player.currentHp = Math.min(player.currentHp, player.maxHp)
+
+  availableWeapons.value = Array.isArray(data.availableWeapons) ? data.availableWeapons : []
+
+  isRestoring = true
+  selectedDungeonId.value = dungeonId
+  currentLevel.value = safeLevel
+  isRestoring = false
+
+  if (!opts.silent) {
+    showToast('セーブデータを読み込みました', 'info')
+  }
+}
+
+const saveToLocal = (payload?: SaveData) => {
+  if (typeof window === 'undefined') return
+  const data = payload ?? buildSaveData()
+  localStorage.setItem(SAVE_KEY, JSON.stringify(data))
+}
+
+const loadFromLocal = () => {
+  if (typeof window === 'undefined') return
+  const raw = localStorage.getItem(SAVE_KEY)
+  if (!raw) return
+
+  try {
+    const parsed = JSON.parse(raw)
+    if (!validateSaveData(parsed)) {
+      throw new Error('無効なセーブデータです')
+    }
+    applySaveData(parsed, { silent: true })
+  } catch (e) {
+    console.error('ロードエラー:', e)
+    showToast('セーブデータの読み込みに失敗しました', 'error')
+  }
+}
+
+onMounted(() => {
+  loadFromLocal()
+})
+
+watch(
+  [player, availableWeapons, selectedDungeonId, currentLevel],
+  () => saveToLocal(),
+  { deep: true }
+)
 
 // セーブデータをJSONファイルとしてダウンロード
 function downloadSaveData() {
   try {
-    const saveData = {
-      version: '1.0',
-      timestamp: Date.now(),
-      player: player,
-      availableWeapons: availableWeapons.value,
-      selectedDungeonId: selectedDungeonId.value,
-      currentLevel: currentLevel.value
-    }
-    
+    const saveData = buildSaveData()
     const json = JSON.stringify(saveData, null, 2)
     const blob = new Blob([json], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
@@ -1170,18 +1277,12 @@ async function uploadSaveData(event: Event) {
     const text = await file.text()
     const saveData = JSON.parse(text)
     
-    // データ検証
-    if (!saveData.player || !saveData.availableWeapons) {
+    if (!validateSaveData(saveData)) {
       throw new Error('無効なセーブデータです')
     }
     
-    // データ復元
-    Object.assign(player, saveData.player)
-    availableWeapons.value = saveData.availableWeapons
-    selectedDungeonId.value = saveData.selectedDungeonId || dungeons[0]?.id
-    currentLevel.value = saveData.currentLevel || 1
-    
-    showToast('セーブデータを読み込みました', 'info')
+    applySaveData(saveData)
+    saveToLocal(saveData)
     showSettings.value = false
   } catch (e) {
     console.error('ロードエラー:', e)
@@ -1221,6 +1322,36 @@ function exportCombatLog() {
   }
 }
 
+// 探索戦闘ログをエクスポート
+function exportExplorationCombatLog() {
+  try {
+    const logData = {
+      exportDate: new Date().toISOString(),
+      playerName: player.name,
+      playerLevel: player.level,
+      dungeon: selectedDungeon.value?.name || 'Unknown',
+      battles: explorationCombatLogs.value.length,
+      logs: explorationCombatLogs.value
+    }
+
+    const json = JSON.stringify(logData, null, 2)
+    const blob = new Blob([json], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `exploration-combat-log-${new Date().toISOString().slice(0, 10)}.json`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+
+    showToast('探索戦闘ログをエクスポートしました', 'info')
+  } catch (e) {
+    console.error('エクスポートエラー:', e)
+    showToast('エクスポートに失敗しました', 'error')
+  }
+}
+
 // ダンジョンログをエクスポート
 function exportDungeonLog() {
   try {
@@ -1252,6 +1383,7 @@ function exportDungeonLog() {
 }
 
 watch(selectedDungeonId, (next) => {
+  if (isRestoring) return
   const dungeon = dungeons.find(d => d.id === next)
   if (dungeon) {
     currentLevel.value = dungeon.levelRange[0]

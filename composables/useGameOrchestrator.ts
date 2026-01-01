@@ -1,5 +1,5 @@
 import { ref, type Ref } from 'vue'
-import type { Player, Weapon, PlayerAllocatedStats, PlayerStats } from '~/types'
+import type { Player, Weapon, PlayerAllocatedStats, PlayerStats, EnemyTier, Dungeon } from '~/types'
 import { useExperience } from './useExperience'
 import { useLootSystem } from './useLootSystem'
 import { useBattleFlow } from './useBattleFlow'
@@ -35,6 +35,7 @@ export function useGameOrchestrator(
     enemy,
     combat,
     combatLogs,
+    explorationCombatLogs,
     dungeonLogs,
     startBattle,
     runTurn,
@@ -49,6 +50,16 @@ export function useGameOrchestrator(
   const totalStages = 10
   const currentEvent = ref<'battle' | 'chest' | null>(null)
   let loopHandle: any = null
+
+  const getRandomTier = (dungeon?: Dungeon): EnemyTier => {
+    if (!dungeon) return 'normal'
+    const namedChance = Math.max(0, Math.min(1, dungeon.namedChance ?? 0))
+    const eliteChance = Math.max(0, Math.min(1, dungeon.eliteChance ?? 0))
+    const roll = Math.random()
+    if (roll < namedChance) return 'named'
+    if (roll < namedChance + eliteChance) return 'elite'
+    return 'normal'
+  }
 
   const ensureAllocations = (): PlayerAllocatedStats => {
     if (!player.allocatedStats) {
@@ -233,7 +244,7 @@ export function useGameOrchestrator(
     isAutoRunning.value = false
   }
 
-  const startStageBattle = (opts?: { forcedTier?: 'boss' }) => {
+  const startStageBattle = (opts?: { forcedTier?: EnemyTier }) => {
     resetPlayerState()
     stopAuto()
     startBattle({ forcedTier: opts?.forcedTier })
@@ -266,7 +277,8 @@ export function useGameOrchestrator(
       return
     }
 
-    startStageBattle(isBossStage ? { forcedTier: 'boss' } : undefined)
+    const forcedTier = isBossStage ? 'boss' : getRandomTier(dungeon)
+    startStageBattle({ forcedTier })
   }
 
   const startDungeonRun = () => {
@@ -274,6 +286,7 @@ export function useGameOrchestrator(
     stopAuto()
     resetPlayerState()
     combatLogs.value = [] // ダンジョン開始時にログをクリア
+    explorationCombatLogs.value = []
     dungeonLogs.value = [] // ダンジョン開始時にログをクリア
     isDungeonRunning.value = true
     currentStage.value = 0
@@ -316,6 +329,7 @@ export function useGameOrchestrator(
     enemy,
     combat,
     combatLogs,
+    explorationCombatLogs,
     dungeonLogs,
     showChestModal,
     chestOptions,

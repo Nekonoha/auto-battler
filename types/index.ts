@@ -231,6 +231,8 @@ export interface Dungeon {
   description: string
   levelRange: [number, number]
   tierWeights: Record<EnemyTier, number>
+  eliteChance?: number
+  namedChance?: number
   enemyPool?: string[]  // 出現する敵のIDリスト（未指定時はランダム生成）
   lootWeights: Record<'common' | 'rare' | 'epic' | 'legendary', number>
   chestChance?: number
@@ -253,6 +255,16 @@ export interface CombatLogEntry {
   turn: number
   message: string
   type: 'damage' | 'status' | 'info' | 'critical' | 'loot'
+}
+
+// ダンジョン内の戦闘ごとのログ（探索戦闘ログ）
+export interface ExplorationCombatLogEntry {
+  stage: number
+  enemyName: string
+  enemyLevel: number
+  enemyTier: EnemyTier
+  result: 'victory' | 'defeat'
+  logs: CombatLogEntry[]
 }
 
 /**

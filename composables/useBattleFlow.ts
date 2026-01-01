@@ -1,5 +1,5 @@
 import { ref, type Ref, type ComputedRef } from 'vue'
-import type { Player, Enemy, Dungeon, CombatLogEntry, DungeonLogEntry, EnemyTier } from '~/types'
+import type { Player, Enemy, Dungeon, CombatLogEntry, DungeonLogEntry, EnemyTier, ExplorationCombatLogEntry } from '~/types'
 import { CombatSystem } from '~/systems/CombatSystem'
 
 /**
@@ -13,6 +13,7 @@ export function useBattleFlow(
   const enemy = ref<Enemy | null>(null)
   const combat = ref<CombatSystem | null>(null)
   const combatLogs = ref<CombatLogEntry[]>([])
+  const explorationCombatLogs = ref<ExplorationCombatLogEntry[]>([])
   const dungeonLogs = ref<DungeonLogEntry[]>([])
   const currentStageHpBefore = ref<number>(0)
   const isBattleActive = ref(false)
@@ -57,6 +58,14 @@ export function useBattleFlow(
     // ダンジョンログに記録
     if (combat.value && enemy.value) {
       const isVictory = combat.value.isPlayerVictory()
+      explorationCombatLogs.value.push({
+        stage: currentLevel.value,
+        enemyName: enemy.value.name,
+        enemyLevel: enemy.value.level,
+        enemyTier: enemy.value.tier,
+        result: isVictory ? 'victory' : 'defeat',
+        logs: [...combatLogs.value]
+      })
       dungeonLogs.value.push({
         stage: currentLevel.value,
         enemyName: enemy.value.name,
@@ -90,6 +99,7 @@ export function useBattleFlow(
     enemy,
     combat,
     combatLogs,
+    explorationCombatLogs,
     dungeonLogs,
     isBattleActive,
     startBattle,
