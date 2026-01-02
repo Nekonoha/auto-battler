@@ -110,7 +110,7 @@
       :isRunLocked="isRunLocked"
       @close="showStatManager = false"
       @apply="applyStatAllocation"
-      @reset="handleReset"
+      @reset="handleResetStats"
       @reset-single-stat="resetSingleStat"
       @update:tempStatAlloc="Object.assign(tempStatAlloc, $event)"
     />
@@ -292,7 +292,7 @@ const {
   allocatedStats,
   resetTempAllocation,
   applyStatAllocation,
-  handleResetStats,
+  handleReset: handleResetStats,
   resetSingleStat
 } = useStatAllocation(player, isRunLocked, allocateStat, allocateMaxHp, resetAllocatedStats, showToast)
 

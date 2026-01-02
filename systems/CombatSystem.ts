@@ -1,6 +1,7 @@
 import type { Player, Enemy, CombatLogEntry, Weapon, EnemyTier } from '../types'
 import { WeaponSystem } from './WeaponSystem'
 import { StatusEffectSystem } from './StatusEffectSystem'
+import { getStatusEffectDefinition } from '../data/statusEffects'
 import { DamageSystem } from './DamageSystem'
 import { calculateActiveSynergies, getTotalSynergyBonus } from '../data/synergies'
 import { calculateEnemyLevelForDungeon } from '../utils/levelScaling'
@@ -106,22 +107,62 @@ export class CombatSystem {
    */
   private processStatusEffectPhase(): void {
     // プレイヤーの状態異常処理
+    const playerEffectsBefore = this.player.statusEffects.map(e => e.type)
     const playerEffects = StatusEffectSystem.processStatusEffects(this.player)
     playerEffects.forEach(result => {
       if (result.damage > 0) {
         this.addLog(result.message, 'damage')
+        if (result.healTarget === 'player' && result.healAmount) {
+          this.player.currentHp = Math.min(this.player.maxHp, this.player.currentHp + result.healAmount)
+          this.addLog(`プレイヤーは${result.healAmount}回復した`, 'status')
+        }
+        if (result.healTarget === 'enemy' && result.healAmount) {
+          this.enemy.currentHp = Math.min(this.enemy.maxHp, this.enemy.currentHp + result.healAmount)
+          this.addLog(`${this.enemy.name}は${result.healAmount}回復した`, 'status')
+        }
       } else {
         this.addLog(result.message, 'status')
       }
     })
+    // 解除された状態異常をログ出力
+    const playerEffectsAfter = this.player.statusEffects.map(e => e.type)
+    playerEffectsBefore.forEach(type => {
+      if (!playerEffectsAfter.includes(type)) {
+        const removed = ['stun', 'sleep', 'frozen', 'petrification'].includes(type)
+        if (removed) {
+          const statusName = StatusEffectSystem.getStatusName(type as any)
+          this.addLog(`プレイヤーは${statusName}から回復した！`, 'status')
+        }
+      }
+    })
 
     // 敵の状態異常処理
+    const enemyEffectsBefore = this.enemy.statusEffects.map(e => e.type)
     const enemyEffects = StatusEffectSystem.processStatusEffects(this.enemy)
     enemyEffects.forEach(result => {
       if (result.damage > 0) {
         this.addLog(result.message, 'damage')
+        if (result.healTarget === 'player' && result.healAmount) {
+          this.player.currentHp = Math.min(this.player.maxHp, this.player.currentHp + result.healAmount)
+          this.addLog(`プレイヤーは${result.healAmount}回復した`, 'status')
+        }
+        if (result.healTarget === 'enemy' && result.healAmount) {
+          this.enemy.currentHp = Math.min(this.enemy.maxHp, this.enemy.currentHp + result.healAmount)
+          this.addLog(`${this.enemy.name}は${result.healAmount}回復した`, 'status')
+        }
       } else {
         this.addLog(result.message, 'status')
+      }
+    })
+    // 解除された状態異常をログ出力
+    const enemyEffectsAfter = this.enemy.statusEffects.map(e => e.type)
+    enemyEffectsBefore.forEach(type => {
+      if (!enemyEffectsAfter.includes(type)) {
+        const removed = ['stun', 'sleep', 'frozen', 'petrification'].includes(type)
+        if (removed) {
+          const statusName = StatusEffectSystem.getStatusName(type as any)
+          this.addLog(`${this.enemy.name}は${statusName}から回復した！`, 'status')
+        }
       }
     })
   }
@@ -142,7 +183,7 @@ export class CombatSystem {
       return
     }
 
-    // 装備している全ての武器で攻撃（1ターンで全武器使用）
+    // 1. 装備している全ての武器で攻撃（1ターンで全武器使用）
     for (const weapon of this.player.weapons) {
       if (this.enemy.currentHp <= 0) break
 
@@ -170,6 +211,12 @@ export class CombatSystem {
           message += ` (耐性${result.resistanceApplied}%)`
         }
         
+        // 被ダメージ修正をログに反映
+        const damageTakenLog = this.formatDamageTakenLog(this.enemy)
+        if (damageTakenLog) {
+          message += ` ${damageTakenLog}`
+        }
+        
         if (result.isCritical) {
           message += ' クリティカル！'
           this.addLog(message, 'critical')
@@ -177,27 +224,21 @@ export class CombatSystem {
           this.addLog(message, 'damage')
         }
 
-        // 状態異常付与のログ
-        result.statusEffects.forEach(effect => {
-          const icon = StatusEffectSystem.getStatusIcon(effect.type)
-          this.addLog(
-            `${this.enemy.name}に${icon}${this.getStatusName(effect.type)}を付与した！`,
-            'status'
-          )
+        // 反射ダメージ処理（敵が棘の鎧などを持つ場合）
+        this.applyReflection(this.enemy, this.player, result.damage)
+
+        // ダメージを受けたことで breakOnDamage 効果を除去（睡眠系など）
+        const beforeCount = this.enemy.statusEffects.length
+        this.enemy.statusEffects = this.enemy.statusEffects.filter(e => {
+          const def = getStatusEffectDefinition(e.type as any)
+          return !def?.effects.breakOnDamage
         })
-        
-        // 状態異常無効化のログ（武器に状態異常があるが付与されなかった場合）
-        const immuneEffects = weapon.effects.filter(effect => 
-          this.enemy.traits?.statusImmunities?.includes(effect.type) &&
-          !result.statusEffects.some(applied => applied.type === effect.type)
-        )
-        immuneEffects.forEach(effect => {
-          const icon = StatusEffectSystem.getStatusIcon(effect.type)
-          this.addLog(
-            `${icon}${this.getStatusName(effect.type)}は無効化された (状態異常耐性)`,
-            'info'
-          )
-        })
+        if (this.enemy.statusEffects.length < beforeCount) {
+          this.addLog(`${this.enemy.name}は眠りから目覚めた！`, 'status')
+        }
+
+        // 状態異常付与を即時処理（バフは自分、デバフは敵）
+        this.applyResultEffects(result.statusEffects, this.player, this.enemy, 'player')
       }
     }
   }
@@ -205,6 +246,27 @@ export class CombatSystem {
   /**
    * 敵攻撃フェーズ
    */
+  /**
+   * 敵の行動を選択（重み付けランダム）
+   */
+  private chooseEnemyAction(): 'attack' | 'defend' | 'buff' | 'nothing' {
+    const actionPool = this.enemy.actionPool || [{ type: 'attack' as const, weight: 1 }]
+    
+    // 重みの合計を計算
+    const totalWeight = actionPool.reduce((sum, action) => sum + action.weight, 0)
+    let random = Math.random() * totalWeight
+    
+    // 重み付けランダムで行動を選択
+    for (const action of actionPool) {
+      random -= action.weight
+      if (random <= 0) {
+        return action.type as any
+      }
+    }
+    
+    return 'attack'
+  }
+
   private enemyAttackPhase(): void {
     if (this.enemy.currentHp <= 0) return
 
@@ -218,40 +280,156 @@ export class CombatSystem {
     // 敵の速度に応じた攻撃回数（最低1回、最大3回）
     const numAttacks = Math.min(3, Math.max(1, Math.floor(this.enemy.stats.speed / 25)))
     
+    // 1. 敵の状態異常付与（敵のtraitsから）を先に実行（バフは自分、デバフはプレイヤー）
+    if (this.enemy.traits?.inflictsStatus) {
+      this.enemy.traits.inflictsStatus.forEach(effect => {
+        if (Math.random() * 100 < effect.chance) {
+          const def = getStatusEffectDefinition(effect.type as any)
+          const recipient = def?.type === 'Buff' ? this.enemy : this.player
+          const result = StatusEffectSystem.applyStatusEffect(recipient, effect.type, effect.stacks, effect.duration, { appliedBy: 'enemy' })
+          const icon = StatusEffectSystem.getStatusIcon(effect.type)
+          const targetName = recipient === this.enemy ? this.enemy.name : 'プレイヤー'
+          if (result.applied) {
+            const resistNote = result.resistance ? ` (耐性${result.resistance}%で軽減)` : ''
+            this.addLog(`${targetName}に${icon}${this.getStatusName(effect.type)}を付与した！${resistNote}`, 'status')
+          } else {
+            this.addLog(this.formatStatusResistedLog(targetName, result), 'status')
+          }
+        }
+      })
+    }
+    
+    // 2. 敵の行動フェーズを実行
     for (let i = 1; i <= numAttacks; i++) {
       if (this.player.currentHp <= 0) break
 
-      // 敵の基本攻撃（物理防御を考慮）
-      let baseDamage = this.enemy.stats.attack
+      const action = this.chooseEnemyAction()
       
-      // weak/fearによるダメージ減少
-      baseDamage = StatusEffectSystem.applyDamageModifiers(this.enemy, baseDamage)
-      
-      const variance = 0.8 + Math.random() * 0.4 // 80%～120%のランダム性
-      const attackDamage = baseDamage * variance
-      const finalDamage = DamageSystem.calculateDamage(attackDamage, this.player, false)
+      switch (action) {
+        case 'attack': {
+          // 敵の基本攻撃（物理防御を考慮）
+          let baseDamage = this.enemy.stats.attack
+          
+          // weak/fearによるダメージ減少
+          baseDamage = StatusEffectSystem.applyDamageModifiers(this.enemy, baseDamage)
+          
+          const variance = 0.8 + Math.random() * 0.4 // 80%～120%のランダム性
+          const attackDamage = baseDamage * variance
+          let finalDamage = DamageSystem.calculateDamage(attackDamage, this.player, false)
+          finalDamage = StatusEffectSystem.applyVulnerabilityModifier(this.player, finalDamage)
 
-      this.player.currentHp = Math.max(0, this.player.currentHp - finalDamage)
-      
-      const message = numAttacks > 1 
-        ? `${this.enemy.name}の攻撃 (${i}/${numAttacks})！ ${finalDamage}ダメージ`
-        : `${this.enemy.name}の攻撃！ ${finalDamage}ダメージ`
-      this.addLog(message, 'damage')
-      
-      // 敵の状態異常付与（敵のtraitsから）
-      if (this.enemy.traits?.inflictsStatus) {
-        this.enemy.traits.inflictsStatus.forEach(effect => {
-          if (Math.random() * 100 < effect.chance) {
-            StatusEffectSystem.applyStatusEffect(this.player, effect.type, effect.stacks, effect.duration)
-            const icon = StatusEffectSystem.getStatusIcon(effect.type)
-            this.addLog(
-              `プレイヤーに${icon}${this.getStatusName(effect.type)}を付与した！`,
-              'status'
-            )
+          this.player.currentHp = Math.max(0, this.player.currentHp - finalDamage)
+
+          let message = numAttacks > 1 
+            ? `${this.enemy.name}の攻撃 (${i}/${numAttacks})！ ${finalDamage}ダメージ`
+            : `${this.enemy.name}の攻撃！ ${finalDamage}ダメージ`
+
+          const damageTakenModifier = StatusEffectSystem.getDamageTakenModifier(this.player)
+          const damageTakenLog = this.formatDamageTakenLog(this.player)
+          if (damageTakenLog) {
+            message += ` ${damageTakenLog}`
           }
-        })
+
+          this.addLog(message, 'damage')
+
+          // 反射ダメージ処理（プレイヤーが棘の鎧などを持つ場合）
+          this.applyReflection(this.player, this.enemy, finalDamage)
+
+          // ダメージを受けたことで breakOnDamage 効果を除去（睡眠系など）
+          const beforeCount = this.player.statusEffects.length
+          this.player.statusEffects = this.player.statusEffects.filter(e => {
+            const def = getStatusEffectDefinition(e.type as any)
+            return !def?.effects.breakOnDamage
+          })
+          if (this.player.statusEffects.length < beforeCount) {
+            this.addLog('プレイヤーは眠りから目覚めた！', 'status')
+          }
+          break
+        }
+        case 'defend': {
+          this.addLog(`${this.enemy.name}は防御の構えをとった！`, 'status')
+          // 敵に防御バフを付与（次のターン分として）
+          StatusEffectSystem.applyStatusEffect(this.enemy, 'armor', 2, 1)
+          break
+        }
+        case 'buff': {
+          // 敵がバフを付与する行動（ランダムに複数のバフから選択）
+          const buffOptions: Array<{ type: StatusEffectType; stacks: number; duration: number }> = [
+            { type: 'power', stacks: 1, duration: 2 },
+            { type: 'intellect', stacks: 1, duration: 2 },
+            { type: 'armor', stacks: 2, duration: 2 },
+            { type: 'fleet', stacks: 1, duration: 2 }
+          ]
+          const selectedBuff = buffOptions[Math.floor(Math.random() * buffOptions.length)]
+          const result = StatusEffectSystem.applyStatusEffect(this.enemy, selectedBuff.type, selectedBuff.stacks, selectedBuff.duration, { appliedBy: 'enemy' })
+          const icon = StatusEffectSystem.getStatusIcon(selectedBuff.type)
+          const statusName = this.getStatusName(selectedBuff.type)
+          
+          if (result.applied) {
+            const resistNote = result.resistance ? ` (耐性${result.resistance}%で軽減)` : ''
+            this.addLog(`${this.enemy.name}は${icon}${statusName}を得た！${resistNote}`, 'status')
+          } else {
+            this.addLog(`${this.enemy.name}の${icon}${statusName}は効果がなかった。`, 'status')
+          }
+          break
+        }
+        case 'nothing': {
+          this.addLog(`${this.enemy.name}は何もしなかった。`, 'status')
+          break
+        }
       }
     }
+  }
+
+  private applyResultEffects(effects: Weapon['effects'], attacker: Player | Enemy, target: Player | Enemy, appliedBy: 'player' | 'enemy') {
+    effects.forEach(effect => {
+      const def = getStatusEffectDefinition(effect.type as any)
+      const defaultRecipient = def?.type === 'Buff' ? attacker : target
+      const recipient = effect.target === 'self' ? attacker : effect.target === 'enemy' ? target : defaultRecipient
+      const result = StatusEffectSystem.applyStatusEffect(recipient, effect.type, effect.stacks, effect.duration, { appliedBy })
+      const icon = StatusEffectSystem.getStatusIcon(effect.type)
+      const targetName = recipient === attacker ? (appliedBy === 'player' ? 'プレイヤー' : this.enemy.name) : (appliedBy === 'player' ? this.enemy.name : 'プレイヤー')
+      if (result.applied) {
+        const resistNote = result.resistance ? ` (耐性${result.resistance}%で軽減)` : ''
+        this.addLog(`${targetName}に${icon}${this.getStatusName(effect.type)}を付与した！${resistNote}`, 'status')
+      } else {
+        this.addLog(this.formatStatusResistedLog(targetName, result), 'status')
+      }
+    })
+  }
+
+  /**
+   * 被ダメージ修正のログ文字列を生成（ダメージ反映系のみ）
+   */
+  private formatDamageTakenLog(target: Player | Enemy): string | null {
+    const breakdown = StatusEffectSystem.getDamageTakenBreakdown(target)
+    if (breakdown.length === 0) return null
+
+    const total = breakdown.reduce((sum, b) => sum + b.total, 0)
+    const sign = total > 0 ? '+' : ''
+    const detail = breakdown
+      .map(b => {
+        const name = this.getStatusName(b.type)
+        const icon = StatusEffectSystem.getStatusIcon(b.type)
+        const stacks = b.stacks > 1 ? `x${b.stacks}` : ''
+        const modSign = b.total > 0 ? '+' : ''
+        return `${icon}${name}${stacks}(${modSign}${b.total}%)`
+      })
+      .join(', ')
+
+    return `【被ダメージ${sign}${total}%: ${detail}】`
+  }
+
+  private applyReflection(defender: Player | Enemy, attacker: Player | Enemy, damageDealt: number) {
+    if (damageDealt <= 0) return
+    const reflectPercent = StatusEffectSystem.getReflectPercent(defender)
+    if (reflectPercent <= 0) return
+    const reflected = Math.round(damageDealt * reflectPercent / 100)
+    if (reflected <= 0) return
+    attacker.currentHp = Math.max(0, attacker.currentHp - reflected)
+    const defenderName = 'name' in defender ? defender.name : '防御側'
+    const attackerName = 'name' in attacker ? attacker.name : '攻撃側'
+    this.addLog(`${defenderName}の反射で${attackerName}は${reflected}ダメージを受けた`, 'damage')
   }
 
   /**
@@ -292,6 +470,19 @@ export class CombatSystem {
   }
 
   /**
+   * 状態異常が耐性/無効で弾かれた際のログ文字列
+   */
+  private formatStatusResistedLog(targetName: string, result: any): string {
+    const icon = StatusEffectSystem.getStatusIcon(result.type)
+    const name = this.getStatusName(result.type)
+    if (result.immunity) {
+      return `${targetName}は${icon}${name}を無効化した！`
+    }
+    const resistText = result.resistance !== undefined ? `耐性${result.resistance}%` : '耐性'
+    return `${targetName}は${resistText}で${icon}${name}を弾いた！`
+  }
+
+  /**
    * 新しい敵を生成
    */
   static generateEnemy(level: number = 1, opts?: {
@@ -315,12 +506,16 @@ export class CombatSystem {
         statusEffects: [],
         tier: 'boss',
         stats: {
-          attack: 0,
-          magic: 0,
+          attack: 9999,
+          magic: 9999,
           defense: 9999,
           magicDefense: 9999,
           speed: 10
-        }
+        },
+        // 「何もしない」行動のみを選択
+        actionPool: [
+          { type: 'nothing', weight: 1 }
+        ]
       }
     }
     // プレイヤーレベルを考慮した敵レベルの計算
@@ -405,6 +600,37 @@ export class CombatSystem {
     const baseHp = 70 * template.baseStats.hpMultiplier
     const hp = Math.max(30, Math.floor(baseHp * levelHpGrowth * hpMult * levelScale))
 
+    // 強敵は行動不能系に強耐性、その他デバフも軽減
+    const controlResistByTier: Record<EnemyTier, number> = {
+      normal: 0,
+      elite: 50,
+      named: 70,
+      boss: 85
+    }
+    const debuffResistByTier: Record<EnemyTier, number> = {
+      normal: 0,
+      elite: 20,
+      named: 35,
+      boss: 50
+    }
+    const statusResistances = {
+      ...(template.traits?.statusResistances ?? {})
+    }
+    const controlResist = controlResistByTier[tier]
+    if (controlResist > 0 && statusResistances.control === undefined) {
+      statusResistances.control = controlResist
+    }
+    const debuffResist = debuffResistByTier[tier]
+    if (debuffResist > 0) {
+      if (statusResistances.damage === undefined) statusResistances.damage = debuffResist
+      if (statusResistances.modifier === undefined) statusResistances.modifier = debuffResist
+    }
+
+    const traits = {
+      ...(template.traits ?? {}),
+      ...(Object.keys(statusResistances).length ? { statusResistances } : {})
+    }
+
     return {
       name: `${opts?.dungeonName ? `[${opts.dungeonName}] ` : ''}${tierNamePrefix}${template.baseName} Lv.${actualLevel}`.trim(),
       level: actualLevel,
@@ -413,8 +639,14 @@ export class CombatSystem {
       statusEffects: [],
       tier,
       type: template.type,
-      traits: template.traits,
-      stats: scaledStats
+      traits,
+      stats: scaledStats,
+      // デフォルトの行動プール（攻撃・防御・何もしないのランダム）
+      actionPool: [
+        { type: 'attack', weight: 6 },    // 60%の確率で攻撃
+        { type: 'defend', weight: 3 },    // 30%の確率で防御
+        { type: 'nothing', weight: 1 }    // 10%の確率で何もしない
+      ]
     }
   }
 
@@ -442,6 +674,6 @@ export class CombatSystem {
    */
   static calculateNextLevelExp(level: number): number {
     const baseExp = 100
-    return Math.floor(baseExp * Math.pow(1.15, level - 1))
+    return Math.round(baseExp * Math.pow(1.15, level - 1))
   }
 }

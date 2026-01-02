@@ -1,6 +1,37 @@
 import { reactive, computed, type Ref } from 'vue'
-import type { Player } from '~/types'
+import type { Player, PlayerAllocatedStats } from '~/types'
 import { BASE_STATS } from '~/utils/playerInitialization'
+
+const MULTIPLIERS = {
+  maxHp: 25,
+  attack: 5,
+  magic: 5,
+  defense: 3,
+  magicDefense: 3,
+  speed: 2
+}
+
+/**
+ * 割り振りポイント数を計算（各ステータスが BASE_STATS からどれだけ増加しているかで判定）
+ */
+const calculateAllocatedPoints = (player: Player): Record<string, number> => {
+  return {
+    maxHp: Math.floor((player.maxHp - BASE_STATS.maxHp) / MULTIPLIERS.maxHp),
+    attack: Math.floor((player.stats.attack - BASE_STATS.attack) / MULTIPLIERS.attack),
+    magic: Math.floor((player.stats.magic - BASE_STATS.magic) / MULTIPLIERS.magic),
+    defense: Math.floor((player.stats.defense - BASE_STATS.defense) / MULTIPLIERS.defense),
+    magicDefense: Math.floor((player.stats.magicDefense - BASE_STATS.magicDefense) / MULTIPLIERS.magicDefense),
+    speed: Math.floor((player.stats.speed - BASE_STATS.speed) / MULTIPLIERS.speed)
+  }
+}
+
+/**
+ * 総割り振りポイント数を計算
+ */
+const calculateTotalAllocatedPoints = (player: Player): number => {
+  const points = calculateAllocatedPoints(player)
+  return Object.values(points).reduce((sum, p) => sum + p, 0)
+}
 
 export function useStatAllocation(
   player: Player,
@@ -25,15 +56,16 @@ export function useStatAllocation(
            tempStatAlloc.defense + tempStatAlloc.magicDefense + tempStatAlloc.speed
   })
 
-  // 割り振り済みステータスポイント数を計算
+  // 割り振り済みステータスポイント数を計算（実際の stat - BASE_STAT で判定）
   const allocatedStats = computed(() => {
+    const points = calculateAllocatedPoints(player)
     return {
-      maxHp: player.maxHp - BASE_STATS.maxHp,
-      attack: player.stats.attack - BASE_STATS.attack,
-      magic: player.stats.magic - BASE_STATS.magic,
-      defense: player.stats.defense - BASE_STATS.defense,
-      magicDefense: player.stats.magicDefense - BASE_STATS.magicDefense,
-      speed: player.stats.speed - BASE_STATS.speed
+      maxHp: points.maxHp,
+      attack: points.attack,
+      magic: points.magic,
+      defense: points.defense,
+      magicDefense: points.magicDefense,
+      speed: points.speed
     }
   })
 
@@ -58,7 +90,12 @@ export function useStatAllocation(
     }
     
     const total = totalTempAlloc.value
-    if (total === 0) return
+    
+    // 何も割り振られていないなら何もしない
+    if (total === 0) {
+      showToast('割り振りをしてください', 'info')
+      return
+    }
     
     // マイナス値は受け付けない
     if (tempStatAlloc.maxHp < 0 || tempStatAlloc.attack < 0 || 
@@ -69,14 +106,7 @@ export function useStatAllocation(
     }
     
     // 現在の割り振りポイント数を計算
-    const multipliers = { maxHp: 25, attack: 5, magic: 5, defense: 3, magicDefense: 3, speed: 2 }
-    const currentAllocatedPoints = 
-      Math.floor((player.maxHp - BASE_STATS.maxHp) / multipliers.maxHp) +
-      Math.floor((player.stats.attack - BASE_STATS.attack) / multipliers.attack) +
-      Math.floor((player.stats.magic - BASE_STATS.magic) / multipliers.magic) +
-      Math.floor((player.stats.defense - BASE_STATS.defense) / multipliers.defense) +
-      Math.floor((player.stats.magicDefense - BASE_STATS.magicDefense) / multipliers.magicDefense) +
-      Math.floor((player.stats.speed - BASE_STATS.speed) / multipliers.speed)
+    const currentAllocatedPoints = calculateTotalAllocatedPoints(player)
     
     // 追加予定を含めた総割り振りポイント数
     const totalAllocatedAfter = currentAllocatedPoints + total
@@ -91,37 +121,20 @@ export function useStatAllocation(
     }
 
     // ステータス値を直接更新
-    player.maxHp += tempStatAlloc.maxHp * multipliers.maxHp
-    player.currentHp = Math.min(player.currentHp + tempStatAlloc.maxHp * multipliers.maxHp, player.maxHp)
-    player.stats.attack += tempStatAlloc.attack * multipliers.attack
-    player.stats.magic += tempStatAlloc.magic * multipliers.magic
-    player.stats.defense += tempStatAlloc.defense * multipliers.defense
-    player.stats.magicDefense += tempStatAlloc.magicDefense * multipliers.magicDefense
-    player.stats.speed += tempStatAlloc.speed * multipliers.speed
-
-    // allocations オブジェクトも更新
-    const allocations = useGameOrchestrator().ensureAllocations()
-    allocations.maxHp += tempStatAlloc.maxHp
-    allocations.attack += tempStatAlloc.attack
-    allocations.magic += tempStatAlloc.magic
-    allocations.defense += tempStatAlloc.defense
-    allocations.magicDefense += tempStatAlloc.magicDefense
-    allocations.speed += tempStatAlloc.speed
+    player.maxHp += tempStatAlloc.maxHp * MULTIPLIERS.maxHp
+    player.currentHp = Math.min(player.currentHp + tempStatAlloc.maxHp * MULTIPLIERS.maxHp, player.maxHp)
+    player.stats.attack += tempStatAlloc.attack * MULTIPLIERS.attack
+    player.stats.magic += tempStatAlloc.magic * MULTIPLIERS.magic
+    player.stats.defense += tempStatAlloc.defense * MULTIPLIERS.defense
+    player.stats.magicDefense += tempStatAlloc.magicDefense * MULTIPLIERS.magicDefense
+    player.stats.speed += tempStatAlloc.speed * MULTIPLIERS.speed
 
     // 割り振り後、statPoints を正確に再計算（これが唯一の source of truth）
-    const allocatedPoints = 
-      Math.floor((player.maxHp - BASE_STATS.maxHp) / multipliers.maxHp) +
-      Math.floor((player.stats.attack - BASE_STATS.attack) / multipliers.attack) +
-      Math.floor((player.stats.magic - BASE_STATS.magic) / multipliers.magic) +
-      Math.floor((player.stats.defense - BASE_STATS.defense) / multipliers.defense) +
-      Math.floor((player.stats.magicDefense - BASE_STATS.magicDefense) / multipliers.magicDefense) +
-      Math.floor((player.stats.speed - BASE_STATS.speed) / multipliers.speed)
+    const allocatedPoints = calculateTotalAllocatedPoints(player)
     player.statPoints = (player.level * 5) - allocatedPoints
 
     resetTempAllocation()
-    if (total > 0) {
-      showToast(`${total}ポイント割り振りました`, 'info')
-    }
+    showToast(`${total}ポイント割り振りました`, 'info')
   }
 
   const handleResetStats = () => {
@@ -129,6 +142,7 @@ export function useStatAllocation(
       showToast('探索中はリセットできません', 'error')
       return
     }
+    
     const cost = calculateResetCost()
     const res = resetAllocatedStats(cost)
     if (!res.ok) {
@@ -139,14 +153,7 @@ export function useStatAllocation(
     }
     
     // リセット後、statPoints を正確に再計算
-    const multipliers = { maxHp: 25, attack: 5, magic: 5, defense: 3, magicDefense: 3, speed: 2 }
-    const allocatedPoints = 
-      Math.floor((player.maxHp - BASE_STATS.maxHp) / multipliers.maxHp) +
-      Math.floor((player.stats.attack - BASE_STATS.attack) / multipliers.attack) +
-      Math.floor((player.stats.magic - BASE_STATS.magic) / multipliers.magic) +
-      Math.floor((player.stats.defense - BASE_STATS.defense) / multipliers.defense) +
-      Math.floor((player.stats.magicDefense - BASE_STATS.magicDefense) / multipliers.magicDefense) +
-      Math.floor((player.stats.speed - BASE_STATS.speed) / multipliers.speed)
+    const allocatedPoints = calculateTotalAllocatedPoints(player)
     player.statPoints = (player.level * 5) - allocatedPoints
     
     resetTempAllocation()
@@ -162,7 +169,6 @@ export function useStatAllocation(
       return
     }
     
-    const multipliers = { maxHp: 25, attack: 5, magic: 5, defense: 3, magicDefense: 3, speed: 2 }
     const currentAllocated = allocatedStats.value[stat]
     
     if (currentAllocated <= 0) {
@@ -178,19 +184,8 @@ export function useStatAllocation(
       player.stats[stat] = BASE_STATS[stat]
     }
     
-    // allocations オブジェクトをリセット
-    const allocations = useGameOrchestrator().ensureAllocations()
-    allocations[stat] = 0
-    
     // リセット後、statPoints を正確に再計算
-    const allMultipliers = { maxHp: 25, attack: 5, magic: 5, defense: 3, magicDefense: 3, speed: 2 }
-    const allocatedPoints = 
-      Math.floor((player.maxHp - BASE_STATS.maxHp) / allMultipliers.maxHp) +
-      Math.floor((player.stats.attack - BASE_STATS.attack) / allMultipliers.attack) +
-      Math.floor((player.stats.magic - BASE_STATS.magic) / allMultipliers.magic) +
-      Math.floor((player.stats.defense - BASE_STATS.defense) / allMultipliers.defense) +
-      Math.floor((player.stats.magicDefense - BASE_STATS.magicDefense) / allMultipliers.magicDefense) +
-      Math.floor((player.stats.speed - BASE_STATS.speed) / allMultipliers.speed)
+    const allocatedPoints = calculateTotalAllocatedPoints(player)
     player.statPoints = (player.level * 5) - allocatedPoints
     
     showToast(`${stat}をリセットしました`, 'info')

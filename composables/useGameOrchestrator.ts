@@ -304,11 +304,19 @@ export function useGameOrchestrator(
       currentEvent.value = null
       addInfo('ダンジョン探索完了！')
       const currentDungeon = selectedDungeon.value
-      const nextDungeon = currentDungeon ? dungeons.find(d => d.prereq === currentDungeon.id) : undefined
-      if (nextDungeon && !player.unlockedDungeons.includes(nextDungeon.id)) {
-        player.unlockedDungeons.push(nextDungeon.id)
-        addInfo(`${nextDungeon.name} が解放されました！`)
+      
+      // 現在のダンジョンを前提条件とするダンジョンの中から、最初の1つだけを解放
+      if (currentDungeon) {
+        const nextDungeons = dungeons.filter(d => d.prereq === currentDungeon.id)
+        if (nextDungeons.length > 0) {
+          const nextDungeon = nextDungeons[0]
+          if (!player.unlockedDungeons.includes(nextDungeon.id)) {
+            player.unlockedDungeons.push(nextDungeon.id)
+            addInfo(`${nextDungeon.name} が解放されました！`)
+          }
+        }
       }
+      
       stopAuto()
       return
     }

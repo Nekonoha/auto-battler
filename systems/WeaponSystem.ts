@@ -1,6 +1,7 @@
 import type { Weapon, WeaponType, DamageResult, CombatUnit, Enemy } from '../types'
 import { StatusEffectSystem } from './StatusEffectSystem'
 import { DamageSystem } from './DamageSystem'
+import { getStatusEffectDefinition } from '../data/statusEffects'
 
 /**
  * 武器システム
@@ -36,8 +37,7 @@ export class WeaponSystem {
     }
     
     // 状態異常による攻撃力補正
-    const statusModifier = StatusEffectSystem.getAttackModifier(attacker)
-    const modifiedDamage = baseDamage * statusModifier
+    const modifiedDamage = StatusEffectSystem.applyDamageModifiers(attacker, baseDamage)
 
     // 防御力を考慮した最終ダメージ計算
     let finalDamage: number
@@ -60,16 +60,25 @@ export class WeaponSystem {
       finalDamage = DamageSystem.calculateDamage(modifiedDamage, target as any, weapon.type === 'magic')
     }
 
+    // 状態異常による被ダメージ補正
+    finalDamage = StatusEffectSystem.applyVulnerabilityModifier(target, finalDamage)
+
     // ダメージを与える
     target.currentHp = Math.max(0, target.currentHp - finalDamage)
     
     // 状態異常を付与
-    const appliedEffects = weapon.effects.filter(effect => {
-      // 敵への状態異常付与時、耐性チェック
-      if ('tier' in target && 'traits' in target) {
+    const appliedEffects: Weapon['effects'] = []
+
+    for (const effect of weapon.effects) {
+      const def = getStatusEffectDefinition(effect.type as any)
+      const defaultRecipient = def?.type === 'Buff' ? attacker : target
+      const recipient = effect.target === 'self' ? attacker : effect.target === 'enemy' ? target : defaultRecipient
+
+      // 敵への状態異常付与時、耐性チェック（別スタック化した burn 系も親の burn 免疫を継承）
+      if (recipient === target && 'tier' in target && 'traits' in target) {
         const enemy = target as Enemy
-        if (enemy.traits?.statusImmunities?.includes(effect.type)) {
-          return false // 無効化
+        if (StatusEffectSystem['isImmune']?.(enemy as any, effect.type)) {
+          continue
         }
       }
       
@@ -77,11 +86,10 @@ export class WeaponSystem {
       if (Math.random() * 100 < effect.chance) {
         // statusPowerでスタック数を補正
         const stacks = Math.max(1, Math.floor(effect.stacks * (1 + effectiveStats.statusPower / 100)))
-        StatusEffectSystem.applyStatusEffect(target, effect.type, stacks, effect.duration)
-        return true
+        // 実際の付与は呼び出し元で行うため、付与先情報を保持して返す（元の定義を汚さない）
+        appliedEffects.push({ ...effect, stacks, target: recipient === attacker ? 'self' : 'enemy' } as any)
       }
-      return false
-    })
+    }
     
     return {
       damage: finalDamage,

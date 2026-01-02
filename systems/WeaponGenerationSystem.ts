@@ -1,5 +1,16 @@
-import type { Weapon, EnchantedWeapon, WeaponRarity, WeaponStats, WeaponTag } from '~/types'
+import type { Weapon, EnchantedWeapon, WeaponRarity, WeaponStats, WeaponTag, WeaponEffect } from '~/types'
 import { getRandomEnchantment } from '../data/enchantments'
+
+const TAG_STATUS_EFFECT_MAP: Partial<Record<WeaponTag, WeaponEffect>> = {
+  venomous: { type: 'poison', chance: 25, stacks: 2, duration: 3 },
+  flame: { type: 'burn', chance: 25, stacks: 2, duration: 3 },
+  frost: { type: 'frozen', chance: 12, stacks: 1, duration: 1 },
+  bloodthirsty: { type: 'bleed', chance: 30, stacks: 2, duration: 3 },
+  precise: { type: 'precision', chance: 100, stacks: 1, duration: 2, target: 'self' },
+  fast: { type: 'fleet', chance: 100, stacks: 1, duration: 2, target: 'self' },
+  defensive: { type: 'armor', chance: 100, stacks: 1, duration: 3, target: 'self' },
+  elemental: { type: 'intellect', chance: 60, stacks: 1, duration: 3, target: 'self' }
+}
 
 /**
  * 武器生成システム
@@ -58,6 +69,7 @@ export function generateEnchantedWeapon(
   let finalStats = { ...baseWeapon.stats }
   let finalTags = [...baseWeapon.tags]
   let finalEffects = [...baseWeapon.effects]
+  const enchantmentAddedTags: Set<WeaponTag> = new Set()
   let namePrefix = ''
   let nameSuffix = ''
 
@@ -81,6 +93,7 @@ export function generateEnchantedWeapon(
       
       if (prefix.addTags) {
         finalTags = [...new Set([...finalTags, ...prefix.addTags])]
+        prefix.addTags.forEach(tag => enchantmentAddedTags.add(tag as WeaponTag))
       }
       
       if (prefix.addEffects) {
@@ -107,6 +120,7 @@ export function generateEnchantedWeapon(
         
         if (suffix.addTags) {
           finalTags = [...new Set([...finalTags, ...suffix.addTags])]
+          suffix.addTags.forEach(tag => enchantmentAddedTags.add(tag as WeaponTag))
         }
         
         if (suffix.addEffects) {
@@ -115,6 +129,8 @@ export function generateEnchantedWeapon(
       }
     }
   }
+
+  finalEffects = appendTagBasedEffects(finalEffects, enchantmentAddedTags)
 
   // 最終的な武器名を構築
   let finalName = baseWeapon.name
@@ -161,6 +177,23 @@ export function generateMultipleWeapons(
   }
   
   return weapons
+}
+
+function appendTagBasedEffects(effects: WeaponEffect[], tags: Set<WeaponTag>): WeaponEffect[] {
+  if (!tags.size) return effects
+
+  const existingTypes = new Set(effects.map(effect => effect.type))
+  const additions: WeaponEffect[] = []
+
+  tags.forEach(tag => {
+    const candidate = TAG_STATUS_EFFECT_MAP[tag]
+    if (candidate && !existingTypes.has(candidate.type)) {
+      additions.push({ ...candidate })
+      existingTypes.add(candidate.type)
+    }
+  })
+
+  return [...effects, ...additions]
 }
 
 /**

@@ -44,19 +44,38 @@
     </div>
 
     <div v-if="weapon.effects.length > 0" class="weapon-effects">
-      <Tooltip 
-        v-for="(effect, index) in weapon.effects" 
-        :key="index"
-        :title="`${getStatusIcon(effect.type)} ${getStatusName(effect.type)}`"
-        :content="getStatusDescription(effect.type)"
-      >
-        <div 
-          class="effect-badge"
-          :style="{ backgroundColor: getStatusColor(effect.type) }"
+      <div v-if="getEffectsByKind(weapon.effects, 'Buff').length" class="effect-group">
+        <span class="effect-group-title">🟢 バフ</span>
+        <Tooltip 
+          v-for="(effect, index) in getEffectsByKind(weapon.effects, 'Buff')" 
+          :key="`buff-${index}`"
+          :title="`${getStatusIcon(effect.type)} ${getStatusName(effect.type)}`"
+          :content="getStatusDescription(effect.type)"
         >
-          {{ getStatusIcon(effect.type) }} {{ effect.type }} ({{ effect.chance }}%)
-        </div>
-      </Tooltip>
+          <div 
+            class="effect-badge buff-badge"
+            :style="{ backgroundColor: getStatusColor(effect.type) }"
+          >
+            {{ getStatusIcon(effect.type) }} {{ getStatusName(effect.type) }} ({{ effect.chance }}%)
+          </div>
+        </Tooltip>
+      </div>
+      <div v-if="getEffectsByKind(weapon.effects, 'Debuff').length" class="effect-group">
+        <span class="effect-group-title">🔴 デバフ</span>
+        <Tooltip 
+          v-for="(effect, index) in getEffectsByKind(weapon.effects, 'Debuff')" 
+          :key="`debuff-${index}`"
+          :title="`${getStatusIcon(effect.type)} ${getStatusName(effect.type)}`"
+          :content="getStatusDescription(effect.type)"
+        >
+          <div 
+            class="effect-badge debuff-badge"
+            :style="{ backgroundColor: getStatusColor(effect.type) }"
+          >
+            {{ getStatusIcon(effect.type) }} {{ getStatusName(effect.type) }} ({{ effect.chance }}%)
+          </div>
+        </Tooltip>
+      </div>
     </div>
 
     <div v-if="weapon.tags.length > 0" class="weapon-tags">
@@ -78,6 +97,8 @@
 import type { Weapon, WeaponType } from '~/types'
 import { WeaponSystem } from '~/systems/WeaponSystem'
 import { StatusEffectSystem } from '~/systems/StatusEffectSystem'
+import { STATUS_EFFECTS_DB } from '~/data/statusEffects'
+import { getTagDescription } from '~/utils/weaponPresentation'
 import Tooltip from './Tooltip.vue'
 
 defineProps<{
@@ -114,17 +135,8 @@ const getStatusName = (type: string) => {
   return StatusEffectSystem.getStatusName(type as any)
 }
 
-const getTagDescription = (tag: string) => {
-  const descriptions: Record<string, string> = {
-    fast: '攻撃速度が速い',
-    heavy: '高ダメージだが遅い',
-    precise: 'クリティカル率が高い',
-    elemental: '属性攻撃を行う',
-    cursed: '状態異常を付与する',
-    bleeding: '出血効果を付与する'
-  }
-  return descriptions[tag] || ''
-}
+const getEffectKind = (type: string) => STATUS_EFFECTS_DB[type as keyof typeof STATUS_EFFECTS_DB]?.type || 'Debuff'
+const getEffectsByKind = (effects: Weapon['effects'], kind: 'Buff' | 'Debuff') => effects.filter(effect => getEffectKind(effect.type) === kind)
 </script>
 
 <style scoped>
@@ -232,6 +244,19 @@ const getTagDescription = (tag: string) => {
   margin-bottom: 10px;
 }
 
+.effect-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.effect-group-title {
+  font-size: 11px;
+  font-weight: 700;
+  opacity: 0.85;
+}
+
 .effect-badge {
   padding: 4px 10px;
   border-radius: 12px;
@@ -239,6 +264,14 @@ const getTagDescription = (tag: string) => {
   font-weight: bold;
   color: white;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.buff-badge {
+  background: rgba(39, 174, 96, 0.25);
+}
+
+.debuff-badge {
+  background: rgba(231, 76, 60, 0.25);
 }
 
 .weapon-tags {

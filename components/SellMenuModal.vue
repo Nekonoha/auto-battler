@@ -44,43 +44,7 @@
               :disabled="!canSellWeapon(weapon)"
               class="sell-checkbox"
             />
-
-            <div class="sell-weapon-header">
-              <div class="sell-weapon-name">{{ weapon.name }}</div>
-              <span class="weapon-rarity-badge" :style="{ background: getWeaponRarityColor(weapon.rarity) }">{{ weapon.rarity }}</span>
-            </div>
-            <div class="sell-weapon-type">{{ weapon.type }}</div>
-            <div class="sell-weapon-desc">{{ weapon.description }}</div>
-
-            <div class="sell-weapon-stats">
-              <Tooltip v-if="weapon.stats.attack > 0" title="⚔️ 攻撃力" content="物理ダメージに影響">
-                <span class="sell-stat">⚔️{{ weapon.stats.attack }}</span>
-              </Tooltip>
-              <Tooltip v-if="weapon.stats.magic > 0" title="✨ 魔法力" content="魔法ダメージに影響">
-                <span class="sell-stat">✨{{ weapon.stats.magic }}</span>
-              </Tooltip>
-              <Tooltip v-if="weapon.stats.speed > 0" title="⚡ 速度" content="攻撃順序と頻度に影響">
-                <span class="sell-stat">⚡{{ weapon.stats.speed }}</span>
-              </Tooltip>
-              <Tooltip v-if="weapon.stats.critChance > 0" title="🎯 クリティカル率" content="クリティカルヒットの発生確率">
-                <span class="sell-stat">🎯{{ weapon.stats.critChance }}%</span>
-              </Tooltip>
-              <Tooltip v-if="weapon.stats.critDamage > 0" title="💥 クリティカルダメージ" content="クリティカル時のダメージ増加">
-                <span class="sell-stat">💥{{ weapon.stats.critDamage }}%</span>
-              </Tooltip>
-              <Tooltip v-if="weapon.stats.statusPower > 0" title="🔮 状態異常威力" content="状態異常の効果を強化">
-                <span class="sell-stat">🔮{{ weapon.stats.statusPower }}</span>
-              </Tooltip>
-            </div>
-
-            <div class="sell-weapon-tags">
-              <Tooltip v-for="tag in weapon.tags" :key="tag" :title="tag" :content="getTagDescription(tag)">
-                <span class="sell-tag">#{{ tag }}</span>
-              </Tooltip>
-              <Tooltip v-for="effect in weapon.effects" :key="effect.type" :title="effect.type" :content="getStatusDescription(effect.type)">
-                <span class="sell-effect">{{ effect.type }}</span>
-              </Tooltip>
-            </div>
+            <WeaponDetails :weapon="weapon" :showRarityBadge="false" compact />
 
             <div class="sell-weapon-value">
               売値: <strong>{{ (weapon as any).sellValue || 10 }}G</strong>
@@ -101,9 +65,9 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import Tooltip from './Tooltip.vue'
+import WeaponDetails from './WeaponDetails.vue'
 import type { Weapon } from '~/types'
-import { getStatusDescription, getTagDescription, getWeaponRarityColor } from '~/utils/weaponPresentation'
+import { getWeaponRarityColor } from '~/utils/weaponPresentation'
 
 type Emits = {
   (e: 'close'): void

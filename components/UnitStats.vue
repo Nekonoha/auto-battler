@@ -14,23 +14,49 @@
       </div>
     </div>
 
-    <!-- 状態異常表示 -->
-    <div v-if="unit.statusEffects.length > 0" class="status-effects">
-      <Tooltip 
-        v-for="effect in unit.statusEffects" 
-        :key="effect.type"
-        :title="getStatusName(effect.type)"
-        :content="getStatusDescription(effect)"
-      >
-        <div 
-          class="status-effect"
-          :style="{ backgroundColor: getStatusColor(effect.type) }"
-        >
-          <span class="status-icon">{{ getStatusIcon(effect.type) }}</span>
-          <span class="status-stacks">×{{ effect.stacks }}</span>
-          <span class="status-duration">({{ effect.duration }}T)</span>
+    <!-- 状態異常表示（バフ/デバフ分離） -->
+    <div v-if="unit.statusEffects.length > 0" class="status-effects-wrapper">
+      <div v-if="buffStatusEffects.length" class="status-group">
+        <div class="status-group-title">🟢 バフ</div>
+        <div class="status-effects">
+          <Tooltip 
+            v-for="effect in buffStatusEffects" 
+            :key="effect.type"
+            :title="getStatusName(effect.type)"
+            :content="getStatusDescription(effect)"
+          >
+            <div 
+              class="status-effect"
+              :style="{ backgroundColor: getStatusColor(effect.type) }"
+            >
+              <span class="status-icon">{{ getStatusIcon(effect.type) }}</span>
+              <span class="status-stacks">×{{ effect.stacks }}</span>
+              <span class="status-duration">({{ effect.duration }}T)</span>
+            </div>
+          </Tooltip>
         </div>
-      </Tooltip>
+      </div>
+
+      <div v-if="debuffStatusEffects.length" class="status-group">
+        <div class="status-group-title">🔴 デバフ</div>
+        <div class="status-effects">
+          <Tooltip 
+            v-for="effect in debuffStatusEffects" 
+            :key="effect.type"
+            :title="getStatusName(effect.type)"
+            :content="getStatusDescription(effect)"
+          >
+            <div 
+              class="status-effect"
+              :style="{ backgroundColor: getStatusColor(effect.type) }"
+            >
+              <span class="status-icon">{{ getStatusIcon(effect.type) }}</span>
+              <span class="status-stacks">×{{ effect.stacks }}</span>
+              <span class="status-duration">({{ effect.duration }}T)</span>
+            </div>
+          </Tooltip>
+        </div>
+      </div>
     </div>
 
     <!-- ステータス -->
@@ -90,7 +116,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { Player, Enemy, StatusEffect } from '~/types'
-import { getStatusEffectDefinition } from '~/data/statusEffects'
+import { getStatusEffectDefinition, STATUS_EFFECTS_DB } from '~/data/statusEffects'
+import { StatusEffectSystem } from '~/systems/StatusEffectSystem'
 
 interface Props {
   unit: Player | Enemy
@@ -105,6 +132,9 @@ const hpPercentage = computed(() => {
   return (props.unit.currentHp / props.unit.maxHp) * 100
 })
 
+const buffStatusEffects = computed(() => props.unit.statusEffects.filter(e => STATUS_EFFECTS_DB[e.type as keyof typeof STATUS_EFFECTS_DB]?.type === 'Buff'))
+const debuffStatusEffects = computed(() => props.unit.statusEffects.filter(e => STATUS_EFFECTS_DB[e.type as keyof typeof STATUS_EFFECTS_DB]?.type === 'Debuff'))
+
 // PlayerとEnemyの両方に対応するため、statsプロパティを考慮
 const getStatValue = (stat: 'attack' | 'magic' | 'defense' | 'magicDefense' | 'speed'): number => {
   const unit = props.unit
@@ -115,63 +145,11 @@ const getStatValue = (stat: 'attack' | 'magic' | 'defense' | 'magicDefense' | 's
   return (unit as any)[stat] || 0
 }
 
-const getStatusIcon = (type: string): string => {
-  const icons: Record<string, string> = {
-    burn: '🔥',
-    poison: '☠️',
-    bleed: '🩸',
-    frozen: '❄️',
-    stun: '💫',
-    weak: '😰',
-    vulnerable: '🎯',
-    slow: '🐌',
-    fear: '😱',
-    confusion: '😵',
-    sleep: '😴',
-    petrification: '🗿',
-    silence: '🤐',
-    blind: '🙈',
-    paralyze: '⚡',
-    curse: '👿',
-    doom: '💀',
-    regeneration: '💚',
-    shield: '🛡️',
-    haste: '⚡',
-    strength: '💪'
-  }
-  return icons[type] || '❓'
-}
+const getStatusIcon = (type: string): string => StatusEffectSystem.getStatusIcon(type as any)
 
-const getStatusColor = (type: string): string => {
-  const colors: Record<string, string> = {
-    burn: '#ff6b35',
-    poison: '#9b59b6',
-    bleed: '#e74c3c',
-    frozen: '#3498db',
-    stun: '#f39c12',
-    weak: '#95a5a6',
-    vulnerable: '#e67e22',
-    slow: '#7f8c8d',
-    fear: '#34495e',
-    confusion: '#9b59b6',
-    sleep: '#5dade2',
-    petrification: '#7f8c8d',
-    silence: '#566573',
-    blind: '#2c3e50',
-    paralyze: '#f1c40f',
-    curse: '#8e44ad',
-    doom: '#2c3e50',
-    regeneration: '#27ae60',
-    shield: '#3498db',
-    haste: '#f39c12',
-    strength: '#c0392b'
-  }
-  return colors[type] || '#95a5a6'
-}
+const getStatusColor = (type: string): string => StatusEffectSystem.getStatusColor(type as any)
 
-const getStatusName = (type: string): string => {
-  return StatusEffectSystem.getStatusName(type as any)
-}
+const getStatusName = (type: string): string => StatusEffectSystem.getStatusName(type as any)
 
 const getStatusDescription = (effect: StatusEffect): string => {
   const definition = getStatusEffectDefinition(effect.type as any)
@@ -226,6 +204,25 @@ const getStatusDescription = (effect: StatusEffect): string => {
   flex-wrap: wrap;
   gap: 0.5rem;
   padding: 0.5rem 0;
+}
+
+.status-effects-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+}
+
+.status-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.status-group-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  opacity: 0.85;
 }
 
 .status-effect {

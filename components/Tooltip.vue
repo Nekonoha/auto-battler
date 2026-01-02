@@ -13,7 +13,7 @@
         :style="tooltipStyle"
       >
         <div class="tooltip-title">{{ title }}</div>
-        <div class="tooltip-content">{{ content }}</div>
+        <div class="tooltip-content" v-html="formattedContent"></div>
       </div>
     </Teleport>
   </div>
@@ -22,7 +22,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 
-defineProps<{
+const props = defineProps<{
   title: string
   content: string
 }>()
@@ -46,6 +46,10 @@ const handleMouseLeave = () => {
   showTooltip.value = false
 }
 
+const formattedContent = computed(() => {
+  return props.content.replace(/\n/g, '<br>')
+})
+
 const tooltipStyle = computed(() => ({
   left: `${tooltipPosition.value.x}px`,
   top: `${tooltipPosition.value.y}px`
@@ -65,7 +69,6 @@ const tooltipStyle = computed(() => ({
   color: white;
   padding: 8px 12px;
   border-radius: 8px;
-  white-space: nowrap;
   font-size: 12px;
   z-index: 9999;
   pointer-events: none;
@@ -73,7 +76,6 @@ const tooltipStyle = computed(() => ({
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
   animation: slideUp 0.2s ease;
   max-width: 300px;
-  white-space: normal;
 }
 
 .tooltip::after {
@@ -95,7 +97,18 @@ const tooltipStyle = computed(() => ({
 .tooltip-content {
   font-size: 11px;
   opacity: 0.9;
-  line-height: 1.4;
+  line-height: 1.6;
+  white-space: normal;
+}
+
+.tooltip-positive {
+  color: #4ade80;
+  font-weight: 500;
+}
+
+.tooltip-negative {
+  color: #ff6b6b;
+  font-weight: 500;
 }
 
 @keyframes slideUp {

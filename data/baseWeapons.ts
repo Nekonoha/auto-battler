@@ -72,7 +72,13 @@ export const BASE_WEAPONS: Weapon[] = [
       statusPower: 18
     },
     tags: ['fast', 'precise'],
-    effects: [],
+    effects: [{
+      type: 'fleet',
+      chance: 30,
+      stacks: 1,
+      duration: 2,
+      target: 'self'
+    }],
     description: '素早く連続攻撃が可能'
   },
   {
@@ -247,7 +253,13 @@ export const BASE_WEAPONS: Weapon[] = [
       statusPower: 25
     },
     tags: ['heavy', 'precise'],
-    effects: [],
+    effects: [{
+      type: 'precision',
+      chance: 100,
+      stacks: 1,
+      duration: 2,
+      target: 'self'
+    }],
     description: '一撃必殺の精密射撃'
   },
 
@@ -371,7 +383,13 @@ export const BASE_WEAPONS: Weapon[] = [
       statusPower: 35
     },
     tags: ['elemental', 'precise'],
-    effects: [],
+    effects: [{
+      type: 'intellect',
+      chance: 100,
+      stacks: 1,
+      duration: 3,
+      target: 'self'
+    }],
     description: '純粋な魔力の結晶を宿す'
   },
 
@@ -480,7 +498,13 @@ export const BASE_WEAPONS: Weapon[] = [
       statusPower: 20
     },
     tags: ['healing', 'defensive', 'heavy'],
-    effects: [],
+    effects: [{
+      type: 'armor',
+      chance: 100,
+      stacks: 1,
+      duration: 3,
+      target: 'self'
+    }],
     description: '攻撃しつつ自身を回復する不思議な武器'
   },
   {
@@ -497,7 +521,13 @@ export const BASE_WEAPONS: Weapon[] = [
       statusPower: 18
     },
     tags: ['versatile', 'fast'],
-    effects: [],
+    effects: [{
+      type: 'power',
+      chance: 100,
+      stacks: 1,
+      duration: 3,
+      target: 'self'
+    }],
     description: '攻防のバランスに優れた万能剣'
   },
   {
@@ -516,7 +546,7 @@ export const BASE_WEAPONS: Weapon[] = [
     tags: ['cursed', 'elemental', 'versatile'],
     effects: [
       {
-        type: 'venomous',
+        type: 'poison',
         chance: 30,
         stacks: 3,
         duration: 4

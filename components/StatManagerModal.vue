@@ -40,8 +40,8 @@
               −
             </button>
             <div class="stat-spinner-display">
-              <div class="spinner-value">{{ tempStatAlloc.maxHp }}</div>
-              <div class="spinner-info">+{{ tempStatAlloc.maxHp * 25 }} HP</div>
+              <div class="spinner-point">+{{ tempStatAlloc.maxHp }} P</div>
+              <div class="spinner-value">+{{ tempStatAlloc.maxHp * 25 }}</div>
             </div>
             <button 
               class="btn btn-spinner"
@@ -61,8 +61,10 @@
             </button>
           </div>
           <div class="stat-slider-info">
-            現在: {{ player.maxHp }} → {{ player.maxHp + tempStatAlloc.maxHp * 25 }}
+            <div class="stat-current">現在: <strong>{{ player.maxHp }}</strong></div>
+            <div class="stat-after">→ <strong>{{ player.maxHp + tempStatAlloc.maxHp * 25 }}</strong></div>
           </div>
+          <div class="stat-allocated">割り振り済み: <strong>+{{ allocatedStats.maxHp }}P</strong></div>
         </div>
 
         <div class="stat-slider-item">
@@ -97,8 +99,8 @@
               −
             </button>
             <div class="stat-spinner-display">
-              <div class="spinner-value">{{ tempStatAlloc.attack }}</div>
-              <div class="spinner-info">+{{ tempStatAlloc.attack * 5 }} 攻撃</div>
+              <div class="spinner-point">+{{ tempStatAlloc.attack }} P</div>
+              <div class="spinner-value">+{{ tempStatAlloc.attack * 5 }}</div>
             </div>
             <button 
               class="btn btn-spinner"
@@ -118,8 +120,10 @@
             </button>
           </div>
           <div class="stat-slider-info">
-            現在: {{ player.stats.attack }} → {{ player.stats.attack + tempStatAlloc.attack * 5 }}
+            <div class="stat-current">現在: <strong>{{ player.stats.attack }}</strong></div>
+            <div class="stat-after">→ <strong>{{ player.stats.attack + tempStatAlloc.attack * 5 }}</strong></div>
           </div>
+          <div class="stat-allocated">割り挫り済み: <strong>+{{ allocatedStats.attack }}P</strong></div>
         </div>
 
         <div class="stat-slider-item">
@@ -154,8 +158,8 @@
               −
             </button>
             <div class="stat-spinner-display">
-              <div class="spinner-value">{{ tempStatAlloc.magic }}</div>
-              <div class="spinner-info">+{{ tempStatAlloc.magic * 5 }} 魔法</div>
+              <div class="spinner-point">+{{ tempStatAlloc.magic }} P</div>
+              <div class="spinner-value">+{{ tempStatAlloc.magic * 5 }}</div>
             </div>
             <button 
               class="btn btn-spinner"
@@ -175,8 +179,10 @@
             </button>
           </div>
           <div class="stat-slider-info">
-            現在: {{ player.stats.magic }} → {{ player.stats.magic + tempStatAlloc.magic * 5 }}
+            <div class="stat-current">現在: <strong>{{ player.stats.magic }}</strong></div>
+            <div class="stat-after">→ <strong>{{ player.stats.magic + tempStatAlloc.magic * 5 }}</strong></div>
           </div>
+          <div class="stat-allocated">割り挫り済み: <strong>+{{ allocatedStats.magic }}P</strong></div>
         </div>
 
         <div class="stat-slider-item">
@@ -211,8 +217,8 @@
               −
             </button>
             <div class="stat-spinner-display">
-              <div class="spinner-value">{{ tempStatAlloc.defense }}</div>
-              <div class="spinner-info">+{{ tempStatAlloc.defense * 3 }} 防御</div>
+              <div class="spinner-point">+{{ tempStatAlloc.defense }} P</div>
+              <div class="spinner-value">+{{ tempStatAlloc.defense * 3 }}</div>
             </div>
             <button 
               class="btn btn-spinner"
@@ -232,8 +238,10 @@
             </button>
           </div>
           <div class="stat-slider-info">
-            現在: {{ player.stats.defense }} → {{ player.stats.defense + tempStatAlloc.defense * 3 }}
+            <div class="stat-current">現在: <strong>{{ player.stats.defense }}</strong></div>
+            <div class="stat-after">→ <strong>{{ player.stats.defense + tempStatAlloc.defense * 3 }}</strong></div>
           </div>
+          <div class="stat-allocated">割り挫り済み: <strong>+{{ allocatedStats.defense }}P</strong></div>
         </div>
 
         <div class="stat-slider-item">
@@ -268,8 +276,8 @@
               −
             </button>
             <div class="stat-spinner-display">
-              <div class="spinner-value">{{ tempStatAlloc.magicDefense }}</div>
-              <div class="spinner-info">+{{ tempStatAlloc.magicDefense * 3 }} 魔防</div>
+              <div class="spinner-point">+{{ tempStatAlloc.magicDefense }} P</div>
+              <div class="spinner-value">+{{ tempStatAlloc.magicDefense * 3 }}</div>
             </div>
             <button 
               class="btn btn-spinner"
@@ -289,8 +297,10 @@
             </button>
           </div>
           <div class="stat-slider-info">
-            現在: {{ player.stats.magicDefense }} → {{ player.stats.magicDefense + tempStatAlloc.magicDefense * 3 }}
+            <div class="stat-current">現在: <strong>{{ player.stats.magicDefense }}</strong></div>
+            <div class="stat-after">→ <strong>{{ player.stats.magicDefense + tempStatAlloc.magicDefense * 3 }}</strong></div>
           </div>
+          <div class="stat-allocated">割り挫り済み: <strong>+{{ allocatedStats.magicDefense }}P</strong></div>
         </div>
 
         <div class="stat-slider-item">
@@ -325,8 +335,8 @@
               −
             </button>
             <div class="stat-spinner-display">
-              <div class="spinner-value">{{ tempStatAlloc.speed }}</div>
-              <div class="spinner-info">+{{ tempStatAlloc.speed * 2 }} 速度</div>
+              <div class="spinner-point">+{{ tempStatAlloc.speed }} P</div>
+              <div class="spinner-value">+{{ tempStatAlloc.speed * 2 }}</div>
             </div>
             <button 
               class="btn btn-spinner"
@@ -346,8 +356,10 @@
             </button>
           </div>
           <div class="stat-slider-info">
-            現在: {{ player.stats.speed }} → {{ player.stats.speed + tempStatAlloc.speed * 2 }}
+            <div class="stat-current">現在: <strong>{{ player.stats.speed }}</strong></div>
+            <div class="stat-after">→ <strong>{{ player.stats.speed + tempStatAlloc.speed * 2 }}</strong></div>
           </div>
+          <div class="stat-allocated">割り挫り済み: <strong>+{{ allocatedStats.speed }}P</strong></div>
         </div>
       </div>
 

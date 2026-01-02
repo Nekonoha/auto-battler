@@ -31,19 +31,42 @@
       </div>
     </div>
 
-    <!-- 状態異常表示 -->
-    <div v-if="player.statusEffects.length > 0" class="status-effects">
-      <div 
-        v-for="effect in player.statusEffects" 
-        :key="effect.type"
-        class="status-effect"
-        :style="{ backgroundColor: getStatusColor(effect.type) }"
-      >
-        <Tooltip :title="`${getStatusIcon(effect.type)} ${getStatusName(effect.type)}`" :content="getStatusDescription(effect.type)">
-          <span class="status-icon">{{ getStatusIcon(effect.type) }}</span>
-          <span class="status-stacks">×{{ effect.stacks }}</span>
-          <span class="status-duration">({{ effect.duration }}T)</span>
-        </Tooltip>
+    <!-- 状態異常表示（バフ/デバフ分離） -->
+    <div v-if="player.statusEffects.length > 0" class="status-effects-wrapper">
+      <div v-if="buffStatusEffects.length" class="status-group">
+        <div class="status-group-title">🟢 バフ</div>
+        <div class="status-effects">
+          <div 
+            v-for="effect in buffStatusEffects" 
+            :key="effect.type"
+            class="status-effect"
+            :style="{ backgroundColor: getStatusColor(effect.type) }"
+          >
+            <Tooltip :title="`${getStatusIcon(effect.type)} ${getStatusName(effect.type)}`" :content="getStatusDescription(effect.type)">
+              <span class="status-icon">{{ getStatusIcon(effect.type) }}</span>
+              <span class="status-stacks">×{{ effect.stacks }}</span>
+              <span class="status-duration">({{ effect.duration }}T)</span>
+            </Tooltip>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="debuffStatusEffects.length" class="status-group">
+        <div class="status-group-title">🔴 デバフ</div>
+        <div class="status-effects">
+          <div 
+            v-for="effect in debuffStatusEffects" 
+            :key="effect.type"
+            class="status-effect"
+            :style="{ backgroundColor: getStatusColor(effect.type) }"
+          >
+            <Tooltip :title="`${getStatusIcon(effect.type)} ${getStatusName(effect.type)}`" :content="getStatusDescription(effect.type)">
+              <span class="status-icon">{{ getStatusIcon(effect.type) }}</span>
+              <span class="status-stacks">×{{ effect.stacks }}</span>
+              <span class="status-duration">({{ effect.duration }}T)</span>
+            </Tooltip>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -58,42 +81,72 @@
       <div class="stats-display">
       <div class="stat-row">
         <div class="stat-item">
-          <Tooltip title="⚔️ 攻撃力" content="敵へのダメージに影響">
-            <span class="stat-label">⚔️</span>
-            <span class="stat-value">{{ totalStats.attack }}</span>
-            <span v-if="synergyBonuses.attack > 0" class="bonus">+{{ synergyBonuses.attack }}</span>
+          <Tooltip :title="'⚔️ 攻撃力'" :content="getStatTooltipContent('attack')">
+            <div class="stat-display">
+              <span class="stat-label">⚔️</span>
+              <span class="stat-value">
+                {{ getEffectiveStat('attack').value }}
+                <span class="stat-detail">({{ getEffectiveStat('attack').base }}<span v-if="getEffectiveStat('attack').synergy > 0"> + {{ getEffectiveStat('attack').synergy }}</span>)</span>
+                <span v-if="getEffectiveStat('attack').buff > 0" class="stat-buff">(+{{ getEffectiveStat('attack').buff }})</span>
+                <span v-if="getEffectiveStat('attack').debuff > 0" class="stat-debuff">(-{{ getEffectiveStat('attack').debuff }})</span>
+              </span>
+            </div>
           </Tooltip>
         </div>
         <div class="stat-item">
-          <Tooltip title="✨ 魔法" content="魔法攻撃力に影響">
-            <span class="stat-label">✨</span>
-            <span class="stat-value">{{ totalStats.magic }}</span>
-            <span v-if="synergyBonuses.magic > 0" class="bonus">+{{ synergyBonuses.magic }}</span>
-          </Tooltip>
-        </div>
-      </div>
-      <div class="stat-row">
-        <div class="stat-item">
-          <Tooltip title="🛡️ 物理防御" content="物理ダメージの軽減">
-            <span class="stat-label">🛡️</span>
-            <span class="stat-value">{{ totalStats.defense }}</span>
-            <span v-if="synergyBonuses.defense > 0" class="bonus">+{{ synergyBonuses.defense }}</span>
-          </Tooltip>
-        </div>
-        <div class="stat-item">
-          <Tooltip title="🔮 魔法防御" content="魔法ダメージの軽減">
-            <span class="stat-label">🔮</span>
-            <span class="stat-value">{{ totalStats.magicDefense }}</span>
-            <span v-if="synergyBonuses.magicDefense > 0" class="bonus">+{{ synergyBonuses.magicDefense }}</span>
+          <Tooltip :title="'✨ 魔法'" :content="getStatTooltipContent('magic')">
+            <div class="stat-display">
+              <span class="stat-label">✨</span>
+              <span class="stat-value">
+                {{ getEffectiveStat('magic').value }}
+                <span class="stat-detail">({{ getEffectiveStat('magic').base }}<span v-if="getEffectiveStat('magic').synergy > 0"> + {{ getEffectiveStat('magic').synergy }}</span>)</span>
+                <span v-if="getEffectiveStat('magic').buff > 0" class="stat-buff">(+{{ getEffectiveStat('magic').buff }})</span>
+                <span v-if="getEffectiveStat('magic').debuff > 0" class="stat-debuff">(-{{ getEffectiveStat('magic').debuff }})</span>
+              </span>
+            </div>
           </Tooltip>
         </div>
       </div>
       <div class="stat-row">
         <div class="stat-item">
-          <Tooltip title="⚡ 速度" content="攻撃順序に影響">
-            <span class="stat-label">⚡</span>
-            <span class="stat-value">{{ totalStats.speed }}</span>
-            <span v-if="synergyBonuses.speed > 0" class="bonus">+{{ synergyBonuses.speed }}</span>
+          <Tooltip :title="'🛡️ 物理防御'" :content="getStatTooltipContent('defense')">
+            <div class="stat-display">
+              <span class="stat-label">🛡️</span>
+              <span class="stat-value">
+                {{ getEffectiveStat('defense').value }}
+                <span class="stat-detail">({{ getEffectiveStat('defense').base }})</span>
+                <span v-if="getEffectiveStat('defense').buff > 0" class="stat-buff">(+{{ getEffectiveStat('defense').buff }})</span>
+                <span v-if="getEffectiveStat('defense').debuff > 0" class="stat-debuff">(-{{ getEffectiveStat('defense').debuff }})</span>
+              </span>
+            </div>
+          </Tooltip>
+        </div>
+        <div class="stat-item">
+          <Tooltip :title="'🔮 魔法防御'" :content="getStatTooltipContent('magicDefense')">
+            <div class="stat-display">
+              <span class="stat-label">🔮</span>
+              <span class="stat-value">
+                {{ getEffectiveStat('magicDefense').value }}
+                <span class="stat-detail">({{ getEffectiveStat('magicDefense').base }})</span>
+                <span v-if="getEffectiveStat('magicDefense').buff > 0" class="stat-buff">(+{{ getEffectiveStat('magicDefense').buff }})</span>
+                <span v-if="getEffectiveStat('magicDefense').debuff > 0" class="stat-debuff">(-{{ getEffectiveStat('magicDefense').debuff }})</span>
+              </span>
+            </div>
+          </Tooltip>
+        </div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-item">
+          <Tooltip :title="'⚡ 速度'" :content="getStatTooltipContent('speed')">
+            <div class="stat-display">
+              <span class="stat-label">⚡</span>
+              <span class="stat-value">
+                {{ getEffectiveStat('speed').value }}
+                <span class="stat-detail">({{ getEffectiveStat('speed').base }}<span v-if="getEffectiveStat('speed').synergy > 0"> + {{ getEffectiveStat('speed').synergy }}</span>)</span>
+                <span v-if="getEffectiveStat('speed').buff > 0" class="stat-buff">(+{{ getEffectiveStat('speed').buff }})</span>
+                <span v-if="getEffectiveStat('speed').debuff > 0" class="stat-debuff">(-{{ getEffectiveStat('speed').debuff }})</span>
+              </span>
+            </div>
           </Tooltip>
         </div>
       </div>
@@ -119,65 +172,7 @@
           class="weapon-mini"
           :style="{ borderColor: getRarityColor(weapon.rarity) }"
         >
-          <div class="weapon-info">
-            <div class="weapon-name-row">
-              <span class="weapon-name">{{ weapon.name }}</span>
-              <span class="weapon-rarity-badge" :style="{ backgroundColor: getRarityColor(weapon.rarity) }">
-                {{ weapon.rarity.toUpperCase() }}
-              </span>
-            </div>
-            <div class="weapon-type-row">
-              <span class="weapon-type">{{ weapon.type }}</span>
-              <span class="weapon-description">{{ weapon.description }}</span>
-            </div>
-            <!-- 全ステータス表示 -->
-            <div class="weapon-mini-stats">
-              <Tooltip v-if="weapon.stats.attack > 0" title="⚔️ 攻撃力" content="物理ダメージに影響">
-                <span>⚔️ {{ weapon.stats.attack }}</span>
-              </Tooltip>
-              <Tooltip v-if="weapon.stats.magic > 0" title="✨ 魔法力" content="魔法ダメージに影響">
-                <span>✨ {{ weapon.stats.magic }}</span>
-              </Tooltip>
-              <Tooltip v-if="weapon.stats.speed > 0" title="⚡ 速度" content="攻撃順序と頻度に影響">
-                <span>⚡ {{ weapon.stats.speed }}</span>
-              </Tooltip>
-              <Tooltip v-if="weapon.stats.critChance > 0" title="🎯 クリティカル率" content="クリティカルヒットの発生確率">
-                <span>🎯 {{ weapon.stats.critChance }}%</span>
-              </Tooltip>
-              <Tooltip v-if="weapon.stats.critDamage > 1" title="💥 クリティカルダメージ" content="クリティカル時のダメージ倍率">
-                <span>💥 {{ weapon.stats.critDamage }}x</span>
-              </Tooltip>
-              <Tooltip v-if="weapon.stats.statusPower > 0" title="🔮 状態異常威力" content="状態異常の効果を強化">
-                <span>🔮 {{ weapon.stats.statusPower }}</span>
-              </Tooltip>
-            </div>
-            <!-- タグと効果 -->
-            <div class="weapon-tags-effects">
-              <div class="weapon-tags">
-                <Tooltip 
-                  v-for="tag in weapon.tags"
-                  :key="tag"
-                  :title="tag"
-                  :content="getTagDescription(tag)"
-                >
-                  <span class="tag">#{{ tag }}</span>
-                </Tooltip>
-              </div>
-              <!-- 付与効果表示 -->
-              <div v-if="weapon.effects.length > 0" class="weapon-mini-effects">
-                <Tooltip
-                  v-for="effect in weapon.effects"
-                  :key="effect.type"
-                  :title="`${effect.type}`"
-                  :content="`確率: ${effect.chance}% | スタック: ${effect.stacks} | 持続: ${effect.duration}T`"
-                >
-                  <span class="effect-badge">
-                    {{ effect.type }}
-                  </span>
-                </Tooltip>
-              </div>
-            </div>
-          </div>
+          <WeaponDetails :weapon="weapon" />
         </div>
       </div>
       </div>
@@ -202,7 +197,9 @@ import { computed } from 'vue'
 import type { Player } from '~/types'
 import { StatusEffectSystem } from '~/systems/StatusEffectSystem'
 import { WeaponSystem } from '~/systems/WeaponSystem'
-import { calculateActiveSynergies, getTotalSynergyBonus, TAG_DEFINITIONS } from '~/data/synergies'
+import { calculateActiveSynergies, getTotalSynergyBonus } from '~/data/synergies'
+import { STATUS_EFFECTS_DB } from '~/data/statusEffects'
+import WeaponDetails from './WeaponDetails.vue'
 import Tooltip from './Tooltip.vue'
 
 const props = defineProps<{
@@ -246,14 +243,45 @@ const synergyBonuses = computed(() => {
   return getTotalSynergyBonus(activeSynergies.value)
 })
 
-const totalStats = computed(() => ({
-  attack: props.player.stats.attack,
-  magic: props.player.stats.magic,
-  defense: props.player.stats.defense,
-  magicDefense: props.player.stats.magicDefense,
-  speed: props.player.stats.speed,
-  critChance: 0
-}))
+type StatKey = 'attack' | 'magic' | 'defense' | 'magicDefense' | 'speed'
+
+const statModifiers = computed(() => StatusEffectSystem.getStatModifiers(props.player))
+
+const effectiveStats = computed(() => {
+  const modifiers = statModifiers.value
+  const stats: Record<StatKey, { value: number; base: number; synergy: number; buff: number; debuff: number; modifierPct: number }> = {
+    attack: { value: 0, base: 0, synergy: 0, buff: 0, debuff: 0, modifierPct: 0 },
+    magic: { value: 0, base: 0, synergy: 0, buff: 0, debuff: 0, modifierPct: 0 },
+    defense: { value: 0, base: 0, synergy: 0, buff: 0, debuff: 0, modifierPct: 0 },
+    magicDefense: { value: 0, base: 0, synergy: 0, buff: 0, debuff: 0, modifierPct: 0 },
+    speed: { value: 0, base: 0, synergy: 0, buff: 0, debuff: 0, modifierPct: 0 }
+  }
+
+  ;(['attack', 'magic', 'defense', 'magicDefense', 'speed'] as StatKey[]).forEach(stat => {
+    const base = props.player.stats[stat] || 0
+    const synergy = getSynergyBonus(stat)
+    const raw = base + synergy
+    const modifierPct = modifiers[stat] || 0
+    const buffPct = Math.max(0, modifierPct)
+    const debuffPct = Math.min(0, modifierPct)
+    const buffValue = Math.round(raw * (buffPct / 100))
+    const debuffValue = Math.round(raw * Math.abs(debuffPct) / 100)
+    const value = Math.max(0, raw + buffValue - debuffValue)
+
+    stats[stat] = {
+      value,
+      base,
+      synergy,
+      buff: buffValue,
+      debuff: debuffValue,
+      modifierPct
+    }
+  })
+
+  return stats
+})
+
+const getEffectiveStat = (stat: StatKey) => effectiveStats.value[stat]
 
 const getStatusIcon = (type: string) => {
   return StatusEffectSystem.getStatusIcon(type as any)
@@ -271,30 +299,67 @@ const getStatusName = (type: string) => {
   return StatusEffectSystem.getStatusName(type as any)
 }
 
+const buffStatusEffects = computed(() => props.player.statusEffects.filter(e => STATUS_EFFECTS_DB[e.type as keyof typeof STATUS_EFFECTS_DB]?.type === 'Buff'))
+const debuffStatusEffects = computed(() => props.player.statusEffects.filter(e => STATUS_EFFECTS_DB[e.type as keyof typeof STATUS_EFFECTS_DB]?.type === 'Debuff'))
+
+const getSynergyBonus = (stat: StatKey): number => {
+  switch (stat) {
+    case 'attack':
+      return synergyBonuses.value.attackBonus || 0
+    case 'magic':
+      return synergyBonuses.value.magicBonus || 0
+    case 'speed':
+      return synergyBonuses.value.speedBonus || 0
+    default:
+      return 0
+  }
+}
+
+const getStatusEntriesForStat = (stat: StatKey) => {
+  const raw = getEffectiveStat(stat).base + getEffectiveStat(stat).synergy
+  return StatusEffectSystem.getStatModifierEntries(props.player, stat).map(entry => {
+    const def = STATUS_EFFECTS_DB[entry.type as keyof typeof STATUS_EFFECTS_DB]
+    const percent = entry.percent
+    const value = Math.round(raw * Math.abs(percent) / 100)
+    return { name: def?.name ?? entry.type, type: def?.type ?? 'Debuff', percent, value }
+  })
+}
+
+const getStatTooltipContent = (stat: StatKey): string => {
+  const statInfo = getEffectiveStat(stat)
+  const raw = statInfo.base + statInfo.synergy
+  const entries = getStatusEntriesForStat(stat)
+  const buffEntries = entries.filter(e => e.percent > 0)
+  const debuffEntries = entries.filter(e => e.percent < 0)
+
+  const parts: string[] = [`基本値: ${statInfo.base}`]
+
+  if (statInfo.synergy > 0) {
+    parts.push(`<span class="tooltip-positive">シナジー: +${statInfo.synergy}</span>`)
+  }
+
+  if (statInfo.buff > 0) {
+    const detail = buffEntries.length > 0
+      ? buffEntries.map(e => `${e.name} +${e.value}`).join(', ')
+      : `+${statInfo.buff}`
+    parts.push(`<span class="tooltip-positive">バフ: ${detail}</span>`)
+  }
+
+  if (statInfo.debuff > 0) {
+    const detail = debuffEntries.length > 0
+      ? debuffEntries.map(e => `${e.name} -${e.value}`).join(', ')
+      : `-${statInfo.debuff}`
+    parts.push(`<span class="tooltip-negative">デバフ: ${detail}</span>`)
+  }
+
+  parts.push(`適用倍率: ${(statInfo.modifierPct).toFixed(1)}%`)
+  parts.push(`実数値: ${statInfo.value} (基準 ${raw})`)
+
+  return parts.join('<br>')
+}
+
 const getRarityColor = (rarity: string) => {
   return WeaponSystem.getRarityColor(rarity)
-}
-
-const getTagColor = (tag: string) => {
-  const colors: Record<string, string> = {
-    fast: '#4facfe',
-    heavy: '#f5576c',
-    precise: '#feca57',
-    elemental: '#6c5ce7',
-    cursed: '#a29bfe',
-    bleeding: '#d63031'
-  }
-  return colors[tag] || '#95a5a6'
-}
-
-const getTagDescription = (tag: string) => {
-  const tagDef = TAG_DEFINITIONS[tag as keyof typeof TAG_DEFINITIONS]
-  return tagDef ? tagDef.description : ''
-}
-
-const getSynergyDescription = (synergyId: string) => {
-  const synergy = activeSynergies.value.find(s => s.id === synergyId)
-  return synergy ? synergy.description : ''
 }
 </script>
 
@@ -446,13 +511,44 @@ h3 {
   border-radius: 8px;
 }
 
+.stat-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
 .stat-label {
   font-size: 16px;
+  flex-shrink: 0;
 }
 
 .stat-value {
   font-weight: bold;
   font-size: 14px;
+  color: #e0e0e0;
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.stat-detail {
+  font-size: 11px;
+  color: #4ade80;
+  font-weight: 500;
+}
+
+.stat-debuff {
+  font-size: 11px;
+  color: #ff6b6b;
+  font-weight: 600;
+}
+
+.stat-buff {
+  font-size: 11px;
+  color: #6ef3a6;
+  font-weight: 600;
 }
 
 .bonus {
@@ -493,6 +589,26 @@ h3 {
   gap: 8px;
   flex-wrap: wrap;
   margin-bottom: 15px;
+}
+
+.status-effects-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 15px;
+}
+
+.status-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.status-group-title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  opacity: 0.85;
 }
 
 .status-effect {
@@ -642,8 +758,21 @@ h3 {
 
 .weapon-mini-effects {
   display: flex;
-  gap: 4px;
+  gap: 12px;
   flex-wrap: wrap;
+}
+
+.effect-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.effect-group-title {
+  font-size: 11px;
+  font-weight: 700;
+  opacity: 0.85;
 }
 
 .effect-badge {
@@ -655,6 +784,18 @@ h3 {
   color: #ffb75a;
   cursor: help;
   transition: all 0.2s;
+}
+
+.buff-badge {
+  background: rgba(39, 174, 96, 0.2);
+  border-color: rgba(39, 174, 96, 0.5);
+  color: #b5f5d1;
+}
+
+.debuff-badge {
+  background: rgba(231, 76, 60, 0.2);
+  border-color: rgba(231, 76, 60, 0.5);
+  color: #ffd6cf;
 }
 
 .effect-badge:hover {

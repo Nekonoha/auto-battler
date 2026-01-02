@@ -27,42 +27,7 @@
             class="weapon-list-item"
             :style="{ borderColor: getWeaponRarityColor(weapon.rarity) }"
           >
-            <div class="weapon-list-info">
-              <div class="weapon-list-name">
-                {{ weapon.name }}
-                <span class="weapon-rarity-badge" :style="{ background: getWeaponRarityColor(weapon.rarity) }">{{ weapon.rarity }}</span>
-              </div>
-              <div class="weapon-list-type">{{ weapon.type }}</div>
-              <div class="weapon-description">{{ weapon.description }}</div>
-              <div class="weapon-list-stats">
-                <Tooltip v-if="weapon.stats.attack > 0" title="⚔️ 攻撃力" content="物理ダメージに影響">
-                  <span>⚔️{{ weapon.stats.attack }}</span>
-                </Tooltip>
-                <Tooltip v-if="weapon.stats.magic > 0" title="✨ 魔法力" content="魔法ダメージに影響">
-                  <span>✨{{ weapon.stats.magic }}</span>
-                </Tooltip>
-                <Tooltip v-if="weapon.stats.speed > 0" title="⚡ 速度" content="攻撃順序と頻度に影響">
-                  <span>⚡{{ weapon.stats.speed }}</span>
-                </Tooltip>
-                <Tooltip v-if="weapon.stats.critChance > 0" title="🎯 クリティカル率" content="クリティカルヒットの発生確率">
-                  <span>🎯{{ weapon.stats.critChance }}%</span>
-                </Tooltip>
-                <Tooltip v-if="weapon.stats.critDamage > 0" title="💥 クリティカルダメージ" content="クリティカル時のダメージ増加">
-                  <span>💥{{ weapon.stats.critDamage }}%</span>
-                </Tooltip>
-                <Tooltip v-if="weapon.stats.statusPower > 0" title="🔮 状態異常威力" content="状態異常の効果を強化">
-                  <span>🔮{{ weapon.stats.statusPower }}</span>
-                </Tooltip>
-              </div>
-              <div class="weapon-list-tags-effects">
-                <Tooltip v-for="tag in weapon.tags" :key="tag" :title="tag" :content="getTagDescription(tag)">
-                  <span class="mini-tag">{{ tag }}</span>
-                </Tooltip>
-                <Tooltip v-for="effect in weapon.effects" :key="effect.type" :title="effect.type" :content="getStatusDescription(effect.type)">
-                  <span class="mini-effect">{{ effect.type }}</span>
-                </Tooltip>
-              </div>
-            </div>
+            <WeaponDetails :weapon="weapon" />
             <button
               class="btn btn-danger btn-compact"
               @click.stop="$emit('remove', weapon)"
@@ -134,42 +99,7 @@
             @click.stop="$emit('select', weapon)"
             style="cursor: pointer;"
           >
-            <div class="weapon-list-info">
-              <div class="weapon-list-name">
-                {{ weapon.name }}
-                <span class="weapon-rarity-badge" :style="{ background: getWeaponRarityColor(weapon.rarity) }">{{ weapon.rarity }}</span>
-              </div>
-              <div class="weapon-list-type">{{ weapon.type }}</div>
-              <div class="weapon-description">{{ weapon.description }}</div>
-              <div class="weapon-list-stats">
-                <Tooltip v-if="weapon.stats.attack > 0" title="⚔️ 攻撃力" content="物理ダメージに影響">
-                  <span>⚔️{{ weapon.stats.attack }}</span>
-                </Tooltip>
-                <Tooltip v-if="weapon.stats.magic > 0" title="✨ 魔法力" content="魔法ダメージに影響">
-                  <span>✨{{ weapon.stats.magic }}</span>
-                </Tooltip>
-                <Tooltip v-if="weapon.stats.speed > 0" title="⚡ 速度" content="攻撃順序と頻度に影響">
-                  <span>⚡{{ weapon.stats.speed }}</span>
-                </Tooltip>
-                <Tooltip v-if="weapon.stats.critChance > 0" title="🎯 クリティカル率" content="クリティカルヒットの発生確率">
-                  <span>🎯{{ weapon.stats.critChance }}%</span>
-                </Tooltip>
-                <Tooltip v-if="weapon.stats.critDamage > 0" title="💥 クリティカルダメージ" content="クリティカル時のダメージ増加">
-                  <span>💥{{ weapon.stats.critDamage }}%</span>
-                </Tooltip>
-                <Tooltip v-if="weapon.stats.statusPower > 0" title="🔮 状態異常威力" content="状態異常の効果を強化">
-                  <span>🔮{{ weapon.stats.statusPower }}</span>
-                </Tooltip>
-              </div>
-              <div class="weapon-list-tags-effects">
-                <Tooltip v-for="tag in weapon.tags" :key="tag" :title="tag" :content="getTagDescription(tag)">
-                  <span class="mini-tag">#{{ tag }}</span>
-                </Tooltip>
-                <Tooltip v-for="effect in weapon.effects" :key="effect.type" :title="effect.type" :content="getStatusDescription(effect.type)">
-                  <span class="mini-effect">{{ effect.type }}</span>
-                </Tooltip>
-              </div>
-            </div>
+            <WeaponDetails :weapon="weapon" />
           </div>
         </div>
       </div>
@@ -179,9 +109,9 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import Tooltip from './Tooltip.vue'
+import WeaponDetails from './WeaponDetails.vue'
 import type { Player, Weapon } from '~/types'
-import { getWeaponRarityColor, getTagDescription, getStatusDescription } from '~/utils/weaponPresentation'
+import { getWeaponRarityColor } from '~/utils/weaponPresentation'
 
 type Emits = {
   (e: 'close'): void

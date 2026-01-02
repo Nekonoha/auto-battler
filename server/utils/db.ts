@@ -37,7 +37,9 @@ async function persist(db: any) {
   await fs.writeFile(dbPath, Buffer.from(data))
 }
 
-export async function saveProfile(id: string, state: unknown) {
+// DEPRECATED: Use saveManager.ts instead
+// export async function saveProfile(id: string, state: unknown) {
+async function _saveProfile(id: string, state: unknown) {
   const db = await getDb()
   const stmt = db.prepare(`INSERT INTO profiles (id, state, updated_at)
     VALUES (?, ?, ?)
@@ -53,7 +55,9 @@ export async function saveProfile(id: string, state: unknown) {
   await persist(db)
 }
 
-export async function loadProfile(id: string) {
+// DEPRECATED: Use saveManager.ts instead
+// export async function loadProfile(id: string) {
+async function _loadProfile(id: string) {
   const db = await getDb()
   const stmt = db.prepare('SELECT state FROM profiles WHERE id = ?')
   const row = stmt.get(id)

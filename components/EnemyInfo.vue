@@ -39,48 +39,68 @@
     <div class="enemy-stats-section">
       <h3 class="section-title">📊 ステータス</h3>
       <div class="stats-grid">
-        <Tooltip title="⚔️ 攻撃力" content="敵が与える物理ダメージ。防御力で軽減可能。">
+        <Tooltip title="⚔️ 攻撃力" :content="getStatTooltipContent('attack')">
           <div class="stat-item">
             <span class="stat-icon">⚔️</span>
             <div class="stat-info">
-              <span class="stat-name">攻撃力</span>
-              <span class="stat-value">{{ enemy.stats?.attack || 0 }}</span>
+              <span class="stat-value">
+                {{ getEnemyStat('attack').value }}
+                <span class="stat-detail">({{ getEnemyStat('attack').base }})</span>
+                <span v-if="getEnemyStat('attack').buff > 0" class="stat-buff">(+{{ getEnemyStat('attack').buff }})</span>
+                <span v-if="getEnemyStat('attack').debuff > 0" class="stat-debuff">(-{{ getEnemyStat('attack').debuff }})</span>
+              </span>
             </div>
           </div>
         </Tooltip>
-        <Tooltip title="🔮 魔力" content="敵が与える魔法ダメージ。魔法防御で軽減可能。">
+        <Tooltip title="🔮 魔力" :content="getStatTooltipContent('magic')">
           <div class="stat-item">
             <span class="stat-icon">🔮</span>
             <div class="stat-info">
-              <span class="stat-name">魔力</span>
-              <span class="stat-value">{{ enemy.stats?.magic || 0 }}</span>
+              <span class="stat-value">
+                {{ getEnemyStat('magic').value }}
+                <span class="stat-detail">({{ getEnemyStat('magic').base }})</span>
+                <span v-if="getEnemyStat('magic').buff > 0" class="stat-buff">(+{{ getEnemyStat('magic').buff }})</span>
+                <span v-if="getEnemyStat('magic').debuff > 0" class="stat-debuff">(-{{ getEnemyStat('magic').debuff }})</span>
+              </span>
             </div>
           </div>
         </Tooltip>
-        <Tooltip title="🛡️ 防御力" content="敵の物理防御力。攻撃ダメージを軽減する。">
+        <Tooltip title="🛡️ 防御力" :content="getStatTooltipContent('defense')">
           <div class="stat-item">
             <span class="stat-icon">🛡️</span>
             <div class="stat-info">
-              <span class="stat-name">防御力</span>
-              <span class="stat-value">{{ enemy.stats?.defense || 0 }}</span>
+              <span class="stat-value">
+                {{ getEnemyStat('defense').value }}
+                <span class="stat-detail">({{ getEnemyStat('defense').base }})</span>
+                <span v-if="getEnemyStat('defense').buff > 0" class="stat-buff">(+{{ getEnemyStat('defense').buff }})</span>
+                <span v-if="getEnemyStat('defense').debuff > 0" class="stat-debuff">(-{{ getEnemyStat('defense').debuff }})</span>
+              </span>
             </div>
           </div>
         </Tooltip>
-        <Tooltip title="✨ 魔法防御" content="敵の魔法防御力。魔法ダメージを軽減する。">
+        <Tooltip title="✨ 魔法防御" :content="getStatTooltipContent('magicDefense')">
           <div class="stat-item">
             <span class="stat-icon">✨</span>
             <div class="stat-info">
-              <span class="stat-name">魔法防御</span>
-              <span class="stat-value">{{ enemy.stats?.magicDefense || 0 }}</span>
+              <span class="stat-value">
+                {{ getEnemyStat('magicDefense').value }}
+                <span class="stat-detail">({{ getEnemyStat('magicDefense').base }})</span>
+                <span v-if="getEnemyStat('magicDefense').buff > 0" class="stat-buff">(+{{ getEnemyStat('magicDefense').buff }})</span>
+                <span v-if="getEnemyStat('magicDefense').debuff > 0" class="stat-debuff">(-{{ getEnemyStat('magicDefense').debuff }})</span>
+              </span>
             </div>
           </div>
         </Tooltip>
-        <Tooltip title="⚡ 速度" content="敵の行動速度。高いほど先制攻撃しやすい。">
+        <Tooltip title="⚡ 速度" :content="getStatTooltipContent('speed')">
           <div class="stat-item">
             <span class="stat-icon">⚡</span>
             <div class="stat-info">
-              <span class="stat-name">速度</span>
-              <span class="stat-value">{{ enemy.stats?.speed || 0 }}</span>
+              <span class="stat-value">
+                {{ getEnemyStat('speed').value }}
+                <span class="stat-detail">({{ getEnemyStat('speed').base }})</span>
+                <span v-if="getEnemyStat('speed').buff > 0" class="stat-buff">(+{{ getEnemyStat('speed').buff }})</span>
+                <span v-if="getEnemyStat('speed').debuff > 0" class="stat-debuff">(-{{ getEnemyStat('speed').debuff }})</span>
+              </span>
             </div>
           </div>
         </Tooltip>
@@ -115,6 +135,24 @@
             <span class="trait-text">状態異常無効: {{ formatStatusTypes(enemy.traits.statusImmunities) }}</span>
           </div>
         </Tooltip>
+        <Tooltip v-if="hasStatusResistance('control')" title="制御耐性" :content="`睡眠・凍結・石化などの行動不能系状態異常が${getStatusResistancePercent('control')}%軽減される`">
+          <div class="trait">
+            <span class="trait-icon">🔒</span>
+            <span class="trait-text">制御耐性 {{ getStatusResistancePercent('control') }}%</span>
+          </div>
+        </Tooltip>
+        <Tooltip v-if="hasStatusResistance('damage')" title="ダメージ系耐性" :content="`毒・出血・火傷などの継続ダメージ系状態異常が${getStatusResistancePercent('damage')}%軽減される`">
+          <div class="trait">
+            <span class="trait-icon">🛡️</span>
+            <span class="trait-text">継続ダメージ耐性 {{ getStatusResistancePercent('damage') }}%</span>
+          </div>
+        </Tooltip>
+        <Tooltip v-if="hasStatusResistance('modifier')" title="能力低下耐性" :content="`弱体・恐怖などの能力低下系状態異常が${getStatusResistancePercent('modifier')}%軽減される`">
+          <div class="trait">
+            <span class="trait-icon">💪</span>
+            <span class="trait-text">能力低下耐性 {{ getStatusResistancePercent('modifier') }}%</span>
+          </div>
+        </Tooltip>
         <div v-if="enemy.traits?.inflictsStatus && enemy.traits.inflictsStatus.length > 0" class="inflicts-container">
           <Tooltip 
             v-for="(inflict, idx) in enemy.traits.inflictsStatus" 
@@ -137,6 +175,7 @@
 import { computed } from 'vue'
 import type { Enemy, WeaponType, StatusEffectType } from '~/types'
 import { StatusEffectSystem } from '~/systems/StatusEffectSystem'
+import Tooltip from './Tooltip.vue'
 
 const props = defineProps<{
   enemy: Enemy
@@ -154,9 +193,30 @@ const hasTraits = computed(() => {
     traits.magicalResistance ||
     (traits.attackImmunities && traits.attackImmunities.length > 0) ||
     (traits.statusImmunities && traits.statusImmunities.length > 0) ||
+    hasStatusResistanceAny() ||
     (traits.inflictsStatus && traits.inflictsStatus.length > 0)
   )
 })
+
+const hasStatusResistanceAny = (): boolean => {
+  const resMap = props.enemy.traits?.statusResistances
+  if (!resMap) return false
+  return Object.keys(resMap).length > 0
+}
+
+const hasStatusResistance = (category: 'control' | 'damage' | 'modifier'): boolean => {
+  const resMap = props.enemy.traits?.statusResistances
+  if (!resMap) return false
+  return resMap[category] !== undefined && resMap[category]! > 0
+}
+
+const getStatusResistancePercent = (category: 'control' | 'damage' | 'modifier'): number => {
+  const resMap = props.enemy.traits?.statusResistances
+  if (!resMap) return 0
+  const value = resMap[category]
+  return value ? Math.max(0, value) : 0
+}
+
 const getStatusIcon = (type: string) => {
   return StatusEffectSystem.getStatusIcon(type as any)
 }
@@ -171,6 +231,78 @@ const getStatusName = (type: StatusEffectType) => {
 
 const getStatusDescription = (type: StatusEffectType) => {
   return StatusEffectSystem.getStatusDescription(type)
+}
+
+type StatKey = 'attack' | 'magic' | 'defense' | 'magicDefense' | 'speed'
+
+const statKeys: StatKey[] = ['attack', 'magic', 'defense', 'magicDefense', 'speed']
+
+type StatModifierEntry = ReturnType<typeof StatusEffectSystem.getStatModifierEntries>[number]
+
+const enemyStatDetails = computed(() => {
+  const modifiers = StatusEffectSystem.getStatModifiers(props.enemy)
+  const stats: Record<StatKey, { value: number; base: number; buff: number; debuff: number; modifierPct: number; entries: StatModifierEntry[] }> = {
+    attack: { value: 0, base: 0, buff: 0, debuff: 0, modifierPct: 0, entries: [] },
+    magic: { value: 0, base: 0, buff: 0, debuff: 0, modifierPct: 0, entries: [] },
+    defense: { value: 0, base: 0, buff: 0, debuff: 0, modifierPct: 0, entries: [] },
+    magicDefense: { value: 0, base: 0, buff: 0, debuff: 0, modifierPct: 0, entries: [] },
+    speed: { value: 0, base: 0, buff: 0, debuff: 0, modifierPct: 0, entries: [] }
+  }
+
+  statKeys.forEach(stat => {
+    const base = (props.enemy.stats as any)?.[stat] || 0
+    const raw = base
+    const modifierPct = modifiers[stat] || 0
+    const buffPct = Math.max(0, modifierPct)
+    const debuffPct = Math.min(0, modifierPct)
+    const buffValue = Math.round(raw * (buffPct / 100))
+    const debuffValue = Math.round(raw * Math.abs(debuffPct) / 100)
+    const value = Math.max(0, raw + buffValue - debuffValue)
+
+    stats[stat] = {
+      value,
+      base,
+      buff: buffValue,
+      debuff: debuffValue,
+      modifierPct,
+      entries: StatusEffectSystem.getStatModifierEntries(props.enemy, stat)
+    }
+  })
+
+  return stats
+})
+
+const getEnemyStat = (stat: StatKey) => enemyStatDetails.value[stat]
+
+const getStatTooltipContent = (stat: StatKey): string => {
+  const detail = enemyStatDetails.value[stat]
+  const raw = detail?.base || 0
+  const entries = detail?.entries || []
+  const buffEntries = entries.filter(e => e.percent > 0)
+  const debuffEntries = entries.filter(e => e.percent < 0)
+
+  const parts: string[] = [`基本値: ${raw}`]
+
+  if (detail?.buff) {
+    const detailText = buffEntries.length > 0
+      ? buffEntries.map(e => `${getStatusName(e.type)} +${Math.round(raw * (Math.abs(e.percent) / 100))}`).join(', ')
+      : `+${detail.buff}`
+    parts.push(`<span class="tooltip-positive">バフ: ${detailText}</span>`)
+  }
+
+  if (detail?.debuff) {
+    const detailText = debuffEntries.length > 0
+      ? debuffEntries.map(e => `${getStatusName(e.type)} -${Math.round(raw * (Math.abs(e.percent) / 100))}`).join(', ')
+      : `-${detail.debuff}`
+    parts.push(`<span class="tooltip-negative">デバフ: ${detailText}</span>`)
+  }
+
+  if (detail) {
+    parts.push(`適用倍率: ${detail.modifierPct.toFixed(1)}%`)
+    parts.push(`実数値: ${detail.value}`)
+  }
+
+  return parts.join('<br>')
 }
 
 const formatAttackTypes = (types: WeaponType[]) => {
@@ -349,17 +481,32 @@ h2 {
   flex: 1;
 }
 
-.stat-name {
-  font-size: 11px;
-  opacity: 0.8;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
 .stat-value {
   font-weight: bold;
-  font-size: 18px;
+  font-size: 14px;
   color: #fff;
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.stat-detail {
+  font-size: 11px;
+  color: #4ade80;
+  font-weight: 500;
+}
+
+.stat-debuff {
+  font-size: 11px;
+  color: #ff6b6b;
+  font-weight: 600;
+}
+
+.stat-buff {
+  font-size: 11px;
+  color: #6ef3a6;
+  font-weight: 600;
 }
 
 .enemy-stats {

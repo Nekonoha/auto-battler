@@ -72,13 +72,13 @@ export interface EnchantedWeapon extends Weapon {
  */
 export type StatusEffectType = 
   // DoT系
-  | 'poison' | 'burn' | 'bleed' | 'kissed' | 'epidemic'
+  | 'poison' | 'burn' | 'burnDot' | 'burnWeaken' | 'bleed' | 'kissed' | 'epidemic'
   // 行動阻害
-  | 'slow' | 'stun' | 'sleep' | 'frozen' | 'petrification' | 'fear' | 'drunk'
+  | 'slow' | 'stun' | 'sleep' | 'sleepLock' | 'sleepVulnerable' | 'frozen' | 'frozenLock' | 'frozenGuard' | 'petrification' | 'petrificationLock' | 'petrificationGuard' | 'fear' | 'drunk'
   // 状態変化
   | 'vulnerable' | 'weak'
   // バフ
-  | 'fleet' | 'armor' | 'thorn'
+  | 'fleet' | 'armor' | 'thorn' | 'power' | 'intellect' | 'precision'
 
 /**
  * 武器が付与する状態異常効果
@@ -88,6 +88,10 @@ export interface WeaponEffect {
   chance: number        // 付与確率（0-100）
   stacks: number        // 付与するスタック数
   duration: number      // 継続ターン数
+  /**
+   * 付与対象（デフォルトは敵）。デバッグ武器などで自己バフを入れる用途。
+   */
+  target?: 'enemy' | 'self'
 }
 
 /**
@@ -111,6 +115,7 @@ export interface StatusEffect {
   type: StatusEffectType
   stacks: number
   duration: number
+  appliedBy?: 'player' | 'enemy'
 }
 
 /**
@@ -189,6 +194,8 @@ export interface EnemyTraits {
   physicalResistance?: number     // 物理耐性（%）
   magicalResistance?: number      // 魔法耐性（%）
   statusImmunities?: StatusEffectType[]  // 無効な状態異常
+  /** 状態異常の軽減（%）。個別ID優先、なければカテゴリ(control/damage/modifier)、最後にall。 */
+  statusResistances?: Partial<Record<StatusEffectType | 'control' | 'damage' | 'modifier' | 'all', number>>
   attackImmunities?: WeaponType[]        // 無効な攻撃タイプ
   inflictsStatus?: {                     // 攻撃時に付与する状態異常
     type: StatusEffectType
@@ -218,12 +225,20 @@ export interface EnemyStats {
   speed: number
 }
 
+export type EnemyActionType = 'attack' | 'defend' | 'nothing'
+
+export interface EnemyAction {
+  type: EnemyActionType
+  weight: number  // 選択確率の重み
+}
+
 export interface Enemy extends CombatUnit {
   tier: EnemyTier
   type?: EnemyType
   traits?: EnemyTraits
   stats: EnemyStats
   level: number
+  actionPool?: EnemyAction[]  // 実行可能な行動のプール
 }
 
 export interface Dungeon {
@@ -241,6 +256,17 @@ export interface Dungeon {
   chestLootWeights?: Record<'common' | 'rare' | 'epic' | 'legendary', number>
   chestWeaponPool?: string[] // チェストで優先されるベース武器ID
   chestChance?: number
+  characteristics?: {
+    statusAffinity?: {
+      high: string[]    // 頻繁に使ってくる状態異常
+      chance: number    // その確率 (%)
+    }
+    resistanceTheme?: {
+      type: 'physical' | 'magical' | 'mixed'
+      baseResistance: number
+    }
+    immunitiesTheme?: string[]  // 敵が共通で無効化する攻撃
+  }
 }
 
 export interface LootChest {
