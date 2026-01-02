@@ -16,9 +16,10 @@ export function useBattleFlow(
   const explorationCombatLogs = ref<ExplorationCombatLogEntry[]>([])
   const dungeonLogs = ref<DungeonLogEntry[]>([])
   const currentStageHpBefore = ref<number>(0)
+  const currentStage = ref<number>(1)  // 戦闘時のステージ番号を保存
   const isBattleActive = ref(false)
 
-  const startBattle = (opts?: { forcedTier?: EnemyTier }) => {
+  const startBattle = (opts?: { forcedTier?: EnemyTier; debugMode?: boolean }) => {
     const dungeon = selectedDungeon.value
     if (!dungeon) return
 
@@ -27,15 +28,20 @@ export function useBattleFlow(
       Math.max(dungeon.levelRange[0], currentLevel.value)
     )
 
-    // 戦闘前のHP保存
+    // 戦闘前のHP保存と、戦闘時のステージ番号を保存
     currentStageHpBefore.value = player.currentHp
+    currentStage.value = currentLevel.value
 
     enemy.value = CombatSystem.generateEnemy(level, {
+      playerLevel: player.level,
+      dungeonLevelRange: dungeon.levelRange,
       dungeonName: dungeon.name,
       tierWeights: dungeon.tierWeights,
       enemyPool: dungeon.enemyPool,
+      bossId: dungeon.bossId,
       levelMultiplier: 1 + (level - dungeon.levelRange[0]) * 0.05,
-      forcedTier: opts?.forcedTier
+      forcedTier: opts?.forcedTier,
+      debugMode: opts?.debugMode
     })
 
     combat.value = new CombatSystem(player, enemy.value)
@@ -58,16 +64,20 @@ export function useBattleFlow(
     // ダンジョンログに記録
     if (combat.value && enemy.value) {
       const isVictory = combat.value.isPlayerVictory()
+      const dungeonName = selectedDungeon.value?.name || '不明なダンジョン'
+      
       explorationCombatLogs.value.push({
-        stage: currentLevel.value,
+        dungeonName,
+        stage: currentStage.value,  // 戦闘時のステージを記録
+        eventType: 'battle',
         enemyName: enemy.value.name,
         enemyLevel: enemy.value.level,
         enemyTier: enemy.value.tier,
         result: isVictory ? 'victory' : 'defeat',
         logs: [...combatLogs.value]
-      })
+      } as any)
       dungeonLogs.value.push({
-        stage: currentLevel.value,
+        stage: currentStage.value,  // 戦闘時のステージを記録
         enemyName: enemy.value.name,
         enemyLevel: enemy.value.level,
         enemyTier: enemy.value.tier,

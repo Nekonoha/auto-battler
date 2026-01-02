@@ -455,8 +455,42 @@ export const enemyTemplates: EnemyTemplate[] = [
       speed: 12,
       hpMultiplier: 1.4
     }
-  }
+  },
+
+  // ========== 補完テンプレート (汎用/高レベル/虚無系など) ==========
+  { id: 'slime', baseName: 'スライム', type: 'beast', traits: { physicalResistance: -10 }, baseStats: { attack: 6, magic: 0, defense: 4, magicDefense: 2, speed: 8, hpMultiplier: 0.6 } },
+  { id: 'goblin', baseName: 'ゴブリン', type: 'humanoid', traits: {}, baseStats: { attack: 10, magic: 0, defense: 6, magicDefense: 4, speed: 12, hpMultiplier: 0.7 } },
+  { id: 'giant_rat', baseName: '大ネズミ', type: 'beast', traits: {}, baseStats: { attack: 8, magic: 0, defense: 4, magicDefense: 3, speed: 14, hpMultiplier: 0.65 } },
+  { id: 'goblin_warrior', baseName: 'ゴブリンウォーリア', type: 'humanoid', traits: { physicalResistance: 10 }, baseStats: { attack: 16, magic: 0, defense: 10, magicDefense: 6, speed: 13, hpMultiplier: 0.9 } },
+  { id: 'dark_elf', baseName: 'ダークエルフ', type: 'humanoid', traits: { magicalResistance: 10 }, baseStats: { attack: 18, magic: 14, defense: 10, magicDefense: 12, speed: 16, hpMultiplier: 0.95 } },
+  { id: 'treant', baseName: 'トレント', type: 'elemental', traits: { physicalResistance: 20, statusImmunities: ['bleed'] }, baseStats: { attack: 14, magic: 10, defense: 22, magicDefense: 14, speed: 6, hpMultiplier: 1.4 } },
+  { id: 'lava_golem', baseName: 'ラバゴーレム', type: 'construct', traits: { physicalResistance: 45, statusImmunities: ['poison', 'bleed', 'burn'] }, baseStats: { attack: 26, magic: 8, defense: 32, magicDefense: 10, speed: 6, hpMultiplier: 1.8 } },
+  { id: 'flame_drake', baseName: 'フレイムドレイク', type: 'dragon', traits: { physicalResistance: 25, magicalResistance: 15, inflictsStatus: [{ type: 'burn', chance: 45, stacks: 3, duration: 4 }] }, baseStats: { attack: 34, magic: 18, defense: 22, magicDefense: 16, speed: 14, hpMultiplier: 1.6 } },
+  { id: 'salamander', baseName: 'サラマンダー', type: 'dragon', traits: { magicalResistance: 20, inflictsStatus: [{ type: 'burn', chance: 50, stacks: 2, duration: 4 }] }, baseStats: { attack: 22, magic: 24, defense: 14, magicDefense: 18, speed: 16, hpMultiplier: 1.2 } },
+  { id: 'frost_giant', baseName: 'フロストジャイアント', type: 'humanoid', traits: { physicalResistance: 35, statusImmunities: ['frozen'] }, baseStats: { attack: 32, magic: 8, defense: 28, magicDefense: 18, speed: 8, hpMultiplier: 1.9 } },
+  { id: 'ice_dragon', baseName: 'アイスドラゴン', type: 'dragon', traits: { magicalResistance: 25, statusImmunities: ['frozen'] }, baseStats: { attack: 30, magic: 28, defense: 22, magicDefense: 22, speed: 12, hpMultiplier: 1.8 } },
+  { id: 'yeti', baseName: 'イエティ', type: 'beast', traits: { physicalResistance: 20 }, baseStats: { attack: 26, magic: 6, defense: 24, magicDefense: 14, speed: 10, hpMultiplier: 1.6 } },
+  { id: 'frozen_lich', baseName: 'フローズンリッチ', type: 'undead', traits: { magicalResistance: 25, statusImmunities: ['frozen', 'poison', 'bleed'] }, baseStats: { attack: 14, magic: 36, defense: 16, magicDefense: 28, speed: 10, hpMultiplier: 1.5 } },
+  { id: 'vampire', baseName: 'ヴァンパイア', type: 'undead', traits: { statusImmunities: ['bleed'], inflictsStatus: [{ type: 'bleed', chance: 60, stacks: 2, duration: 4 }] }, baseStats: { attack: 28, magic: 18, defense: 18, magicDefense: 16, speed: 18, hpMultiplier: 1.4 } },
+  { id: 'death_knight', baseName: 'デスナイト', type: 'undead', traits: { physicalResistance: 35, magicalResistance: 10 }, baseStats: { attack: 34, magic: 12, defense: 30, magicDefense: 18, speed: 12, hpMultiplier: 1.7 } },
+  { id: 'dark_priest', baseName: 'ダークプリースト', type: 'undead', traits: { magicalResistance: 25 }, baseStats: { attack: 10, magic: 32, defense: 12, magicDefense: 24, speed: 12, hpMultiplier: 1.1 } },
+  { id: 'dragon', baseName: 'ドラゴン', type: 'dragon', traits: { physicalResistance: 30, magicalResistance: 20 }, baseStats: { attack: 38, magic: 24, defense: 28, magicDefense: 24, speed: 14, hpMultiplier: 2.0 } },
+  { id: 'dragon_knight', baseName: 'ドラゴンナイト', type: 'humanoid', traits: { physicalResistance: 25 }, baseStats: { attack: 34, magic: 12, defense: 26, magicDefense: 18, speed: 14, hpMultiplier: 1.6 } },
+  { id: 'dragon_shaman', baseName: '竜人シャーマン', type: 'humanoid', traits: { magicalResistance: 25 }, baseStats: { attack: 18, magic: 34, defense: 16, magicDefense: 24, speed: 14, hpMultiplier: 1.4 } },
+  { id: 'ancient_dragon', baseName: 'アンシェントドラゴン', type: 'dragon', traits: { physicalResistance: 40, magicalResistance: 30 }, baseStats: { attack: 46, magic: 32, defense: 34, magicDefense: 30, speed: 16, hpMultiplier: 2.4 } },
+  { id: 'void_walker', baseName: 'ヴォイドウォーカー', type: 'demon', traits: { magicalResistance: 35, statusImmunities: ['stun'] }, baseStats: { attack: 30, magic: 34, defense: 20, magicDefense: 28, speed: 18, hpMultiplier: 1.6 } },
+  { id: 'eldritch_horror', baseName: 'エルドリッチホラー', type: 'demon', traits: { statusImmunities: ['poison', 'bleed', 'burn', 'frozen'] }, baseStats: { attack: 32, magic: 40, defense: 26, magicDefense: 32, speed: 12, hpMultiplier: 2.1 } },
+  { id: 'chaos_apostle', baseName: '混沌の使徒', type: 'demon', traits: { magicalResistance: 30 }, baseStats: { attack: 28, magic: 36, defense: 22, magicDefense: 30, speed: 16, hpMultiplier: 1.7 } },
+  { id: 'dimension_guardian', baseName: '次元の守護者', type: 'construct', traits: { physicalResistance: 35, magicalResistance: 35 }, baseStats: { attack: 34, magic: 26, defense: 32, magicDefense: 32, speed: 12, hpMultiplier: 2.0 } },
+  { id: 'void_ruler', baseName: '虚無の支配者', type: 'demon', traits: { physicalResistance: 35, magicalResistance: 40 }, baseStats: { attack: 40, magic: 44, defense: 32, magicDefense: 34, speed: 16, hpMultiplier: 2.5 } },
+  { id: 'infinite_avatar', baseName: '無限の化身', type: 'elemental', traits: { statusImmunities: ['poison', 'bleed', 'burn', 'frozen', 'stun'] }, baseStats: { attack: 42, magic: 42, defense: 30, magicDefense: 36, speed: 18, hpMultiplier: 2.3 } }
 ]
+
+// ========== ヘルパー ==========
+export function getEnemyTemplateByNameOrId(key: string): EnemyTemplate | undefined {
+  const target = key.trim().toLowerCase()
+  return enemyTemplates.find(t => t.id.toLowerCase() === target || t.baseName.toLowerCase() === target)
+}
 
 /**
  * IDから敵テンプレートを取得

@@ -27,9 +27,11 @@
         class="status-effect"
         :style="{ backgroundColor: getStatusColor(effect.type) }"
       >
-        <span class="status-icon">{{ getStatusIcon(effect.type) }}</span>
-        <span class="status-stacks">×{{ effect.stacks }}</span>
-        <span class="status-duration">({{ effect.duration }}T)</span>
+        <Tooltip :title="`${getStatusIcon(effect.type)} ${getStatusName(effect.type)}`" :content="getStatusDescription(effect.type)">
+          <span class="status-icon">{{ getStatusIcon(effect.type) }}</span>
+          <span class="status-stacks">×{{ effect.stacks }}</span>
+          <span class="status-duration">({{ effect.duration }}T)</span>
+        </Tooltip>
       </div>
     </div>
 
@@ -155,7 +157,6 @@ const hasTraits = computed(() => {
     (traits.inflictsStatus && traits.inflictsStatus.length > 0)
   )
 })
-
 const getStatusIcon = (type: string) => {
   return StatusEffectSystem.getStatusIcon(type as any)
 }
@@ -165,16 +166,11 @@ const getStatusColor = (type: string) => {
 }
 
 const getStatusName = (type: StatusEffectType) => {
-  const map: Partial<Record<StatusEffectType, string>> = {
-    poison: '毒',
-    bleed: '出血',
-    burn: '炎上',
-    frozen: '凍結',
-    stun: 'スタン',
-    weak: '脆弱',
-    fear: '恐怖'
-  }
-  return map[type] || type
+  return StatusEffectSystem.getStatusName(type)
+}
+
+const getStatusDescription = (type: StatusEffectType) => {
+  return StatusEffectSystem.getStatusDescription(type)
 }
 
 const formatAttackTypes = (types: WeaponType[]) => {

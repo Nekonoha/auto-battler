@@ -1,4 +1,4 @@
-import type { Weapon, WeaponType, DamageResult, CombatUnit } from '../types'
+import type { Weapon, WeaponType, DamageResult, CombatUnit, Enemy } from '../types'
 import { StatusEffectSystem } from './StatusEffectSystem'
 import { DamageSystem } from './DamageSystem'
 
@@ -40,13 +40,39 @@ export class WeaponSystem {
     const modifiedDamage = baseDamage * statusModifier
 
     // 防御力を考慮した最終ダメージ計算
-    const finalDamage = DamageSystem.calculateDamage(modifiedDamage, target, weapon.type === 'magic')
+    let finalDamage: number
+    let resistanceApplied = 0
+    let blocked = false
+    
+    // 敵への攻撃の場合はトレイト（耐性・無効化）を考慮
+    if ('tier' in target && 'traits' in target) {
+      const enemy = target as Enemy
+      const damageResult = DamageSystem.calculateDamageWithTraits(
+        modifiedDamage,
+        enemy,
+        weapon.type === 'magic',
+        weapon.type
+      )
+      finalDamage = damageResult.damage
+      resistanceApplied = damageResult.resistanceApplied
+      blocked = damageResult.blocked
+    } else {
+      finalDamage = DamageSystem.calculateDamage(modifiedDamage, target as any, weapon.type === 'magic')
+    }
 
     // ダメージを与える
     target.currentHp = Math.max(0, target.currentHp - finalDamage)
     
     // 状態異常を付与
     const appliedEffects = weapon.effects.filter(effect => {
+      // 敵への状態異常付与時、耐性チェック
+      if ('tier' in target && 'traits' in target) {
+        const enemy = target as Enemy
+        if (enemy.traits?.statusImmunities?.includes(effect.type)) {
+          return false // 無効化
+        }
+      }
+      
       // 確率判定
       if (Math.random() * 100 < effect.chance) {
         // statusPowerでスタック数を補正
@@ -60,7 +86,9 @@ export class WeaponSystem {
     return {
       damage: finalDamage,
       isCritical,
-      statusEffects: appliedEffects
+      statusEffects: appliedEffects,
+      resistanceApplied,
+      blocked
     }
   }
 

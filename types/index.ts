@@ -173,6 +173,7 @@ export interface Player extends CombatUnit {
   stats: PlayerStats      // ステータス
   statPoints: number      // 未割り振りステータスポイント
   allocatedStats?: PlayerAllocatedStats // 割り振り管理用
+  unlockedDungeons: string[]  // クリア済み/アンロック済みダンジョンのIDリスト
   gold: number            // 所持ゴールド
 }
 
@@ -230,11 +231,15 @@ export interface Dungeon {
   name: string
   description: string
   levelRange: [number, number]
+  prereq?: string  // 前提ダンジョンID（未指定時は最初から利用可）
   tierWeights: Record<EnemyTier, number>
   eliteChance?: number
   namedChance?: number
-  enemyPool?: string[]  // 出現する敵のIDリスト（未指定時はランダム生成）
+  enemyPool?: string[]  // 出現する敵テンプレートIDリスト（未指定時はランダム生成）
+  bossId?: string       // ボス戦で使用するテンプレートID
   lootWeights: Record<'common' | 'rare' | 'epic' | 'legendary', number>
+  chestLootWeights?: Record<'common' | 'rare' | 'epic' | 'legendary', number>
+  chestWeaponPool?: string[] // チェストで優先されるベース武器ID
   chestChance?: number
 }
 
@@ -258,14 +263,23 @@ export interface CombatLogEntry {
 }
 
 // ダンジョン内の戦闘ごとのログ（探索戦闘ログ）
-export interface ExplorationCombatLogEntry {
+export interface ExplorationEventLogEntry {
+  dungeonName: string
   stage: number
-  enemyName: string
-  enemyLevel: number
-  enemyTier: EnemyTier
-  result: 'victory' | 'defeat'
-  logs: CombatLogEntry[]
+  eventType: 'battle' | 'chest'
+  // 敵戦闘の場合
+  enemyName?: string
+  enemyLevel?: number
+  enemyTier?: EnemyTier
+  result?: 'victory' | 'defeat'
+  logs?: CombatLogEntry[]
+  // 宝箱の場合
+  chestCount?: number
+  itemsDropped?: Weapon[]
 }
+
+// 後方互換性のため、ExplorationCombatLogEntryはExplorationEventLogEntryのエイリアス
+export type ExplorationCombatLogEntry = ExplorationEventLogEntry
 
 /**
  * ダンジョンログのエントリ（ステージごと）
@@ -290,4 +304,6 @@ export interface DamageResult {
   damage: number
   isCritical: boolean
   statusEffects: WeaponEffect[]
+  resistanceApplied?: number
+  blocked?: boolean
 }

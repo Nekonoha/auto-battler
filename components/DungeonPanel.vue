@@ -1,0 +1,143 @@
+<template>
+  <div class="panel dungeon-panel">
+    <div class="panel-header">
+      <h2>ダンジョン</h2>
+      <div class="chips">
+        <span class="chip">ステージ {{ currentStage }}/{{ totalStages }}</span>
+        <span class="chip">状態 {{ currentEventLabel }}</span>
+        <span class="chip">宝箱 {{ chestCount }}</span>
+        <span v-if="hasPendingChest" class="chip warning">宝箱保留中</span>
+        <span v-if="isDebugMode" class="chip debug">DEBUG</span>
+      </div>
+    </div>
+
+    <div class="dungeon-picker">
+      <div class="dungeon-info">
+        <label for="dungeon-select">ダンジョン</label>
+        <select id="dungeon-select" :value="selectedDungeonId" :disabled="isRunLocked" @change="onSelect">
+          <option
+            v-for="dungeon in dungeonOptions"
+            :key="dungeon.id"
+            :value="dungeon.id"
+            :disabled="!isDungeonUnlocked(dungeon.id)"
+          >
+            {{ dungeon.name }} (Lv{{ dungeon.levelRange[0] }}-{{ dungeon.levelRange[1] }}) {{ isDungeonUnlocked(dungeon.id) ? '' : '🔒' }}
+          </option>
+        </select>
+      </div>
+      <div class="dungeon-desc" v-if="selectedDungeon">
+        <div class="dungeon-name">{{ selectedDungeon.name }}</div>
+        <div class="dungeon-text">{{ selectedDungeon.description }}</div>
+        <div class="dungeon-meta">
+          敵レベル: {{ selectedDungeon.levelRange[0] }}-{{ selectedDungeon.levelRange[1] }} / 宝箱確率: {{ Math.round((selectedDungeon.chestChance ?? 0.1) * 100) }}%<br />
+          レアリティ傾向: Common {{ Math.round(selectedDungeon.lootWeights.common * 100) }}%・Rare {{ Math.round(selectedDungeon.lootWeights.rare * 100) }}%・Epic {{ Math.round(selectedDungeon.lootWeights.epic * 100) }}%・Legend {{ Math.round(selectedDungeon.lootWeights.legendary * 100) }}%
+        </div>
+      </div>
+    </div>
+
+    <div class="button-row">
+      <button class="btn btn-action" @click="$emit('start')" :disabled="isRunLocked">
+        探索開始 (10ステージ)
+      </button>
+      <button
+        class="btn btn-success"
+        @click="$emit('next')"
+        :disabled="!canProceedNext"
+      >
+        次のステージへ
+      </button>
+      <button class="btn btn-danger" @click="$emit('abandon')" :disabled="!isDungeonRunning">
+        探索中止
+      </button>
+    </div>
+
+    <div class="chest-action">
+      <button class="btn btn-special" @click="$emit('open-chest')">
+        🎁 宝箱を開く ({{ chestCount }}個保留中)
+      </button>
+    </div>
+
+    <div class="auto-row">
+      <div class="speed-label">AUTO</div>
+      <button
+        class="btn btn-secondary btn-compact"
+        @click="$emit('toggle-auto')"
+        :disabled="autoDisabled"
+      >
+        {{ isAutoRunning ? '一時停止' : '再開' }}
+      </button>
+      <div class="speed-buttons">
+        <button
+          class="btn btn-secondary btn-compact"
+          :class="{ active: battleSpeed === 1 }"
+          @click="$emit('change-speed', 1)"
+        >
+          x1
+        </button>
+        <button
+          class="btn btn-secondary btn-compact"
+          :class="{ active: battleSpeed === 2 }"
+          @click="$emit('change-speed', 2)"
+        >
+          x2
+        </button>
+        <button
+          class="btn btn-secondary btn-compact"
+          :class="{ active: battleSpeed === 4 }"
+          @click="$emit('change-speed', 4)"
+        >
+          x4
+        </button>
+      </div>
+    </div>
+
+    <div v-if="infoMessages.length" class="info-messages">
+      <div v-for="(msg, idx) in infoMessages" :key="idx" class="info-message">
+        {{ msg }}
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import type { Dungeon } from '~/types'
+
+type DungeonUnlockChecker = (id: string) => boolean
+
+type Emits = {
+  (e: 'update:selectedDungeonId', value: string): void
+  (e: 'start'): void
+  (e: 'next'): void
+  (e: 'abandon'): void
+  (e: 'open-chest'): void
+  (e: 'toggle-auto'): void
+  (e: 'change-speed', value: number): void
+}
+
+const props = defineProps<{
+  selectedDungeonId: string
+  dungeonOptions: Dungeon[]
+  selectedDungeon?: Dungeon
+  currentStage: number
+  totalStages: number
+  currentEventLabel: string
+  chestCount: number
+  hasPendingChest: boolean
+  isDebugMode: boolean
+  isRunLocked: boolean
+  isDungeonRunning: boolean
+  isAutoRunning: boolean
+  battleSpeed: number
+  infoMessages: string[]
+  canProceedNext: boolean
+  autoDisabled: boolean
+  isDungeonUnlocked: DungeonUnlockChecker
+}>()
+
+const emit = defineEmits<Emits>()
+
+const onSelect = (event: Event) => {
+  const value = (event.target as HTMLSelectElement)?.value
+  emit('update:selectedDungeonId', value)
+}
+</script>

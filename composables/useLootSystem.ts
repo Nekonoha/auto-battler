@@ -25,7 +25,6 @@ export function useLootSystem(
   const hasPendingChest = computed<boolean>(() => chestQueue.value.length > 0)
   const chestCount = computed<number>(() => chestQueue.value.length)
   const chestLootHistory = ref<Array<{ id: string; name: string; rarity: WeaponRarity; tier: EnemyTier; status: 'new' | 'limitbreak' | 'maxed'; level: number; timestamp: number }>>([])
-
   const cloneWeapon = (weapon: Weapon): Weapon => ({
     ...weapon,
     rarity: weapon.rarity,
@@ -146,7 +145,8 @@ export function useLootSystem(
   }
 
   const rollWeaponByWeights = (
-    weights: Record<'common' | 'rare' | 'epic' | 'legendary', number>
+    weights: Record<'common' | 'rare' | 'epic' | 'legendary', number>,
+    weaponPool?: string[]
   ): Weapon => {
     const rarities = Object.keys(weights) as Array<keyof typeof weights>
     const total = rarities.reduce((sum, key) => sum + weights[key], 0)
@@ -163,7 +163,10 @@ export function useLootSystem(
     }
 
     // 選択されたレアリティのベース武器を取得
-    const baseWeapons = getBaseWeaponsByRarity(picked)
+    let baseWeapons = getBaseWeaponsByRarity(picked)
+    if (weaponPool && weaponPool.length) {
+      baseWeapons = baseWeapons.filter(w => weaponPool.includes(w.id))
+    }
     if (baseWeapons.length === 0) {
       // フォールバック: ランダムな武器を生成
       const randomBase = getRandomBaseWeapon()
@@ -178,15 +181,26 @@ export function useLootSystem(
     return generateEnchantedWeapon(baseWeapon, enchantChance, multiEnchantChance)
   }
 
-  const rollChestReward = (tier: EnemyTier, base: Record<'common' | 'rare' | 'epic' | 'legendary', number>): Weapon => {
-    const weights = getBumpedWeights(tier, base)
-    return rollWeaponByWeights(weights)
+  const rollChestReward = (
+    tier: EnemyTier,
+    base: Record<'common' | 'rare' | 'epic' | 'legendary', number>,
+    weaponPool?: string[]
+  ): Weapon => {
+    const tierUpWeights = {
+      common: 0, // チェストはワンランク上を狙うので共通枠は0
+      rare: base.common,
+      epic: base.rare,
+      legendary: base.epic + base.legendary
+    }
+    const weights = getBumpedWeights(tier, tierUpWeights)
+    return rollWeaponByWeights(weights, weaponPool)
   }
 
   const rollReward = (target: Enemy): LootResult => {
     const normalDropChance = 0.2
     const dungeon = selectedDungeon.value
     const baseWeights = dungeon?.lootWeights || DEFAULT_WEIGHTS
+    const weaponPool = dungeon?.chestWeaponPool
 
     if (target.tier === 'boss') {
       return { type: 'chest', options: [], source: 'boss' }
@@ -201,7 +215,7 @@ export function useLootSystem(
     }
 
     if (Math.random() < normalDropChance) {
-      return { type: 'weapon', weapon: rollWeaponByWeights(baseWeights), status: 'new', level: 0 }
+      return { type: 'weapon', weapon: rollWeaponByWeights(baseWeights, weaponPool), status: 'new', level: 0 }
     }
 
     return { type: 'none' }
@@ -224,9 +238,6 @@ export function useLootSystem(
   }
 
   const spawnChest = (tier: EnemyTier) => {
-    const dungeon = selectedDungeon.value
-    const baseWeights = dungeon?.lootWeights || DEFAULT_WEIGHTS
-    // queue only tier; reward is rolled at open time
     chestQueue.value.push({ tier })
     showChestModal.value = false
   }
@@ -234,13 +245,15 @@ export function useLootSystem(
   const openChests = (count: number) => {
     const dungeon = selectedDungeon.value
     const baseWeights = dungeon?.lootWeights || DEFAULT_WEIGHTS
+    const chestWeights = dungeon?.chestLootWeights || baseWeights
+    const weaponPool = dungeon?.chestWeaponPool
     const openCount = Math.min(Math.max(1, count), Math.min(10, chestQueue.value.length))
     const results: Array<{ weapon: Weapon; status: 'new' | 'limitbreak' | 'maxed'; level: number; tier: EnemyTier }> = []
 
     for (let i = 0; i < openCount; i++) {
       const entry = chestQueue.value.shift()
       if (!entry) break
-      const reward = rollChestReward(entry.tier, baseWeights)
+      const reward = rollChestReward(entry.tier, chestWeights, weaponPool)
       const result = addWeaponToInventory(reward)
       chestLootHistory.value.unshift({
         id: `${reward.id}-${Date.now()}-${i}`,
@@ -255,12 +268,13 @@ export function useLootSystem(
       results.push({ weapon: reward, status: result.status, level: result.level, tier: entry.tier })
     }
 
-    showChestModal.value = chestQueue.value.length > 0
+    // モーダルは開いたままにして入手結果を見せる
+    showChestModal.value = true
     return results
   }
 
   const openPendingChest = () => {
-    if (hasPendingChest.value) showChestModal.value = true
+    showChestModal.value = true
   }
 
   return {

@@ -3,6 +3,8 @@ import type { Player, PlayerAllocatedStats, PlayerStats, EnemyTier, Dungeon } fr
 import { useExperience } from './useExperience'
 import { useLootSystem } from './useLootSystem'
 import { useBattleFlow } from './useBattleFlow'
+import { dungeons } from '~/data/dungeons'
+import { CombatSystem } from '~/systems/CombatSystem'
 
 export type BattleSpeed = 1 | 2 | 4
 
@@ -41,10 +43,17 @@ export function useGameOrchestrator(
     goNextBattle
   } = useBattleFlow(player, selectedDungeon, currentLevel)
 
+  const isDungeonRunning = ref(false)
+  const isDebugMode = ref(false)
+
+  // 古いセーブ互換: アンロックリストが無い場合は初期ダンジョンのみ解放
+  if (!Array.isArray(player.unlockedDungeons) || player.unlockedDungeons.length === 0) {
+    player.unlockedDungeons = ['tutorial-field']
+  }
+
   const infoMessages = ref<string[]>([])
   const battleSpeed = ref<BattleSpeed>(1)
   const isAutoRunning = ref(false)
-  const isDungeonRunning = ref(false)
   const currentStage = ref(0)
   const totalStages = 10
   const currentEvent = ref<'battle' | 'chest' | null>(null)
@@ -112,20 +121,22 @@ export function useGameOrchestrator(
     if (totalAllocated === 0) return { ok: false, reason: 'no-allocation' }
     if (player.gold < cost) return { ok: false, reason: 'no-gold' }
 
-    const deltas: Record<keyof PlayerStats, number> = {
-      attack: 5,
+    // デフォルト値に戻す
+    const BASE_STATS = {
+      maxHp: 100,
+      attack: 10,
       magic: 5,
-      defense: 3,
-      magicDefense: 3,
-      speed: 2
+      defense: 5,
+      magicDefense: 5,
+      speed: 10
     }
 
-    player.maxHp -= allocations.maxHp * 25
-    player.stats.attack -= allocations.attack * deltas.attack
-    player.stats.magic -= allocations.magic * deltas.magic
-    player.stats.defense -= allocations.defense * deltas.defense
-    player.stats.magicDefense -= allocations.magicDefense * deltas.magicDefense
-    player.stats.speed -= allocations.speed * deltas.speed
+    player.maxHp = BASE_STATS.maxHp
+    player.stats.attack = BASE_STATS.attack
+    player.stats.magic = BASE_STATS.magic
+    player.stats.defense = BASE_STATS.defense
+    player.stats.magicDefense = BASE_STATS.magicDefense
+    player.stats.speed = BASE_STATS.speed
 
     player.statPoints += totalAllocated
     player.gold -= cost
@@ -243,11 +254,29 @@ export function useGameOrchestrator(
     isAutoRunning.value = false
   }
 
-  const startStageBattle = (opts?: { forcedTier?: EnemyTier }) => {
+  const startStageBattle = (opts?: { forcedTier?: EnemyTier; debugMode?: boolean }) => {
+    isDebugMode.value = false
     resetPlayerState()
     stopAuto()
     startBattle({ forcedTier: opts?.forcedTier })
     startAuto()
+  }
+
+  const startDebugBattle = () => {
+    isDebugMode.value = true
+    stopAuto()
+    resetPlayerState()
+    combatLogs.value = []
+    explorationCombatLogs.value = []
+    dungeonLogs.value = []
+    enemy.value = CombatSystem.generateEnemy(player.level, { debugMode: true })
+    combat.value = enemy.value ? new CombatSystem(player, enemy.value) : null
+    if (combat.value) {
+      startAuto()
+      isDungeonRunning.value = false
+      currentEvent.value = null
+      addInfo('デバッグ敵とスパーリングを開始')
+    }
   }
 
   const startNextStage = () => {
@@ -257,6 +286,12 @@ export function useGameOrchestrator(
       isDungeonRunning.value = false
       currentEvent.value = null
       addInfo('ダンジョン探索完了！')
+      const currentDungeon = selectedDungeon.value
+      const nextDungeon = currentDungeon ? dungeons.find(d => d.prereq === currentDungeon.id) : undefined
+      if (nextDungeon && !player.unlockedDungeons.includes(nextDungeon.id)) {
+        player.unlockedDungeons.push(nextDungeon.id)
+        addInfo(`${nextDungeon.name} が解放されました！`)
+      }
       stopAuto()
       return
     }
@@ -270,6 +305,16 @@ export function useGameOrchestrator(
     addInfo(`ステージ ${currentStage.value}/${totalStages}: ${event === 'battle' ? (isBossStage ? 'ボスが出現！' : '敵が現れた') : '宝箱を発見'}`)
 
     if (event === 'chest') {
+      // 宝箱イベントをexplorationLogsに記録
+      const dungeonName = dungeon?.name || '不明なダンジョン'
+      explorationCombatLogs.value.push({
+        dungeonName,
+        stage: currentStage.value,
+        eventType: 'chest',
+        chestCount: 1,
+        itemsDropped: []
+      } as any)
+      
       spawnChest('elite')
       currentEvent.value = null
       startNextStage()
@@ -281,6 +326,12 @@ export function useGameOrchestrator(
   }
 
   const startDungeonRun = () => {
+    isDebugMode.value = false
+    const dungeon = selectedDungeon.value
+    if (!dungeon || !player.unlockedDungeons.includes(dungeon.id)) {
+      addInfo('未解放のダンジョンです')
+      return
+    }
     clearAllMessages()
     stopAuto()
     resetPlayerState()
@@ -304,6 +355,7 @@ export function useGameOrchestrator(
 
   const abandonDungeon = () => {
     stopAuto()
+    isDebugMode.value = false
     isDungeonRunning.value = false
     currentEvent.value = null
     combat.value = null
@@ -350,6 +402,8 @@ export function useGameOrchestrator(
     startAuto,
     allocateStat,
     allocateMaxHp,
-    resetAllocatedStats
+    resetAllocatedStats,
+    startDebugBattle,
+    isDebugMode
   }
 }

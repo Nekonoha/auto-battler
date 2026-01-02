@@ -15,8 +15,13 @@ export function useExperience(player: Player) {
       player.level += 1
       levelUps += 1
 
-      // ステータスポイント付与（自動成長は無し）
-      player.statPoints = (player.statPoints || 0) + 5
+      // ステータスポイント付与（デフォルト値分は含めない）
+      // 獲得上限：レベル × 5
+      const maxStatPoints = player.level * 5
+      const currentAllocated = (player.statPoints || 0) - (player.level * 5)
+      if (currentAllocated < maxStatPoints) {
+        player.statPoints = (player.statPoints || 0) + 5
+      }
       player.currentHp = player.maxHp
 
       player.nextLevelExp = CombatSystem.calculateNextLevelExp(player.level)

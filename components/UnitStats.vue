@@ -170,8 +170,7 @@ const getStatusColor = (type: string): string => {
 }
 
 const getStatusName = (type: string): string => {
-  const definition = getStatusEffectDefinition(type as any)
-  return definition?.name || type
+  return StatusEffectSystem.getStatusName(type as any)
 }
 
 const getStatusDescription = (effect: StatusEffect): string => {

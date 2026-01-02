@@ -1,8 +1,10 @@
-import type { Player, Enemy, CombatLogEntry, Weapon } from '../types'
+import type { Player, Enemy, CombatLogEntry, Weapon, EnemyTier } from '../types'
 import { WeaponSystem } from './WeaponSystem'
 import { StatusEffectSystem } from './StatusEffectSystem'
 import { DamageSystem } from './DamageSystem'
 import { calculateActiveSynergies, getTotalSynergyBonus } from '../data/synergies'
+import { calculateEnemyLevelForDungeon } from '../utils/levelScaling'
+import { getEnemyTemplateByNameOrId, getRandomEnemyTemplate } from '../data/enemies'
 
 /**
  * 戦闘システム
@@ -152,7 +154,22 @@ export class CombatSystem {
 
         const result = WeaponSystem.attack(weapon, this.player, this.enemy, this.synergyBonus)
 
+        // 攻撃無効化のログ
+        if (result.blocked) {
+          this.addLog(
+            `${weapon.name} の攻撃は無効化された！ (${weapon.type}攻撃無効)`,
+            'info'
+          )
+          continue
+        }
+
         let message = `プレイヤーは ${weapon.name} (${i}/${swings}) で攻撃！ ${result.damage}ダメージ`
+        
+        // 耐性適用のログ
+        if (result.resistanceApplied && result.resistanceApplied > 0) {
+          message += ` (耐性${result.resistanceApplied}%)`
+        }
+        
         if (result.isCritical) {
           message += ' クリティカル！'
           this.addLog(message, 'critical')
@@ -166,6 +183,19 @@ export class CombatSystem {
           this.addLog(
             `${this.enemy.name}に${icon}${this.getStatusName(effect.type)}を付与した！`,
             'status'
+          )
+        })
+        
+        // 状態異常無効化のログ（武器に状態異常があるが付与されなかった場合）
+        const immuneEffects = weapon.effects.filter(effect => 
+          this.enemy.traits?.statusImmunities?.includes(effect.type) &&
+          !result.statusEffects.some(applied => applied.type === effect.type)
+        )
+        immuneEffects.forEach(effect => {
+          const icon = StatusEffectSystem.getStatusIcon(effect.type)
+          this.addLog(
+            `${icon}${this.getStatusName(effect.type)}は無効化された (状態異常耐性)`,
+            'info'
           )
         })
       }
@@ -209,8 +239,8 @@ export class CombatSystem {
       this.addLog(message, 'damage')
       
       // 敵の状態異常付与（敵のtraitsから）
-      if (this.enemy.traits?.applyEffects) {
-        this.enemy.traits.applyEffects.forEach(effect => {
+      if (this.enemy.traits?.inflictsStatus) {
+        this.enemy.traits.inflictsStatus.forEach(effect => {
           if (Math.random() * 100 < effect.chance) {
             StatusEffectSystem.applyStatusEffect(this.player, effect.type, effect.stacks, effect.duration)
             const icon = StatusEffectSystem.getStatusIcon(effect.type)
@@ -258,30 +288,50 @@ export class CombatSystem {
    * 状態異常の名前を取得
    */
   private getStatusName(type: string): string {
-    const names: Record<string, string> = {
-      poison: '毒',
-      burn: '燃焼',
-      frost: '凍結'
-    }
-    return names[type] || type
+    return StatusEffectSystem.getStatusName(type as any)
   }
 
   /**
    * 新しい敵を生成
    */
   static generateEnemy(level: number = 1, opts?: {
+    playerLevel?: number
     dungeonName?: string
+    dungeonLevelRange?: [number, number]
     tierWeights?: Partial<Record<Enemy['tier'], number>>
     levelMultiplier?: number
     forcedTier?: Enemy['tier']
     enemyPool?: string[]
+    bossId?: string
+    debugMode?: boolean
   }): Enemy {
-    const baseHp = 80
-    const baseAtk = 15
-    const baseMgc = 10
-    const baseDef = 5
-    const baseMgcDef = 4
-    const baseSpd = 10
+    if (opts?.debugMode) {
+      const hp = 5_000_000
+      return {
+        name: '【DEBUG】無害なスパーリング相手',
+        level,
+        maxHp: hp,
+        currentHp: hp,
+        statusEffects: [],
+        tier: 'boss',
+        stats: {
+          attack: 0,
+          magic: 0,
+          defense: 9999,
+          magicDefense: 9999,
+          speed: 10
+        }
+      }
+    }
+    // プレイヤーレベルを考慮した敵レベルの計算
+    let actualLevel = level
+    if (opts?.playerLevel && opts?.dungeonLevelRange) {
+      const predicted = calculateEnemyLevelForDungeon(opts.playerLevel, opts.dungeonLevelRange)
+      const dungeonMid = Math.round((opts.dungeonLevelRange[0] + opts.dungeonLevelRange[1]) / 2)
+      // ステージレベル, 推奨レンジ中央値, プレイヤー基準の平均を取って底上げ
+      actualLevel = Math.max(level, Math.round((predicted + dungeonMid + level) / 3))
+    }
+    actualLevel = Math.max(1, Math.min(1000, actualLevel))
 
     // エリート/ネームド/ボスの抽選（forcedTierがあれば優先）
     let tier: Enemy['tier'] = 'normal'
@@ -307,32 +357,64 @@ export class CombatSystem {
       }
     }
 
-    // enemyPoolからランダムに敵を選択
-    const enemyNames = opts?.enemyPool && opts.enemyPool.length > 0 
-      ? opts.enemyPool 
-      : ['スライム']
-    const randomEnemy = enemyNames[Math.floor(Math.random() * enemyNames.length)]
-
-    const tierMultiplier = tier === 'boss' ? 2.3 : tier === 'named' ? 1.8 : tier === 'elite' ? 1.4 : 1.0
     const tierNamePrefix = tier === 'boss' ? '【ボス】' : tier === 'named' ? '【ネームド】' : tier === 'elite' ? 'エリート' : ''
+
+    // テンプレート選択
+    const pool = (tier === 'boss' && opts?.bossId)
+      ? [opts.bossId]
+      : (opts?.enemyPool && opts.enemyPool.length ? opts.enemyPool : undefined)
+
+    const template = (() => {
+      if (pool) {
+        const pick = pool[Math.floor(Math.random() * pool.length)]
+        const found = getEnemyTemplateByNameOrId(pick)
+        if (found) return found
+      }
+      return getRandomEnemyTemplate()
+    })()
+
+    const tierStatMultiplier: Record<EnemyTier, number> = {
+      normal: 1.0,
+      elite: 1.18,
+      named: 1.35,
+      boss: 1.55
+    }
+    const tierHpMultiplier: Record<EnemyTier, number> = {
+      normal: 1.0,
+      elite: 1.25,
+      named: 1.5,
+      boss: 1.8
+    }
+
+    const levelStatGrowth = 1 + (actualLevel - 1) * 0.08
+    const levelHpGrowth = 1 + (actualLevel - 1) * 0.12
+    const statMult = tierStatMultiplier[tier]
+    const hpMult = tierHpMultiplier[tier]
     const levelScale = opts?.levelMultiplier ?? 1
 
-    const hp = Math.floor((baseHp + (level - 1) * 25) * tierMultiplier * levelScale)
-    
+    const scale = (base: number) => Math.max(1, Math.round(base * levelStatGrowth * statMult))
+
+    const scaledStats = {
+      attack: scale(template.baseStats.attack),
+      magic: scale(template.baseStats.magic),
+      defense: scale(template.baseStats.defense),
+      magicDefense: scale(template.baseStats.magicDefense),
+      speed: Math.max(1, Math.round(template.baseStats.speed * (1 + (actualLevel - 1) * 0.04) * statMult))
+    }
+
+    const baseHp = 70 * template.baseStats.hpMultiplier
+    const hp = Math.max(30, Math.floor(baseHp * levelHpGrowth * hpMult * levelScale))
+
     return {
-      name: `${opts?.dungeonName ? `[${opts.dungeonName}] ` : ''}${tierNamePrefix}${randomEnemy} Lv.${level}`.trim(),
-      level,
+      name: `${opts?.dungeonName ? `[${opts.dungeonName}] ` : ''}${tierNamePrefix}${template.baseName} Lv.${actualLevel}`.trim(),
+      level: actualLevel,
       maxHp: hp,
       currentHp: hp,
       statusEffects: [],
       tier,
-      stats: {
-        attack: Math.floor((baseAtk + (level - 1) * 6) * tierMultiplier * levelScale),
-        magic: Math.floor((baseMgc + (level - 1) * 3) * tierMultiplier * levelScale),
-        defense: Math.floor((baseDef + (level - 1) * 1.5) * tierMultiplier * levelScale),
-        magicDefense: Math.floor((baseMgcDef + (level - 1) * 1) * tierMultiplier * levelScale),
-        speed: Math.floor((baseSpd + (level - 1) * 2) * tierMultiplier * levelScale)
-      }
+      type: template.type,
+      traits: template.traits,
+      stats: scaledStats
     }
   }
 

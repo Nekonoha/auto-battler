@@ -7,18 +7,6 @@
         <div class="resource-item">✨ {{ player.statPoints }}SP</div>
       </div>
     </div>
-
-    <div class="player-actions-row">
-      <button class="btn btn-secondary btn-compact" @click="$emit('openWeaponManager')" :disabled="isRunLocked">
-        🛡️ 武器管理
-      </button>
-      <button class="btn btn-secondary btn-compact" @click="$emit('openSellMenu')" :disabled="isRunLocked">
-        💰 売却
-      </button>
-      <button class="btn btn-secondary btn-compact" @click="$emit('openStatManager')" :disabled="isRunLocked">
-        🧠 ステ振り
-      </button>
-    </div>
     
     <!-- レベルと経験値 -->
     <div class="level-section">
@@ -43,10 +31,29 @@
       </div>
     </div>
 
+    <!-- 状態異常表示 -->
+    <div v-if="player.statusEffects.length > 0" class="status-effects">
+      <div 
+        v-for="effect in player.statusEffects" 
+        :key="effect.type"
+        class="status-effect"
+        :style="{ backgroundColor: getStatusColor(effect.type) }"
+      >
+        <Tooltip :title="`${getStatusIcon(effect.type)} ${getStatusName(effect.type)}`" :content="getStatusDescription(effect.type)">
+          <span class="status-icon">{{ getStatusIcon(effect.type) }}</span>
+          <span class="status-stacks">×{{ effect.stacks }}</span>
+          <span class="status-duration">({{ effect.duration }}T)</span>
+        </Tooltip>
+      </div>
+    </div>
+
     <!-- ステータス表示 -->
     <div class="section-with-action">
       <div class="section-header">
         <h3>⚖️ ステータス</h3>
+        <button class="btn btn-secondary btn-compact" @click="$emit('openStatManager')" :disabled="isRunLocked">
+          🧠 ステ振り
+        </button>
       </div>
       <div class="stats-display">
       <div class="stat-row">
@@ -93,26 +100,13 @@
       </div>
     </div>
 
-    <!-- 状態異常表示 -->
-    <div v-if="player.statusEffects.length > 0" class="status-effects">
-      <div 
-        v-for="effect in player.statusEffects" 
-        :key="effect.type"
-        class="status-effect"
-        :style="{ backgroundColor: getStatusColor(effect.type) }"
-      >
-        <Tooltip :title="`${getStatusIcon(effect.type)} ${getStatusName(effect.type)}`" :content="getStatusDescription(effect.type)">
-          <span class="status-icon">{{ getStatusIcon(effect.type) }}</span>
-          <span class="status-stacks">×{{ effect.stacks }}</span>
-          <span class="status-duration">({{ effect.duration }}T)</span>
-        </Tooltip>
-      </div>
-    </div>
-
     <!-- 装備武器リスト -->
     <div class="section-with-action">
       <div class="section-header">
         <h3>⚔️ 装備武器</h3>
+        <button class="btn btn-secondary btn-compact" @click="$emit('openWeaponManager')" :disabled="isRunLocked">
+          🛡️ 武器管理
+        </button>
       </div>
       <div class="weapons-section">
       <div v-if="player.weapons.length === 0" class="no-weapons">
@@ -120,7 +114,7 @@
       </div>
       <div v-else class="weapons-list">
         <div 
-          v-for="weapon in player.weapons" 
+          v-for="weapon in sortedWeapons" 
           :key="weapon.id"
           class="weapon-mini"
           :style="{ borderColor: getRarityColor(weapon.rarity) }"
@@ -219,7 +213,6 @@ const props = defineProps<{
 defineEmits<{
   openWeaponManager: []
   openStatManager: []
-  openSellMenu: []
 }>()
 
 const hpPercentage = computed(() => {
@@ -228,6 +221,20 @@ const hpPercentage = computed(() => {
 
 const expPercentage = computed(() => {
   return (props.player.exp / props.player.nextLevelExp) * 100
+})
+
+const sortedWeapons = computed(() => {
+  const rarityOrder: Record<string, number> = {
+    legendary: 0,
+    epic: 1,
+    rare: 2,
+    common: 3
+  }
+  return [...props.player.weapons].sort((a, b) => {
+    const orderA = rarityOrder[a.rarity] ?? 999
+    const orderB = rarityOrder[b.rarity] ?? 999
+    return orderA - orderB
+  })
 })
 
 const activeSynergies = computed(() => {
@@ -261,26 +268,7 @@ const getStatusDescription = (type: string) => {
 }
 
 const getStatusName = (type: string) => {
-  const names: Record<string, string> = {
-    poison: '毒',
-    burn: '火傷',
-    bleed: '出血',
-    kissed: '口付け',
-    epidemic: '疫病',
-    slow: '鈍足',
-    stun: '気絶',
-    sleep: '睡眠',
-    frozen: '凍結',
-    petrification: '石化',
-    fear: '恐怖',
-    drunk: '酩酊',
-    vulnerable: '虚弱',
-    weak: '弱体',
-    fleet: '俊足',
-    armor: 'アーマー',
-    thorn: '棘の鎧'
-  }
-  return names[type] || type
+  return StatusEffectSystem.getStatusName(type as any)
 }
 
 const getRarityColor = (rarity: string) => {

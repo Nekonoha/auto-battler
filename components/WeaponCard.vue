@@ -111,26 +111,7 @@ const getStatusDescription = (type: string) => {
 }
 
 const getStatusName = (type: string) => {
-  const names: Record<string, string> = {
-    poison: '毒',
-    burn: '火傷',
-    bleed: '出血',
-    kissed: '口付け',
-    epidemic: '疫病',
-    slow: '鈍足',
-    stun: '気絶',
-    sleep: '睡眠',
-    frozen: '凍結',
-    petrification: '石化',
-    fear: '恐怖',
-    drunk: '酩酊',
-    vulnerable: '虚弱',
-    weak: '弱体',
-    fleet: '俊足',
-    armor: 'アーマー',
-    thorn: '棘の鎧'
-  }
-  return names[type] || type
+  return StatusEffectSystem.getStatusName(type as any)
 }
 
 const getTagDescription = (tag: string) => {
