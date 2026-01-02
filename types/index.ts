@@ -34,6 +34,8 @@ export type WeaponTag =
   | 'bloodthirsty'  // 血渇系（シナジー用）
   | 'healing'       // 回復系
   | 'defensive'     // 防御系
+  | 'supportive'    // サポート系
+  | 'holy'          // 聖なる系
   | 'versatile'     // 万能系
   | 'venomous'      // 毒系（シナジー用）
   | 'flame'         // 炎系（シナジー用）
@@ -47,6 +49,7 @@ export interface WeaponTraits {
   magicalResistance?: number      // 魔法耐性（%）10-20%程度
   statusResistance?: number       // 状態異常全般への耐性（%）10-20%程度
   damageReduction?: number        // 被ダメージ軽減（%）5-15%程度
+  resistancePenetration?: number  // 耐性貫通（%）攻撃時に敵の耐性を減少させる
 }
 
 /**
@@ -64,6 +67,7 @@ export interface WeaponEnchantment {
     critChance?: number
     critDamage?: number
     statusPower?: number
+    magicDefense?: number
   }
   addTags?: WeaponTag[]           // 追加されるタグ
   addEffects?: WeaponEffect[]     // 追加される効果
@@ -88,9 +92,9 @@ export type StatusEffectType =
   // 行動阻害
   | 'slow' | 'stun' | 'sleep' | 'sleepLock' | 'sleepVulnerable' | 'frozen' | 'frozenLock' | 'frozenGuard' | 'petrification' | 'petrificationLock' | 'petrificationGuard' | 'fear' | 'drunk' | 'electrification' | 'electrificationSlow' | 'electrificationParalysis'
   // 状態変化
-  | 'vulnerable' | 'weak' | 'mist'
+  | 'vulnerable' | 'weak' | 'mist' | 'grievousWound' | 'dispel' | 'curse'
   // バフ
-  | 'fleet' | 'armor' | 'thorn' | 'power' | 'intellect' | 'precision'
+  | 'fleet' | 'armor' | 'thorn' | 'power' | 'intellect' | 'precision' | 'debuffImmunity' | 'barrier'
 
 /**
  * 武器が付与する状態異常効果
@@ -173,6 +177,13 @@ export interface PlayerStats {
   speed: number           // 攻撃速度
   statusPower: number     // 状態異常威力（%加算換算）
   lifeSteal?: number      // ライフスティール（与えたダメージの％で回復）
+  critChance?: number     // クリティカル率（%、デフォルト0）
+  critDamage?: number     // クリティカルダメージ倍率（1.5 = 150%、デフォルト1.5）
+  physicalResistanceBonus?: number // 物理耐性ボーナス（%）
+  magicalResistanceBonus?: number  // 魔法耐性ボーナス（%）
+  statusResistanceBonus?: number   // 状態異常耐性ボーナス（%）
+  damageReductionBonus?: number    // 被ダメージ軽減ボーナス（%）
+  resistancePenetrationBonus?: number // 耐性貫通ボーナス（%）
 }
 
 export interface PlayerAllocatedStats {
@@ -184,6 +195,8 @@ export interface PlayerAllocatedStats {
   speed: number
   statusPower: number
   lifeSteal?: number
+  critChance?: number
+  critDamage?: number
 }
 
 /**
@@ -219,6 +232,7 @@ export interface EnemyTraits {
   statusResistances?: Partial<Record<StatusEffectType | 'control' | 'damage' | 'modifier' | 'all', number>>
   attackImmunities?: WeaponType[]        // 無効な攻撃タイプ
   expMultiplier?: number                 // 経験値倍率（デフォルト1.0）
+  resistancePenetration?: number         // 敵の耐性貫通効果（0-100%）
 }
 
 /**
@@ -232,6 +246,7 @@ export type EnemyType =
   | 'humanoid'   // 人型
   | 'dragon'     // ドラゴン系
   | 'construct'  // 構造物系
+  | 'divine'     // 神性系
 
 export interface EnemyStats {
   attack: number
@@ -241,9 +256,11 @@ export interface EnemyStats {
   speed: number
   statusPower: number
   lifeSteal?: number
+  critChance?: number     // クリティカル率（%、デフォルト0）
+  critDamage?: number     // クリティカルダメージ倍率（1.5 = 150%、デフォルト1.5）
 }
 
-export type EnemyActionType = 'attack' | 'defend' | 'nothing' | 'status'
+export type EnemyActionType = 'attack' | 'defend' | 'nothing' | 'status' | 'dispel'
 
 export interface EnemyActionEffect {
   type: StatusEffectType
@@ -334,7 +351,7 @@ export interface LootReward {
 export interface CombatLogEntry {
   turn: number
   message: string
-  type: 'damage' | 'status' | 'info' | 'critical' | 'loot' | 'buff' | 'debuff' | 'special'
+  type: 'damage' | 'status' | 'info' | 'critical' | 'overCritical' | 'limitBreak' | 'loot' | 'buff' | 'debuff' | 'special'
   actor?: 'player' | 'enemy'  // 行動者の区別
   actionCategory?: 'attack' | 'defend' | 'skill' | 'special'  // 行動のカテゴリ
 }
@@ -377,13 +394,17 @@ export interface DungeonLogEntry {
 /**
  * ダメージ計算結果
  */
+export type CriticalType = 'normal' | 'critical' | 'overCritical' | 'limitBreak'
+
 export interface DamageResult {
   damage: number
   isCritical: boolean
+  criticalType?: CriticalType  // クリティカルの種類（normal=通常, critical=通常クリ, overCritical=オーバークリ, limitBreak=リミットブレイク）
   statusEffects: Array<WeaponEffect & { powerScale?: number }>
   resistanceApplied?: number
   blocked?: boolean
   actualDamageInflicted?: number  // 実際に与えたダメージ（防御・耐性後）
+  penetrationLog?: string  // 耐性貫通効果のログメッセージ
 }
 
 /**

@@ -40,8 +40,9 @@ export class DamageSystem {
         baseDamage: number, 
         defender: Enemy, 
         isMagic = false,
-        weaponType?: string
-    ): { damage: number; resistanceApplied: number; blocked: boolean } {
+        weaponType?: string,
+        attackerResistancePenetration = 0
+    ): { damage: number; resistanceApplied: number; blocked: boolean; penetrationLog?: string } {
         // 攻撃タイプ無効チェック
         if (weaponType && defender.traits?.attackImmunities?.includes(weaponType as any)) {
             return { damage: 0, resistanceApplied: 100, blocked: true };
@@ -59,6 +60,16 @@ export class DamageSystem {
             resistancePercent = defender.traits.physicalResistance;
         }
 
+        // 攻撃側の耐性貫通効果を適用（相手の耐性を減らす）
+        let penetrationLog: string | undefined;
+        if (attackerResistancePenetration > 0 && resistancePercent > 0) {
+            const resistanceBeforePenetration = resistancePercent;
+            resistancePercent = Math.max(0, resistancePercent - attackerResistancePenetration);
+            penetrationLog = `耐性貫通: ${resistanceBeforePenetration}% → ${resistancePercent}% (貫通量: ${attackerResistancePenetration}%)`;
+        } else {
+            resistancePercent = Math.max(0, resistancePercent - attackerResistancePenetration);
+        }
+
         // 耐性によるダメージ軽減/増加
         if (resistancePercent !== 0) {
             const multiplier = 1 - (resistancePercent / 100);
@@ -68,7 +79,8 @@ export class DamageSystem {
         return { 
             damage: Math.max(0, Math.round(finalDamage)), 
             resistanceApplied: resistancePercent,
-            blocked: false
+            blocked: false,
+            penetrationLog
         };
     }
 
@@ -88,8 +100,10 @@ export class DamageSystem {
             physicalResistance: number
             magicalResistance: number
             damageReduction: number
-        }
-    ): { damage: number; reductionInfo: DamageReductionInfo } {
+            resistancePenetration?: number
+        },
+        attackerResistancePenetration = 0
+    ): { damage: number; reductionInfo: DamageReductionInfo; penetrationInfo?: { type: 'physical' | 'magical'; before: number; after: number; used: number } } {
         // 通常の防御計算
         const defense = isMagic ? player.stats.magicDefense : player.stats.defense;
         let finalDamage = baseDamage * this.defenseMultiplier(defense);
@@ -114,12 +128,21 @@ export class DamageSystem {
         }
 
         // 耐性適用（各耐性は最大70%まで）
+        // 攻撃側の耐性貫通を適用してから耐性軽減を計算
+        let penetrationInfo: { type: 'physical' | 'magical'; before: number; after: number; used: number } | undefined
+
         if (isMagic && weaponTraitsBonus.magicalResistance) {
-            magicalResistance = Math.min(weaponTraitsBonus.magicalResistance, MAX_RESISTANCE);
+            const capped = Math.min(weaponTraitsBonus.magicalResistance, MAX_RESISTANCE)
+            const afterPenetration = Math.max(0, capped - attackerResistancePenetration)
+            penetrationInfo = attackerResistancePenetration > 0 ? { type: 'magical', before: capped, after: afterPenetration, used: capped - afterPenetration } : undefined
+            magicalResistance = afterPenetration
             const multiplier = 1 - (magicalResistance / 100);
             finalDamage = finalDamage * multiplier;
         } else if (!isMagic && weaponTraitsBonus.physicalResistance) {
-            physicalResistance = Math.min(weaponTraitsBonus.physicalResistance, MAX_RESISTANCE);
+            const capped = Math.min(weaponTraitsBonus.physicalResistance, MAX_RESISTANCE)
+            const afterPenetration = Math.max(0, capped - attackerResistancePenetration)
+            penetrationInfo = attackerResistancePenetration > 0 ? { type: 'physical', before: capped, after: afterPenetration, used: capped - afterPenetration } : undefined
+            physicalResistance = afterPenetration
             const multiplier = 1 - (physicalResistance / 100);
             finalDamage = finalDamage * multiplier;
         }
@@ -150,7 +173,8 @@ export class DamageSystem {
                 magicalResistanceApplied: magicalResistance,
                 damageReductionApplied: damageReduction,
                 totalReduction
-            }
+            },
+            penetrationInfo
         };
     }
 }

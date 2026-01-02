@@ -35,15 +35,15 @@ export class CombatSystem {
   private applySynergyBonuses() {
     const weaponTags = this.player.weapons.map(w => w.tags)
     const activeSynergies = calculateActiveSynergies(weaponTags)
-    
+
     if (activeSynergies.length > 0) {
       this.synergyBonus = getTotalSynergyBonus(activeSynergies)
-      
+
       // シナジーログを追加
       activeSynergies.forEach(synergy => {
         this.addLog(`シナジー発動: ${synergy.name}`, 'info')
       })
-      
+
       // シナジーボーナスはWeaponSystem.attack内で計算時に反映される
       // (元のステータスは変更しない)
     }
@@ -192,63 +192,7 @@ export class CombatSystem {
 
       for (let i = 1; i <= swings; i++) {
         if (this.enemy.currentHp <= 0) break
-
-        const result = WeaponSystem.attack(weapon, this.player, this.enemy, this.synergyBonus)
-
-        // 攻撃無効化のログ
-        if (result.blocked) {
-          this.addLog(
-            `${weapon.name} の攻撃は無効化された！ (${weapon.type}攻撃無効)`,
-            'info'
-          )
-          continue
-        }
-
-        let message = `${this.player.name}は ${weapon.name} (${i}/${swings}) で攻撃！ ${result.damage}ダメージ`
-        
-        // 耐性適用のログ
-        if (result.resistanceApplied && result.resistanceApplied > 0) {
-          message += ` (耐性${result.resistanceApplied}%)`
-        }
-        
-        // 被ダメージ修正をログに反映
-        const damageTakenLog = this.formatDamageTakenLog(this.enemy)
-        if (damageTakenLog) {
-          message += ` ${damageTakenLog}`
-        }
-        
-        if (result.isCritical) {
-          message += ' クリティカル！'
-          this.addLog(message, 'critical', 'player', 'attack')
-        } else {
-          this.addLog(message, 'damage', 'player', 'attack')
-        }
-
-        // ライフスティール効果（物理・魔法攻撃のみ、状態異常ダメージは対象外）
-        const totalLifeSteal = (weapon.stats.lifeSteal ?? 0) + (this.synergyBonus?.lifeStealBonus ?? 0)
-        if (totalLifeSteal > 0 && result.actualDamageInflicted) {
-          const healAmount = Math.floor(result.actualDamageInflicted * (totalLifeSteal / 100))
-          if (healAmount > 0) {
-            this.player.currentHp = Math.min(this.player.maxHp, this.player.currentHp + healAmount)
-            this.addLog(`${this.player.name}は${healAmount}のHPを吸収した！`, 'buff', 'player', 'attack')
-          }
-        }
-
-        // 反射ダメージ処理（敵が棘の鎧などを持つ場合）
-        this.applyReflection(this.enemy, this.player, result.damage)
-
-        // ダメージを受けたことで breakOnDamage 効果を除去（睡眠系など）
-        const beforeCount = this.enemy.statusEffects.length
-        this.enemy.statusEffects = this.enemy.statusEffects.filter(e => {
-          const def = getStatusEffectDefinition(e.type as any)
-          return !def?.effects.breakOnDamage
-        })
-        if (this.enemy.statusEffects.length < beforeCount) {
-          this.addLog(`${this.enemy.name}は眠りから目覚めた！`, 'status')
-        }
-
-        // 状態異常付与を即時処理（バフは自分、デバフは敵）
-        this.applyResultEffects(result.statusEffects, this.player, this.enemy, 'player')
+        this.handlePlayerWeaponAttack(weapon, i, swings)
       }
     }
   }
@@ -261,17 +205,17 @@ export class CombatSystem {
    */
   private chooseEnemyAction(): EnemyAction {
     const actionPool = this.enemy.actionPool || []
-    
+
     // actionPool が空の場合はエラー（テンプレートに必ずactionPoolを設定すること）
     if (actionPool.length === 0) {
       console.warn(`Enemy ${this.enemy.name} has no actionPool defined, defaulting to attack`)
       return { type: 'attack' as const, weight: 1 }
     }
-    
+
     // 重みの合計を計算
     const totalWeight = actionPool.reduce((sum, action) => sum + action.weight, 0)
     let random = Math.random() * totalWeight
-    
+
     // 重み付けランダムで行動を選択
     for (const action of actionPool) {
       random -= action.weight
@@ -279,7 +223,7 @@ export class CombatSystem {
         return action as EnemyAction
       }
     }
-    
+
     return actionPool[0] as EnemyAction
   }
 
@@ -287,156 +231,253 @@ export class CombatSystem {
     if (this.enemy.currentHp <= 0) return
 
     // 行動不能状態チェック
-    const cannotAct = StatusEffectSystem.cannotAct(this.enemy)
-    if (cannotAct) {
+    if (StatusEffectSystem.cannotAct(this.enemy)) {
       this.addLog(`${this.enemy.name}は行動できない！`, 'status')
       return
     }
 
     // 敵の速度に応じた攻撃回数（最低1回、最大3回）
     const numAttacks = Math.min(3, Math.max(1, Math.floor(Math.max(0, this.enemy.stats.speed) / 25)))
-    
-    // 1. 敵の行動フェーズを実行
+
     for (let i = 1; i <= numAttacks; i++) {
       if (this.player.currentHp <= 0) break
-
       const action = this.chooseEnemyAction()
-      
       const actionName = action.name || (action.type === 'attack' ? '攻撃' : action.type === 'defend' ? '防御' : action.type === 'nothing' ? '様子見' : '行動')
+      this.handleEnemyAction(action, actionName, i, numAttacks)
+    }
+  }
 
-      switch (action.type) {
-        case 'attack': {
-          // 敵の基本攻撃（物理/魔法属性を考慮）
-          const isPhysical = action.attackType !== 'magic'  // デフォルトは物理
-          const baseDamage = isPhysical ? Math.max(0, this.enemy.stats.attack) : Math.max(0, this.enemy.stats.magic)
-          
-          // weak/fearによるダメージ減少
-          let finalBaseDamage = StatusEffectSystem.applyDamageModifiers(this.enemy, baseDamage)
-          
-          const variance = 0.8 + Math.random() * 0.4 // 80%～120%のランダム性
-          const attackDamage = finalBaseDamage * variance
-          
-          // 武器traitsボーナスを取得
-          const weaponTraitsBonus = WeaponSystem.getWeaponTraitsBonus(this.player.weapons)
-          const damageResult = DamageSystem.calculatePlayerDamageWithTraits(attackDamage, this.player, !isPhysical, weaponTraitsBonus)
-          let finalDamage = damageResult.damage
-          finalDamage = StatusEffectSystem.applyVulnerabilityModifier(this.player, finalDamage)
+  // ===== Helper: player weapon attack =====
+  private handlePlayerWeaponAttack(weapon: Weapon, swingIndex: number, swings: number): void {
+    const result = WeaponSystem.attack(weapon, this.player, this.enemy, this.synergyBonus)
 
-          this.player.currentHp = Math.max(0, this.player.currentHp - finalDamage)
+    if (result.blocked) {
+      this.addLog(`${weapon.name} の攻撃は無効化された！ (${weapon.type}攻撃無効)`, 'info')
+      return
+    }
 
-          let message = numAttacks > 1 
-            ? `${this.enemy.name}の${actionName} (${i}/${numAttacks})！ ${finalDamage}ダメージ`
-            : `${this.enemy.name}の${actionName}！ ${finalDamage}ダメージ`
+    const barrierResult = StatusEffectSystem.absorbBarrier(this.enemy, result.damage)
+    const damageAfterBarrier = barrierResult.remainingDamage
+    this.enemy.currentHp = Math.max(0, this.enemy.currentHp - damageAfterBarrier)
 
-          // ライフスティール処理（攻撃アクション時）
-          if (action.lifeStealPercent && action.lifeStealPercent > 0 && finalDamage > 0) {
-            const healAmount = Math.floor(finalDamage * (action.lifeStealPercent / 100))
-            if (healAmount > 0) {
-              this.enemy.currentHp = Math.min(this.enemy.maxHp, this.enemy.currentHp + healAmount)
-              message += ` 🩸${healAmount}HP吸収`
-            }
-          }
+    let message = `${this.player.name}は ${weapon.name} (${swingIndex}/${swings}) で攻撃！ ${damageAfterBarrier}ダメージ`
+    if (result.resistanceApplied && result.resistanceApplied > 0) {
+      message += ` (耐性${result.resistanceApplied}%)`
+    }
+    if (result.penetrationLog) {
+      message += ` ⚔️ ${result.penetrationLog}`
+    }
 
-          // 軽減情報をログに追加
-          if (damageResult.reductionInfo.totalReduction > 0) {
-            const reductions: string[] = []
-            if (damageResult.reductionInfo.physicalResistanceApplied > 0) {
-              reductions.push(`物理耐性${damageResult.reductionInfo.physicalResistanceApplied}%`)
-            }
-            if (damageResult.reductionInfo.magicalResistanceApplied > 0) {
-              reductions.push(`魔法耐性${damageResult.reductionInfo.magicalResistanceApplied}%`)
-            }
-            if (damageResult.reductionInfo.damageReductionApplied > 0) {
-              reductions.push(`ダメージ軽減${damageResult.reductionInfo.damageReductionApplied}%`)
-            }
-            if (reductions.length > 0) {
-              const reducedAmount = Math.round(damageResult.reductionInfo.totalReduction)
-              message += ` (${reductions.join('、')}で${reducedAmount}軽減)`
-            }
-          }
+    const damageTakenLog = this.formatDamageTakenLog(this.enemy)
+    if (damageTakenLog) {
+      message += ` ${damageTakenLog}`
+    }
+    if (barrierResult.absorbed > 0) {
+      message += ` 🛡️バリアが${barrierResult.absorbed}吸収`
+    }
 
-          const damageTakenLog = this.formatDamageTakenLog(this.player)
-          if (damageTakenLog) {
-            message += ` ${damageTakenLog}`
-          }
+    if (result.isCritical) {
+      if (result.criticalType === 'limitBreak') {
+        message += ' ✨✨オーバークリティカルリミットブレイク！！！✨✨'
+        this.addLog(message, 'limitBreak', 'player', 'attack')
+      } else if (result.criticalType === 'overCritical') {
+        message += ' ✨オーバークリティカル！！✨'
+        this.addLog(message, 'overCritical', 'player', 'attack')
+      } else {
+        message += ' クリティカル！'
+        this.addLog(message, 'critical', 'player', 'attack')
+      }
+    } else {
+      this.addLog(message, 'damage', 'player', 'attack')
+    }
 
-          this.addLog(message, 'damage', 'enemy', 'attack')
-
-          // 反射ダメージ処理（プレイヤーが棘の鎧などを持つ場合）
-          this.applyReflection(this.player, this.enemy, finalDamage)
-
-          // ダメージを受けたことで breakOnDamage 効果を除去（睡眠系など）
-          const beforeCount = this.player.statusEffects.length
-          this.player.statusEffects = this.player.statusEffects.filter(e => {
-            const def = getStatusEffectDefinition(e.type as any)
-            return !def?.effects.breakOnDamage
-          })
-          if (this.player.statusEffects.length < beforeCount) {
-            this.addLog('プレイヤーは眠りから目覚めた！', 'status')
-          }
-          break
-        }
-        case 'defend': {
-          this.addLog(`${this.enemy.name}は${actionName}の構えをとった！`, 'status')
-          // 敵に防御バフを付与（次のターン分として）
-          const statusPowerMultiplier = this.getStatusPowerMultiplier(this.enemy)
-          const stacks = this.scaleStatusValue(2, statusPowerMultiplier)
-          const duration = this.scaleStatusValue(1, statusPowerMultiplier)
-          StatusEffectSystem.applyStatusEffect(this.enemy, 'armor', stacks, duration, { appliedBy: 'enemy', powerScale: statusPowerMultiplier })
-          break
-        }
-        case 'status': {
-          // 敵がバフを付与する行動（ランダムに複数のバフから選択）
-          const buffOptions: Array<{ type: StatusEffectType; stacks: number; duration: number }> = [
-            { type: 'power', stacks: 1, duration: 2 },
-            { type: 'intellect', stacks: 1, duration: 2 },
-            { type: 'armor', stacks: 2, duration: 2 },
-            { type: 'fleet', stacks: 1, duration: 2 }
-          ]
-          const selectedBuff = buffOptions[Math.floor(Math.random() * buffOptions.length)]
-          const statusPowerMultiplier = this.getStatusPowerMultiplier(this.enemy)
-          const scaledStacks = this.scaleStatusValue(selectedBuff.stacks, statusPowerMultiplier)
-          const scaledDuration = this.scaleStatusValue(selectedBuff.duration, statusPowerMultiplier)
-          const result = StatusEffectSystem.applyStatusEffect(
-            this.enemy,
-            selectedBuff.type,
-            scaledStacks,
-            scaledDuration,
-            { appliedBy: 'enemy', powerScale: statusPowerMultiplier }
-          )
-          const icon = StatusEffectSystem.getStatusIcon(selectedBuff.type)
-          const statusName = this.getStatusName(selectedBuff.type)
-          
-          if (result.applied) {
-            const resistNote = result.resistance ? ` (耐性${result.resistance}%で軽減)` : ''
-            this.addLog(`${this.enemy.name}は${icon}${statusName}を得た！${resistNote}`, 'status')
-          } else {
-            this.addLog(`${this.enemy.name}の${icon}${statusName}は効果がなかった。`, 'status')
-          }
-          break
-        }
-        case 'nothing': {
-          this.addLog(`${this.enemy.name}は${actionName}を選択した。`, 'status')
-          break
-        }
+    const lifeStealMultiplier = StatusEffectSystem.getLifeStealModifier(this.player)
+    const totalLifeSteal = Math.max(0, ((weapon.stats.lifeSteal ?? 0) + (this.synergyBonus?.lifeStealBonus ?? 0)) * lifeStealMultiplier)
+    if (totalLifeSteal > 0 && damageAfterBarrier > 0) {
+      const healAmount = Math.floor(damageAfterBarrier * (totalLifeSteal / 100))
+      if (healAmount > 0) {
+        this.player.currentHp = Math.min(this.player.maxHp, this.player.currentHp + healAmount)
+        this.addLog(`${this.player.name}は${healAmount}のHPを吸収した！`, 'buff', 'player', 'attack')
       }
     }
+
+    this.applyReflection(this.enemy, this.player, result.damage)
+
+    const beforeCount = this.enemy.statusEffects.length
+    this.enemy.statusEffects = this.enemy.statusEffects.filter(e => {
+      const def = getStatusEffectDefinition(e.type as any)
+      return !def?.effects.breakOnDamage
+    })
+    if (this.enemy.statusEffects.length < beforeCount) {
+      this.addLog(`${this.enemy.name}は眠りから目覚めた！`, 'status')
+    }
+
+    this.applyResultEffects(result.statusEffects, this.player, this.enemy, 'player')
+  }
+
+  // ===== Helper: enemy action dispatcher =====
+  private handleEnemyAction(action: EnemyAction, actionName: string, attackIndex: number, totalAttacks: number): void {
+    switch (action.type) {
+      case 'attack':
+        this.handleEnemyAttack(action, actionName, attackIndex, totalAttacks)
+        return
+      case 'defend':
+        this.handleEnemyDefend(actionName)
+        return
+      case 'dispel':
+        this.handleEnemyDispel(action)
+        return
+      case 'status':
+        this.handleEnemyStatus(action, actionName)
+        return
+      case 'nothing':
+      default:
+        this.handleEnemyNothing(actionName)
+    }
+  }
+
+  private handleEnemyAttack(action: EnemyAction, actionName: string, attackIndex: number, totalAttacks: number): void {
+    const isPhysical = action.attackType !== 'magic'
+    const baseDamage = isPhysical ? Math.max(0, this.enemy.stats.attack) : Math.max(0, this.enemy.stats.magic)
+    let finalBaseDamage = StatusEffectSystem.applyDamageModifiers(this.enemy, baseDamage)
+    const variance = 0.8 + Math.random() * 0.4
+    const attackDamage = finalBaseDamage * variance
+
+    const weaponTraitsBonus = WeaponSystem.getWeaponTraitsBonus(this.player.weapons)
+    const attackerResistancePenetration = this.enemy.traits?.resistancePenetration || 0
+    const damageResult = DamageSystem.calculatePlayerDamageWithTraits(attackDamage, this.player, !isPhysical, weaponTraitsBonus, attackerResistancePenetration)
+    let finalDamage = StatusEffectSystem.applyVulnerabilityModifier(this.player, damageResult.damage)
+
+    const barrierResult = StatusEffectSystem.absorbBarrier(this.player, finalDamage)
+    finalDamage = barrierResult.remainingDamage
+    this.player.currentHp = Math.max(0, this.player.currentHp - finalDamage)
+
+    let message = totalAttacks > 1
+      ? `${this.enemy.name}の${actionName} (${attackIndex}/${totalAttacks})！ ${finalDamage}ダメージ`
+      : `${this.enemy.name}の${actionName}！ ${finalDamage}ダメージ`
+
+    if (action.lifeStealPercent && action.lifeStealPercent > 0 && finalDamage > 0) {
+      const lifeStealMultiplier = StatusEffectSystem.getLifeStealModifier(this.enemy)
+      const healAmount = Math.floor(finalDamage * ((action.lifeStealPercent * lifeStealMultiplier) / 100))
+      if (healAmount > 0) {
+        this.enemy.currentHp = Math.min(this.enemy.maxHp, this.enemy.currentHp + healAmount)
+        message += ` 🩸${healAmount}HP吸収`
+      }
+    }
+
+    message = this.appendReductionAndPenetrationLog(message, damageResult)
+
+    const damageTakenLog = this.formatDamageTakenLog(this.player)
+    if (damageTakenLog) {
+      message += ` ${damageTakenLog}`
+    }
+    if (barrierResult.absorbed > 0) {
+      message += ` 🛡️バリアが${barrierResult.absorbed}吸収`
+    }
+
+    this.addLog(message, 'damage', 'enemy', 'attack')
+
+    const lifeStealMultiplier = StatusEffectSystem.getLifeStealModifier(this.enemy)
+    const totalLifeSteal = Math.max(0, (this.enemy.stats.lifeSteal ?? 0) * lifeStealMultiplier)
+    if (totalLifeSteal > 0 && finalDamage > 0) {
+      const healAmount = Math.floor(finalDamage * (totalLifeSteal / 100))
+      if (healAmount > 0) {
+        this.enemy.currentHp = Math.min(this.enemy.maxHp, this.enemy.currentHp + healAmount)
+        this.addLog(`${this.enemy.name}は${healAmount}のHPを吸収した！`, 'buff', 'enemy', 'attack')
+      }
+    }
+
+    if (action.effects && action.effects.length > 0) {
+      this.applyResultEffects(action.effects, this.enemy, this.player, 'enemy')
+    }
+
+    this.applyReflection(this.player, this.enemy, finalDamage)
+
+    const beforeCount = this.player.statusEffects.length
+    this.player.statusEffects = this.player.statusEffects.filter(e => {
+      const def = getStatusEffectDefinition(e.type as any)
+      return !def?.effects.breakOnDamage
+    })
+    if (this.player.statusEffects.length < beforeCount) {
+      this.addLog('プレイヤーは眠りから目覚めた！', 'status')
+    }
+  }
+
+  private handleEnemyDefend(actionName: string): void {
+    this.addLog(`${this.enemy.name}は${actionName}の構えをとった！`, 'status')
+    const statusPowerMultiplier = this.getStatusPowerMultiplier(this.enemy)
+    const stacks = this.scaleStatusValue(2, statusPowerMultiplier)
+    const duration = this.scaleStatusValue(1, statusPowerMultiplier)
+    StatusEffectSystem.applyStatusEffect(this.enemy, 'armor', stacks, duration, { appliedBy: 'enemy', powerScale: statusPowerMultiplier })
+  }
+
+  private handleEnemyDispel(action: EnemyAction): void {
+    const buffIndex = this.player.statusEffects.findIndex(e => getStatusEffectDefinition(e.type)?.type === 'Buff')
+    if (buffIndex >= 0) {
+      const removed = this.player.statusEffects.splice(buffIndex, 1)
+      const removedName = removed[0] ? StatusEffectSystem.getStatusName(removed[0].type as any) : 'バフ'
+      this.addLog(`${this.enemy.name}はディスペルを唱えた！ ${removedName}が消滅`, action.logStyle ?? 'status', 'enemy', 'attack')
+    } else {
+      this.addLog(`${this.enemy.name}はディスペルを唱えたが効果がなかった`, action.logStyle ?? 'status', 'enemy', 'attack')
+    }
+  }
+
+  private handleEnemyStatus(action: EnemyAction, actionName: string): void {
+    if (action.effects && action.effects.length > 0) {
+      this.applyResultEffects(action.effects, this.enemy, this.player, 'enemy')
+    } else {
+      this.addLog(`${this.enemy.name}は${actionName}を選択した。`, 'status')
+    }
+  }
+
+  private handleEnemyNothing(actionName: string): void {
+    this.addLog(`${this.enemy.name}は${actionName}を選択した。`, 'status')
+  }
+
+  private appendReductionAndPenetrationLog(message: string, damageResult: ReturnType<typeof DamageSystem.calculatePlayerDamageWithTraits>): string {
+    if (damageResult.reductionInfo.totalReduction > 0) {
+      const reductions: string[] = []
+      if (damageResult.reductionInfo.physicalResistanceApplied > 0) reductions.push(`物理耐性${damageResult.reductionInfo.physicalResistanceApplied}%`)
+      if (damageResult.reductionInfo.magicalResistanceApplied > 0) reductions.push(`魔法耐性${damageResult.reductionInfo.magicalResistanceApplied}%`)
+      if (damageResult.reductionInfo.damageReductionApplied > 0) reductions.push(`ダメージ軽減${damageResult.reductionInfo.damageReductionApplied}%`)
+      if (reductions.length > 0) {
+        const reducedAmount = Math.round(damageResult.reductionInfo.totalReduction)
+        message += ` (${reductions.join('、')}で${reducedAmount}軽減)`
+      }
+    }
+
+    if (damageResult.penetrationInfo && damageResult.penetrationInfo.used > 0) {
+      const { type, before, after, used } = damageResult.penetrationInfo
+      const label = type === 'magical' ? '魔法耐性' : '物理耐性'
+      const beforePct = Math.round(before)
+      const afterPct = Math.round(after)
+      const usedPct = Math.round(used)
+      message += ` ⚔️${label}貫通 ${beforePct}%→${afterPct}% (貫通${usedPct}%)`
+    }
+
+    return message
   }
 
   private applyResultEffects(effects: Weapon['effects'], attacker: Player | Enemy, target: Player | Enemy, appliedBy: 'player' | 'enemy') {
     effects.forEach(effect => {
       const powerScale = (effect as any).powerScale ?? 1
       const def = getStatusEffectDefinition(effect.type as any)
+      // Buff は自分に、Debuff は敵に付与するのがデフォルト（effect.target で明示的に指定可能）
       const defaultRecipient = def?.type === 'Buff' ? attacker : target
       const recipient = effect.target === 'self' ? attacker : effect.target === 'enemy' ? target : defaultRecipient
+
       const result = StatusEffectSystem.applyStatusEffect(recipient, effect.type, effect.stacks, effect.duration, { appliedBy, powerScale })
       const icon = StatusEffectSystem.getStatusIcon(effect.type)
       const targetName = recipient === attacker ? (appliedBy === 'player' ? 'プレイヤー' : this.enemy.name) : (appliedBy === 'player' ? this.enemy.name : 'プレイヤー')
+      const stacksLabel = effect.stacks && effect.stacks > 1 ? `x${effect.stacks}` : ''
+      const durationLabel = effect.duration ? `(${effect.duration}T)` : ''
+      const effectLabel = `${icon}${this.getStatusName(effect.type)}${stacksLabel}${durationLabel}`
+
       if (result.applied) {
         const resistNote = result.resistance ? ` (耐性${result.resistance}%で軽減)` : ''
-        this.addLog(`${targetName}に${icon}${this.getStatusName(effect.type)}を付与した！${resistNote}`, 'status')
+        this.addLog(`${targetName}に${effectLabel}を付与した！${resistNote}`, 'status')
       } else {
-        this.addLog(this.formatStatusResistedLog(targetName, result), 'status')
+        this.addLog(this.formatStatusResistedLog(targetName, { ...result, label: effectLabel }), 'status')
       }
     })
   }
@@ -539,7 +580,7 @@ export class CombatSystem {
    */
   private formatStatusResistedLog(targetName: string, result: any): string {
     const icon = StatusEffectSystem.getStatusIcon(result.type)
-    const name = this.getStatusName(result.type)
+    const name = result.label ?? this.getStatusName(result.type)
     if (result.immunity) {
       return `${targetName}は${icon}${name}を無効化した！`
     }
@@ -579,7 +620,9 @@ export class CombatSystem {
             magicDefense: 9999,
             speed: 10,
             statusPower: 0,
-            lifeSteal: 0
+            lifeSteal: 0,
+            critChance: 0,
+            critDamage: 1.5
           },
           actionPool: [
             { type: 'nothing', weight: 1 }
@@ -604,7 +647,9 @@ export class CombatSystem {
             magicDefense: 9999,
             speed: 10,
             statusPower: 0,
-            lifeSteal: 0
+            lifeSteal: 0,
+            critChance: 0,
+            critDamage: 1.5
           },
           actionPool: [
             { type: 'nothing', weight: 1 }
@@ -613,10 +658,10 @@ export class CombatSystem {
       }
 
       // デバッグ用テンプレートをそのまま生成（ボス相当の耐久）
-      const templateLevel = Math.max(1, Math.min(1000, level))
+      const templateLevel = Math.max(1, Math.min(10000, level))
       const tier: Enemy['tier'] = 'boss'
-      const tierStatMultiplier: Record<EnemyTier, number> = { normal: 1, elite: 1.18, named: 1.35, boss: 1.55 }
-      const tierHpMultiplier: Record<EnemyTier, number> = { normal: 1, elite: 1.25, named: 1.5, boss: 1.8 }
+      const tierStatMultiplier: Record<EnemyTier, number> = { normal: 3.5, elite: 4.13, named: 3.78, boss: 4.37 }
+      const tierHpMultiplier: Record<EnemyTier, number> = { normal: 3.5, elite: 4.375, named: 4.5, boss: 5.4 }
       const levelStatGrowth = 1 + (templateLevel - 1) * 0.08
       const levelHpGrowth = 1 + (templateLevel - 1) * 0.12
       const statMult = tierStatMultiplier[tier]
@@ -624,6 +669,8 @@ export class CombatSystem {
       const scale = (base: number) => Math.max(1, Math.round(base * levelStatGrowth * statMult))
       const statusPowerBase = template.baseStats.statusPower ?? 0
       const lifeStealBase = template.baseStats.lifeSteal ?? 0
+      const critChanceBase = template.baseStats.critChance ?? 0
+      const critDamageBase = template.baseStats.critDamage ?? 1.5
       const scaledStats = {
         attack: scale(template.baseStats.attack),
         magic: scale(template.baseStats.magic),
@@ -631,7 +678,9 @@ export class CombatSystem {
         magicDefense: scale(template.baseStats.magicDefense),
         speed: Math.max(1, Math.round(template.baseStats.speed * (1 + (templateLevel - 1) * 0.04) * statMult)),
         statusPower: Math.max(0, Math.round(statusPowerBase * levelStatGrowth * statMult)),
-        lifeSteal: Math.max(0, Math.round(lifeStealBase * levelStatGrowth * 10) / 10)
+        lifeSteal: Math.max(0, Math.round(lifeStealBase * levelStatGrowth * 10) / 10),
+        critChance: Math.max(0, Math.round(critChanceBase * levelStatGrowth * 10) / 10),
+        critDamage: Math.max(1, critDamageBase * levelStatGrowth)
       }
       const baseHp = 70 * template.baseStats.hpMultiplier
       const hp = Math.max(30, Math.floor(baseHp * levelHpGrowth * hpMult))
@@ -677,7 +726,7 @@ export class CombatSystem {
       // ステージレベル, 推奨レンジ中央値, プレイヤー基準の平均を取って底上げ
       actualLevel = Math.max(level, Math.round((predicted + dungeonMid + level) / 3))
     }
-    actualLevel = Math.max(1, Math.min(1000, actualLevel))
+    actualLevel = Math.max(1, Math.min(10000, actualLevel))
 
     // エリート/ネームド/ボスの抽選（forcedTierがあれば優先）
     let tier: Enemy['tier'] = 'normal'
@@ -735,16 +784,16 @@ export class CombatSystem {
     }
 
     const tierStatMultiplier: Record<EnemyTier, number> = {
-      normal: 1.0,
-      elite: 1.18,
-      named: 1.35,
-      boss: 1.55
+      normal: 2.0,
+      elite: 2.36,
+      named: 2.7,
+      boss: 3.1
     }
     const tierHpMultiplier: Record<EnemyTier, number> = {
-      normal: 1.0,
-      elite: 1.25,
-      named: 1.5,
-      boss: 1.8
+      normal: 2.0,
+      elite: 2.5,
+      named: 3.0,
+      boss: 3.6
     }
 
     const levelStatGrowth = 1 + (actualLevel - 1) * 0.08
@@ -757,6 +806,8 @@ export class CombatSystem {
 
     const statusPowerBase = template.baseStats.statusPower ?? 0
     const lifeStealBase = template.baseStats.lifeSteal ?? 0
+    const critChanceBase = template.baseStats.critChance ?? 0
+    const critDamageBase = template.baseStats.critDamage ?? 1.5
     const scaledStats = {
       attack: scale(template.baseStats.attack),
       magic: scale(template.baseStats.magic),
@@ -764,7 +815,9 @@ export class CombatSystem {
       magicDefense: scale(template.baseStats.magicDefense),
       speed: Math.max(1, Math.round(template.baseStats.speed * (1 + (actualLevel - 1) * 0.04) * statMult)),
       statusPower: Math.max(0, Math.round(statusPowerBase * levelStatGrowth * statMult * levelScale)),
-      lifeSteal: Math.max(0, Math.round(lifeStealBase * levelStatGrowth * levelScale * 10) / 10)
+      lifeSteal: Math.max(0, Math.round(lifeStealBase * levelStatGrowth * levelScale * 10) / 10),
+      critChance: Math.max(0, Math.round(critChanceBase * levelStatGrowth * levelScale * 10) / 10),
+      critDamage: Math.max(1, critDamageBase * levelStatGrowth * levelScale)
     }
 
     const baseHp = 70 * template.baseStats.hpMultiplier
@@ -849,8 +902,8 @@ export class CombatSystem {
    * 敵を倒したときに獲得する経験値を計算
    */
   static calculateExpReward(enemyLevel: number, enemyTier: string, expMultiplier: number = 1): number {
-    const baseExp = 100 + enemyLevel * 35
-    const levelScale = Math.pow(1.055, Math.max(0, enemyLevel - 1))
+    const baseExp = 50 + enemyLevel * 20
+    const levelScale = Math.pow(1.04, Math.max(0, enemyLevel - 1))
     const tierMultiplier = enemyTier === 'boss' ? 3.2 : enemyTier === 'named' ? 2.4 : enemyTier === 'elite' ? 1.6 : 1
 
     return Math.floor(baseExp * levelScale * tierMultiplier * Math.max(0.1, expMultiplier))
@@ -860,7 +913,7 @@ export class CombatSystem {
    * 次のレベルに必要な経験値を計算
    */
   static calculateNextLevelExp(level: number): number {
-    const baseExp = 80
-    return Math.round(baseExp * Math.pow(1.08, level - 1))
+    const baseExp = 50
+    return Math.round(baseExp * Math.pow(1.05, level - 1))
   }
 }

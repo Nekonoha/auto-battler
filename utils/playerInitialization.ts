@@ -28,7 +28,10 @@ export function createInitialPlayer(): Player {
       defense: 0,
       magicDefense: 0,
       speed: 0,
-      statusPower: 0
+      statusPower: 0,
+      lifeSteal: 0,
+      critChance: 0,
+      critDamage: 0
     },
     unlockedDungeons: ['tutorial-field'],
     gold: 100,
@@ -41,7 +44,10 @@ export function createInitialPlayer(): Player {
       defense: 5,
       magicDefense: 5,
       speed: 10,
-      statusPower: 0
+      statusPower: 0,
+      lifeSteal: 0,
+      critChance: 0,
+      critDamage: 1.5
     }
   }
 }

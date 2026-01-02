@@ -498,6 +498,268 @@ export const ENCHANTMENTS: WeaponEnchantment[] = [
       duration: 4
     }],
     weight: 2
+  },
+
+  // === 接頭辞：バフ付与系 ===
+  {
+    id: 'buffers',
+    name: '幸運に恵まれた',
+    position: 'prefix',
+    rarityBonus: 0,
+    statModifiers: {
+      attack: 0.95,
+      magic: 0.95
+    },
+    addTags: ['supportive'],
+    addEffects: [
+      { type: 'fleet' as StatusEffectType, chance: 25, stacks: 2, duration: 3 },
+      { type: 'power' as StatusEffectType, chance: 20, stacks: 2, duration: 3 },
+      { type: 'armor' as StatusEffectType, chance: 20, stacks: 2, duration: 3 }
+    ],
+    weight: 4
+  },
+  {
+    id: 'steadfast',
+    name: '不動の',
+    position: 'prefix',
+    rarityBonus: 1,
+    statModifiers: {
+      magicDefense: 1.3,
+      speed: 0.8
+    },
+    addTags: ['defensive', 'supportive'],
+    addEffects: [
+      { type: 'armor' as StatusEffectType, chance: 40, stacks: 3, duration: 2 },
+      { type: 'thorn' as StatusEffectType, chance: 20, stacks: 2, duration: 2 }
+    ],
+    weight: 3
+  },
+  {
+    id: 'blessed',
+    name: '祝福された',
+    position: 'prefix',
+    rarityBonus: 1,
+    statModifiers: {
+      attack: 1.2,
+      magic: 1.2
+    },
+    addTags: ['supportive', 'holy'],
+    addEffects: [
+      { type: 'power' as StatusEffectType, chance: 30, stacks: 2, duration: 3 },
+      { type: 'intellect' as StatusEffectType, chance: 30, stacks: 2, duration: 3 }
+    ],
+    weight: 2
+  },
+  {
+    id: 'shieldbearer',
+    name: 'シールドベアラーの',
+    position: 'prefix',
+    rarityBonus: 1,
+    statModifiers: {
+      magicDefense: 1.2,
+      speed: 0.9
+    },
+    addTags: ['defensive', 'supportive'],
+    addEffects: [
+      { type: 'barrier' as StatusEffectType, chance: 35, stacks: 5, duration: 3 },
+      { type: 'debuffImmunity' as StatusEffectType, chance: 20, stacks: 1, duration: 2 }
+    ],
+    weight: 2
+  },
+
+  // === 接頭辞：デバフ付与系 ===
+  {
+    id: 'weakening',
+    name: '衰弱させる',
+    position: 'prefix',
+    rarityBonus: 0,
+    statModifiers: {
+      attack: 1.1,
+      magic: 1.1
+    },
+    addTags: ['cursed'],
+    addEffects: [
+      { type: 'weak' as StatusEffectType, chance: 30, stacks: 2, duration: 3 },
+      { type: 'vulnerable' as StatusEffectType, chance: 25, stacks: 2, duration: 3 }
+    ],
+    weight: 5
+  },
+  {
+    id: 'draining',
+    name: '吸い取る',
+    position: 'prefix',
+    rarityBonus: 0,
+    statModifiers: {
+      attack: 1.15,
+      magic: 0.9
+    },
+    addTags: ['cursed', 'bloodthirsty'],
+    addEffects: [
+      { type: 'grievousWound' as StatusEffectType, chance: 35, stacks: 2, duration: 3 }
+    ],
+    weight: 4
+  },
+  {
+    id: 'sapping',
+    name: 'さらに',
+    position: 'prefix',
+    rarityBonus: 1,
+    statModifiers: {
+      speed: 1.2,
+      attack: 1.1
+    },
+    addTags: ['cursed', 'fast'],
+    addEffects: [
+      { type: 'slow' as StatusEffectType, chance: 30, stacks: 3, duration: 3 },
+      { type: 'fear' as StatusEffectType, chance: 20, stacks: 1, duration: 2 }
+    ],
+    weight: 2
+  },
+  {
+    id: 'stunning',
+    name: '気絶させる',
+    position: 'prefix',
+    rarityBonus: 1,
+    statModifiers: {
+      attack: 1.25,
+      speed: 0.85
+    },
+    addTags: ['heavy', 'cursed'],
+    addEffects: [
+      { type: 'stun' as StatusEffectType, chance: 18, stacks: 1, duration: 1 }
+    ],
+    weight: 2
+  },
+
+  // === 接尾辞：バフ付与系 ===
+  {
+    id: 'bufferingSuffix',
+    name: '加護',
+    position: 'suffix',
+    rarityBonus: 0,
+    statModifiers: {
+      attack: 0.98,
+      magic: 0.98
+    },
+    addTags: ['supportive'],
+    addEffects: [
+      { type: 'fleet' as StatusEffectType, chance: 30, stacks: 2, duration: 3 },
+      { type: 'armor' as StatusEffectType, chance: 30, stacks: 2, duration: 3 }
+    ],
+    weight: 5
+  },
+  {
+    id: 'empowerment',
+    name: '増強',
+    position: 'suffix',
+    rarityBonus: 1,
+    statModifiers: {
+      attack: 1.15,
+      magic: 1.15
+    },
+    addTags: ['supportive'],
+    addEffects: [
+      { type: 'power' as StatusEffectType, chance: 40, stacks: 3, duration: 3 },
+      { type: 'precision' as StatusEffectType, chance: 25, stacks: 2, duration: 3 }
+    ],
+    weight: 3
+  },
+  {
+    id: 'resilience',
+    name: '耐性',
+    position: 'suffix',
+    rarityBonus: 0,
+    statModifiers: {
+      magicDefense: 1.2,
+      speed: 0.9
+    },
+    addTags: ['defensive', 'supportive'],
+    addEffects: [
+      { type: 'armor' as StatusEffectType, chance: 40, stacks: 2, duration: 2 }
+    ],
+    weight: 4
+  },
+  {
+    id: 'aegis',
+    name: 'アエギス',
+    position: 'suffix',
+    rarityBonus: 1,
+    statModifiers: {
+      magicDefense: 1.15,
+      speed: 0.9
+    },
+    addTags: ['defensive', 'holy'],
+    addEffects: [
+      { type: 'barrier' as StatusEffectType, chance: 40, stacks: 4, duration: 2 },
+      { type: 'debuffImmunity' as StatusEffectType, chance: 25, stacks: 1, duration: 2 }
+    ],
+    weight: 2
+  },
+
+  // === 接尾辞：デバフ付与系 ===
+  {
+    id: 'debuffingSuffix',
+    name: 'オブカース',
+    position: 'suffix',
+    rarityBonus: 0,
+    statModifiers: {
+      attack: 1.1,
+      magic: 1.1
+    },
+    addTags: ['cursed'],
+    addEffects: [
+      { type: 'weak' as StatusEffectType, chance: 30, stacks: 2, duration: 3 },
+      { type: 'slow' as StatusEffectType, chance: 25, stacks: 2, duration: 3 }
+    ],
+    weight: 5
+  },
+  {
+    id: 'crippling',
+    name: '身動き封じ',
+    position: 'suffix',
+    rarityBonus: 1,
+    statModifiers: {
+      attack: 1.2,
+      speed: 0.9
+    },
+    addTags: ['heavy', 'cursed'],
+    addEffects: [
+      { type: 'slow' as StatusEffectType, chance: 35, stacks: 3, duration: 2 },
+      { type: 'fear' as StatusEffectType, chance: 20, stacks: 2, duration: 2 }
+    ],
+    weight: 3
+  },
+  {
+    id: 'rupturing',
+    name: '裂傷',
+    position: 'suffix',
+    rarityBonus: 0,
+    statModifiers: {
+      attack: 1.15,
+      magic: 0.95
+    },
+    addTags: ['bloodthirsty'],
+    addEffects: [
+      { type: 'grievousWound' as StatusEffectType, chance: 40, stacks: 2, duration: 3 },
+      { type: 'vulnerable' as StatusEffectType, chance: 30, stacks: 2, duration: 3 }
+    ],
+    weight: 3
+  },
+  {
+    id: 'incapacitation',
+    name: '無力化',
+    position: 'suffix',
+    rarityBonus: 1,
+    statModifiers: {
+      magic: 1.25,
+      attack: 0.9
+    },
+    addTags: ['cursed'],
+    addEffects: [
+      { type: 'stun' as StatusEffectType, chance: 20, stacks: 1, duration: 1 },
+      { type: 'drunk' as StatusEffectType, chance: 25, stacks: 2, duration: 2 }
+    ],
+    weight: 2
   }
 ]
 

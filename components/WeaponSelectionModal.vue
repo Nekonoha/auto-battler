@@ -85,8 +85,6 @@
               <option value="attack">攻撃力順</option>
               <option value="magic">魔法力順</option>
               <option value="speed">速度順</option>
-              <option value="defense">防御力順</option>
-              <option value="magicDefense">魔法防御順</option>
               <option value="critChance">クリ率順</option>
               <option value="critDamage">クリダメ順</option>
               <option value="statusPower">状態異常威力順</option>

@@ -73,6 +73,12 @@ export const ENEMY_TRAITS: Record<string, TraitDefinition> = {
     name: '攻撃無効',
     description: '特定の武器タイプの攻撃を無効化する',
     icon: '🚫'
+  },
+  resistancePenetration: {
+    id: 'resistancePenetration',
+    name: '耐性貫通',
+    description: 'プレイヤーの耐性を指定値分貫通して、実効的なダメージを増加させる',
+    icon: '⚔️'
   }
 }
 

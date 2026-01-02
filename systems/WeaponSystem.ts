@@ -23,18 +23,20 @@ export class WeaponSystem {
     weapon: Weapon, 
     attacker: CombatUnit, 
     target: CombatUnit,
-    synergyBonus?: { attackBonus?: number; magicBonus?: number; speedBonus?: number; critChanceBonus?: number; critDamageBonus?: number; statusPowerBonus?: number } | null
+    synergyBonus?: { attackBonus?: number; magicBonus?: number; speedBonus?: number; critChanceBonus?: number; critDamageBonus?: number; statusPowerBonus?: number; resistancePenetrationBonus?: number; lifeStealBonus?: number } | null
   ): DamageResult {
     type AppliedEffect = WeaponEffect & { powerScale?: number }
 
     // シナジーボーナスを適用した武器ステータスを計算（元のステータスは変更しない）
+    // プレイヤーの基本ステータスと武器ステータスを合算し、シナジーボーナスを適用
+    const attackerStats = 'stats' in attacker ? (attacker as any).stats : { attack: 0, magic: 0, speed: 0, critChance: 0, critDamage: 0, statusPower: 0 }
     const effectiveStats = {
-      attack: weapon.stats.attack * (1 + (synergyBonus?.attackBonus || 0) / 100),
-      magic: weapon.stats.magic * (1 + (synergyBonus?.magicBonus || 0) / 100),
-      speed: weapon.stats.speed * (1 + (synergyBonus?.speedBonus || 0) / 100),
-      critChance: weapon.stats.critChance + (synergyBonus?.critChanceBonus || 0),
-      critDamage: weapon.stats.critDamage + (synergyBonus?.critDamageBonus || 0) / 100,
-      statusPower: weapon.stats.statusPower + (synergyBonus?.statusPowerBonus || 0)
+      attack: (weapon.stats.attack + (attackerStats.attack || 0)) * (1 + (synergyBonus?.attackBonus || 0) / 100),
+      magic: (weapon.stats.magic + (attackerStats.magic || 0)) * (1 + (synergyBonus?.magicBonus || 0) / 100),
+      speed: (weapon.stats.speed + (attackerStats.speed || 0)) * (1 + (synergyBonus?.speedBonus || 0) / 100),
+      critChance: (weapon.stats.critChance + (attackerStats.critChance || 0)) + (synergyBonus?.critChanceBonus || 0),
+      critDamage: (weapon.stats.critDamage + (attackerStats.critDamage || 0)) + (synergyBonus?.critDamageBonus || 0),
+      statusPower: weapon.stats.statusPower + (attackerStats.statusPower || 0) + (synergyBonus?.statusPowerBonus || 0)
     }
 
     const attackerStatusPower = 'stats' in attacker ? ((attacker as any).stats?.statusPower ?? 0) : 0
@@ -44,10 +46,42 @@ export class WeaponSystem {
     // 武器タイプに応じたダメージ計算
     let baseDamage = this.calculateBaseDamageWithStats(weapon.type, { ...effectiveStats, statusPower: totalStatusPower })
     
-    // クリティカル判定
+    // クリティカル判定（複数段階のクリティカルシステム）
+    let criticalType: 'normal' | 'critical' | 'overCritical' | 'limitBreak' = 'normal'
     const isCritical = Math.random() * 100 < effectiveStats.critChance
+    
     if (isCritical) {
       baseDamage *= effectiveStats.critDamage
+      
+      // クリティカル率が100%を超えている場合、オーバークリティカルの可能性がある
+      if (effectiveStats.critChance > 100) {
+        const overChance = effectiveStats.critChance - 100
+        
+        if (effectiveStats.critChance > 200) {
+          // 200%を超えている場合、リミットブレイクの判定
+          const limitBreakChance = effectiveStats.critChance - 200
+          if (Math.random() * 100 < limitBreakChance) {
+            // リミットブレイク発動：クリティカル倍率を3乗する（通常の2乗以上の倍率）
+            baseDamage = (baseDamage / effectiveStats.critDamage) * Math.pow(effectiveStats.critDamage, 3)
+            criticalType = 'limitBreak'
+          } else {
+            // オーバークリティカル発動：クリティカル倍率を2乗する
+            baseDamage = (baseDamage / effectiveStats.critDamage) * Math.pow(effectiveStats.critDamage, 2)
+            criticalType = 'overCritical'
+          }
+        } else {
+          // 100-200%の場合、オーバークリティカルの判定
+          if (Math.random() * 100 < overChance) {
+            // オーバークリティカル発動：クリティカル倍率を2乗する
+            baseDamage = (baseDamage / effectiveStats.critDamage) * Math.pow(effectiveStats.critDamage, 2)
+            criticalType = 'overCritical'
+          } else {
+            criticalType = 'critical'
+          }
+        }
+      } else {
+        criticalType = 'critical'
+      }
     }
     
     // 状態異常による攻撃力補正
@@ -57,19 +91,32 @@ export class WeaponSystem {
     let finalDamage: number
     let resistanceApplied = 0
     let blocked = false
+    let penetrationLog: string | undefined
+    let attackerResistancePenetration = 0
     
     // 敵への攻撃の場合はトレイト（耐性・無効化）を考慮
     if ('tier' in target && 'traits' in target) {
       const enemy = target as Enemy
+
+      // 攻撃側の耐性貫通を集計（武器固有 + 全装備ボーナス + シナジー）
+      if ('weapons' in attacker) {
+        const traitBonus = WeaponSystem.getWeaponTraitsBonus((attacker as any).weapons, (synergyBonus as any) || undefined)
+        attackerResistancePenetration += traitBonus.resistancePenetration
+      }
+      if (weapon.traits?.resistancePenetration) attackerResistancePenetration += weapon.traits.resistancePenetration
+      if (synergyBonus?.resistancePenetrationBonus) attackerResistancePenetration += synergyBonus.resistancePenetrationBonus
+
       const damageResult = DamageSystem.calculateDamageWithTraits(
         modifiedDamage,
         enemy,
         weapon.type === 'magic',
-        weapon.type
+        weapon.type,
+        attackerResistancePenetration
       )
       finalDamage = damageResult.damage
       resistanceApplied = damageResult.resistanceApplied
       blocked = damageResult.blocked
+      penetrationLog = damageResult.penetrationLog
     } else {
       finalDamage = DamageSystem.calculateDamage(modifiedDamage, target as any, weapon.type === 'magic')
     }
@@ -116,10 +163,12 @@ export class WeaponSystem {
     return {
       damage: finalDamage,
       isCritical,
+      criticalType,
       statusEffects: appliedEffects,
       resistanceApplied,
       blocked,
-      actualDamageInflicted: finalDamage
+      actualDamageInflicted: finalDamage,
+      penetrationLog
     }
   }
 
@@ -230,20 +279,23 @@ export class WeaponSystem {
    * 装備武器からtraitsボーナスを集計（プレイヤー用）
    * 各耐性の累積は最大70%までの上限がある
    */
-  static getWeaponTraitsBonus(weapons: Weapon[]): {
+  static getWeaponTraitsBonus(weapons: Weapon[], synergyBonus?: { physicalResistanceBonus?: number; magicalResistanceBonus?: number; statusResistanceBonus?: number; damageReductionBonus?: number; resistancePenetrationBonus?: number }): {
     physicalResistance: number
     magicalResistance: number
     statusResistance: number
     damageReduction: number
+    resistancePenetration: number
   } {
     const bonus = {
       physicalResistance: 0,
       magicalResistance: 0,
       statusResistance: 0,
-      damageReduction: 0
+      damageReduction: 0,
+      resistancePenetration: 0
     }
     
     const MAX_RESISTANCE = 70 // 最大耐性率
+    const MAX_PENETRATION = 100
 
     for (const weapon of weapons) {
       if (!weapon.traits) continue
@@ -251,6 +303,16 @@ export class WeaponSystem {
       if (weapon.traits.magicalResistance) bonus.magicalResistance += weapon.traits.magicalResistance
       if (weapon.traits.statusResistance) bonus.statusResistance += weapon.traits.statusResistance
       if (weapon.traits.damageReduction) bonus.damageReduction += weapon.traits.damageReduction
+      if (weapon.traits.resistancePenetration) bonus.resistancePenetration += weapon.traits.resistancePenetration
+    }
+
+    // シナジー由来の特性ボーナスを加算
+    if (synergyBonus) {
+      bonus.physicalResistance += synergyBonus.physicalResistanceBonus || 0
+      bonus.magicalResistance += synergyBonus.magicalResistanceBonus || 0
+      bonus.statusResistance += synergyBonus.statusResistanceBonus || 0
+      bonus.damageReduction += synergyBonus.damageReductionBonus || 0
+      bonus.resistancePenetration += synergyBonus.resistancePenetrationBonus || 0
     }
 
     // 各耐性の上限を70%に制限
@@ -258,6 +320,7 @@ export class WeaponSystem {
     bonus.magicalResistance = Math.min(bonus.magicalResistance, MAX_RESISTANCE)
     bonus.statusResistance = Math.min(bonus.statusResistance, MAX_RESISTANCE)
     bonus.damageReduction = Math.min(bonus.damageReduction, MAX_RESISTANCE)
+    bonus.resistancePenetration = Math.min(bonus.resistancePenetration, MAX_PENETRATION)
 
     return bonus
   }

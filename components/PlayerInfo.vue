@@ -1,37 +1,24 @@
 <template>
   <div class="player-info">
+    <!-- プレイヤーヘッダー -->
     <div class="player-header">
-      <div class="player-name-section">
-        <h2 v-if="!isEditingName" @click="startEditName" class="player-name-display">
-          🧙 {{ player.name }}
-        </h2>
-        <div v-else class="player-name-edit">
-          <input 
-            v-model="editingName" 
-            @keyup.enter="finishEditName"
-            @keyup.escape="cancelEditName"
-            @blur="finishEditName"
-            class="player-name-input"
-            maxlength="20"
-            placeholder="プレイヤー名"
-          />
+      <h2>{{ player.name }} (Lv.{{ player.level }})</h2>
+    </div>
+
+    <!-- リソース表示 -->
+    <div class="player-resources">
+      <div class="level-section">
+        <div class="level-display">EXP {{ player.exp ?? 0 }} / {{ player.nextLevelExp ?? 0 }}</div>
+        <div class="exp-bar">
+          <div class="exp-bar-fill" :style="{ width: expPercentage + '%' }"></div>
         </div>
+        <div class="exp-text">次のレベルまで {{ Math.max(0, (player.nextLevelExp ?? 0) - (player.exp ?? 0)) }}</div>
       </div>
-      <div class="player-resources">
-        <div class="resource-item">💰 {{ player.gold }}G</div>
-        <div class="resource-item">✨ {{ player.statPoints }}SP</div>
+      <div class="player-actions-row">
+        <div class="resource-item">💰 Gold {{ player.gold ?? 0 }}G</div>
       </div>
     </div>
-    
-    <!-- レベルと経験値 -->
-    <div class="level-section">
-      <div class="level-display">Lv.{{ player.level }}</div>
-      <div class="exp-bar">
-        <div class="exp-bar-fill" :style="{ width: expPercentage + '%' }"></div>
-      </div>
-      <div class="exp-text">{{ player.exp }} / {{ player.nextLevelExp }}</div>
-    </div>
-    
+
     <!-- HPバー -->
     <div class="hp-container">
       <div class="hp-label">
@@ -39,186 +26,222 @@
         <span>{{ player.currentHp }} / {{ player.maxHp }}</span>
       </div>
       <div class="hp-bar">
-        <div 
-          class="hp-bar-fill" 
-          :style="{ width: hpPercentage + '%' }"
-        ></div>
+        <div class="hp-bar-fill" :style="{ width: hpPercentage + '%' }"></div>
       </div>
     </div>
 
     <!-- 状態異常表示（バフ/デバフ分離） -->
-    <div v-if="player.statusEffects.length > 0" class="status-effects-wrapper">
-      <div v-if="buffStatusEffects.length" class="status-group">
-        <div class="status-group-title">🟢 バフ</div>
-        <div class="status-effects">
-          <div 
-            v-for="effect in buffStatusEffects" 
-            :key="effect.type"
-            class="status-effect"
-            :style="{ backgroundColor: getStatusColor(effect.type) }"
-          >
-            <Tooltip :title="`${getStatusIcon(effect.type)} ${getStatusName(effect.type)}`" :content="getStatusDescription(effect.type)">
-              <span class="status-icon">{{ getStatusIcon(effect.type) }}</span>
-              <span class="status-stacks">×{{ effect.stacks }}</span>
-              <span class="status-duration">({{ effect.duration }}T)</span>
-            </Tooltip>
+    <div v-if="player.statusEffects.length > 0" class="status-effects-wrapper accordion">
+      <div class="section-header accordion-header" @click="toggleSection('statusEffects')">
+        <h3>⚡ 状態異常 <span class="accordion-toggle">{{ expandedSections.statusEffects ? '▼' : '▶' }}</span></h3>
+      </div>
+      <div v-show="expandedSections.statusEffects">
+        <div v-if="buffStatusEffects.length" class="status-group">
+          <div class="status-group-title">🟢 バフ</div>
+          <div class="status-effects">
+            <div v-for="effect in buffStatusEffects" :key="effect.type" class="status-effect"
+              :style="{ backgroundColor: getStatusColor(effect.type) }">
+              <Tooltip :title="`${getStatusIcon(effect.type)} ${getStatusName(effect.type)}`"
+                :content="getStatusDescription(effect.type)">
+                <span class="status-icon">{{ getStatusIcon(effect.type) }}</span>
+                <span class="status-stacks">×{{ effect.stacks }}</span>
+                <span class="status-duration">({{ effect.duration }}T)</span>
+              </Tooltip>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div v-if="debuffStatusEffects.length" class="status-group">
-        <div class="status-group-title">🔴 デバフ</div>
-        <div class="status-effects">
-          <div 
-            v-for="effect in debuffStatusEffects" 
-            :key="effect.type"
-            class="status-effect"
-            :style="{ backgroundColor: getStatusColor(effect.type) }"
-          >
-            <Tooltip :title="`${getStatusIcon(effect.type)} ${getStatusName(effect.type)}`" :content="getStatusDescription(effect.type)">
-              <span class="status-icon">{{ getStatusIcon(effect.type) }}</span>
-              <span class="status-stacks">×{{ effect.stacks }}</span>
-              <span class="status-duration">({{ effect.duration }}T)</span>
-            </Tooltip>
+        <div v-if="debuffStatusEffects.length" class="status-group">
+          <div class="status-group-title">🔴 デバフ</div>
+          <div class="status-effects">
+            <div v-for="effect in debuffStatusEffects" :key="effect.type" class="status-effect"
+              :style="{ backgroundColor: getStatusColor(effect.type) }">
+              <Tooltip :title="`${getStatusIcon(effect.type)} ${getStatusName(effect.type)}`"
+                :content="getStatusDescription(effect.type)">
+                <span class="status-icon">{{ getStatusIcon(effect.type) }}</span>
+                <span class="status-stacks">×{{ effect.stacks }}</span>
+                <span class="status-duration">({{ effect.duration }}T)</span>
+              </Tooltip>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- ステータス表示 -->
+    <!-- ステータス表示（メインアコーディオン） -->
     <div class="section-with-action">
-      <div class="section-header">
-        <h3>⚖️ ステータス</h3>
-        <button class="btn btn-secondary btn-compact" @click="$emit('openStatManager')" :disabled="isRunLocked">
-          🧠 ステ振り
-        </button>
+      <div class="section-header accordion-header" @click="toggleSection('stats')">
+        <h3>⚖️ ステータス <span class="accordion-toggle">{{ expandedSections.stats ? '▼' : '▶' }}</span></h3>
       </div>
-      <div class="stats-display">
-      <div class="stat-row">
-        <div class="stat-item">
-          <Tooltip :title="'⚔️ 攻撃力'" :content="getStatTooltipContent('attack')">
-            <div class="stat-display">
-              <span class="stat-label">⚔️</span>
-              <span class="stat-value">
-                {{ getEffectiveStat('attack').value }}
-                <span class="stat-detail">({{ getEffectiveStat('attack').base }}<span v-if="getEffectiveStat('attack').synergy > 0"> + {{ getEffectiveStat('attack').synergy }}</span>)</span>
-                <span v-if="getEffectiveStat('attack').buff > 0" class="stat-buff">(+{{ getEffectiveStat('attack').buff }})</span>
-                <span v-if="getEffectiveStat('attack').debuff > 0" class="stat-debuff">(-{{ getEffectiveStat('attack').debuff }})</span>
-              </span>
-            </div>
-          </Tooltip>
+      <div v-show="expandedSections.stats">
+        <div class="stats-toolbar">
+          <div class="toolbar-buttons">
+            <button class="btn btn-secondary btn-compact" @click.stop="$emit('openStatManager')"
+              :disabled="isRunLocked">
+              🧠 ステ振り
+              <span>SP {{ player.sp ?? 0 }}</span>
+            </button>
+          </div>
         </div>
-        <div class="stat-item">
-          <Tooltip :title="'✨ 魔法'" :content="getStatTooltipContent('magic')">
-            <div class="stat-display">
-              <span class="stat-label">✨</span>
-              <span class="stat-value">
-                {{ getEffectiveStat('magic').value }}
-                <span class="stat-detail">({{ getEffectiveStat('magic').base }}<span v-if="getEffectiveStat('magic').synergy > 0"> + {{ getEffectiveStat('magic').synergy }}</span>)</span>
-                <span v-if="getEffectiveStat('magic').buff > 0" class="stat-buff">(+{{ getEffectiveStat('magic').buff }})</span>
-                <span v-if="getEffectiveStat('magic').debuff > 0" class="stat-debuff">(-{{ getEffectiveStat('magic').debuff }})</span>
-              </span>
+        <!-- メインステータスセクション -->
+        <div class="stats-subsection">
+          <div class="section-header accordion-header" @click="toggleSection('mainStats')">
+            <h3 style="font-size: 14px; margin: 10px 0;">メイン <span class="accordion-toggle">{{
+              expandedSections.mainStats ? '▼' : '▶' }}</span></h3>
+          </div>
+          <div v-show="expandedSections.mainStats" class="stats-display stats-grid stats-grid-2col">
+            <div class="stat-item">
+              <Tooltip :title="formatStatTitle('attack')" :content="getStatTooltipContent('attack')">
+                <div class="stat-display">
+                  <span class="stat-label">⚔️</span>
+                  <span class="stat-value">
+                    {{ coreStats.attack.value }}
+                    <span class="stat-detail">({{ coreStats.attack.base }}<span v-if="coreStats.attack.synergy > 0"> +
+                        {{
+                          coreStats.attack.synergy }}</span>)</span>
+                    <span v-if="coreStats.attack.buff > 0" class="stat-buff">(+{{ coreStats.attack.buff }})</span>
+                    <span v-if="coreStats.attack.debuff > 0" class="stat-debuff">(-{{ coreStats.attack.debuff }})</span>
+                  </span>
+                </div>
+              </Tooltip>
             </div>
-          </Tooltip>
-        </div>
-      </div>
-      <div class="stat-row">
-        <div class="stat-item">
-          <Tooltip :title="'🛡️ 物理防御'" :content="getStatTooltipContent('defense')">
-            <div class="stat-display">
-              <span class="stat-label">🛡️</span>
-              <span class="stat-value">
-                {{ getEffectiveStat('defense').value }}
-                <span class="stat-detail">({{ getEffectiveStat('defense').base }})</span>
-                <span v-if="getEffectiveStat('defense').buff > 0" class="stat-buff">(+{{ getEffectiveStat('defense').buff }})</span>
-                <span v-if="getEffectiveStat('defense').debuff > 0" class="stat-debuff">(-{{ getEffectiveStat('defense').debuff }})</span>
-              </span>
+            <div class="stat-item">
+              <Tooltip :title="formatStatTitle('magic')" :content="getStatTooltipContent('magic')">
+                <div class="stat-display">
+                  <span class="stat-label">✨</span>
+                  <span class="stat-value">
+                    {{ coreStats.magic.value }}
+                    <span class="stat-detail">({{ coreStats.magic.base }}<span v-if="coreStats.magic.synergy > 0"> + {{
+                      coreStats.magic.synergy }}</span>)</span>
+                    <span v-if="coreStats.magic.buff > 0" class="stat-buff">(+{{ coreStats.magic.buff }})</span>
+                    <span v-if="coreStats.magic.debuff > 0" class="stat-debuff">(-{{ coreStats.magic.debuff }})</span>
+                  </span>
+                </div>
+              </Tooltip>
             </div>
-          </Tooltip>
-        </div>
-        <div class="stat-item">
-          <Tooltip :title="'🔮 魔法防御'" :content="getStatTooltipContent('magicDefense')">
-            <div class="stat-display">
-              <span class="stat-label">🔮</span>
-              <span class="stat-value">
-                {{ getEffectiveStat('magicDefense').value }}
-                <span class="stat-detail">({{ getEffectiveStat('magicDefense').base }})</span>
-                <span v-if="getEffectiveStat('magicDefense').buff > 0" class="stat-buff">(+{{ getEffectiveStat('magicDefense').buff }})</span>
-                <span v-if="getEffectiveStat('magicDefense').debuff > 0" class="stat-debuff">(-{{ getEffectiveStat('magicDefense').debuff }})</span>
-              </span>
+            <div class="stat-item">
+              <Tooltip :title="formatStatTitle('defense')" :content="getStatTooltipContent('defense')">
+                <div class="stat-display">
+                  <span class="stat-label">🛡️</span>
+                  <span class="stat-value">
+                    {{ coreStats.defense.value }}
+                    <span class="stat-detail">({{ coreStats.defense.base }})</span>
+                    <span v-if="coreStats.defense.buff > 0" class="stat-buff">(+{{ coreStats.defense.buff }})</span>
+                    <span v-if="coreStats.defense.debuff > 0" class="stat-debuff">(-{{ coreStats.defense.debuff
+                    }})</span>
+                  </span>
+                </div>
+              </Tooltip>
             </div>
-          </Tooltip>
-        </div>
-      </div>
-      <div class="stat-row">
-        <div class="stat-item">
-          <Tooltip :title="'⚡ 速度'" :content="getStatTooltipContent('speed')">
-            <div class="stat-display">
-              <span class="stat-label">⚡</span>
-              <span class="stat-value">
-                {{ getEffectiveStat('speed').value }}
-                <span class="stat-detail">({{ getEffectiveStat('speed').base }}<span v-if="getEffectiveStat('speed').synergy > 0"> + {{ getEffectiveStat('speed').synergy }}</span>)</span>
-                <span v-if="getEffectiveStat('speed').buff > 0" class="stat-buff">(+{{ getEffectiveStat('speed').buff }})</span>
-                <span v-if="getEffectiveStat('speed').debuff > 0" class="stat-debuff">(-{{ getEffectiveStat('speed').debuff }})</span>
-              </span>
+            <div class="stat-item">
+              <Tooltip :title="formatStatTitle('magicDefense')" :content="getStatTooltipContent('magicDefense')">
+                <div class="stat-display">
+                  <span class="stat-label">🔮</span>
+                  <span class="stat-value">
+                    {{ coreStats.magicDefense.value }}
+                    <span class="stat-detail">({{ coreStats.magicDefense.base }})</span>
+                    <span v-if="coreStats.magicDefense.buff > 0" class="stat-buff">(+{{ coreStats.magicDefense.buff
+                    }})</span>
+                    <span v-if="coreStats.magicDefense.debuff > 0" class="stat-debuff">(-{{
+                      coreStats.magicDefense.debuff
+                    }})</span>
+                  </span>
+                </div>
+              </Tooltip>
             </div>
-          </Tooltip>
-        </div>
-        <div class="stat-item">
-          <Tooltip :title="'🧿 状態異常威力'" :content="getStatTooltipContent('statusPower')">
-            <div class="stat-display">
-              <span class="stat-label">🧿</span>
-              <span class="stat-value">
-                {{ getEffectiveStat('statusPower').value }}
-                <span class="stat-detail">({{ getEffectiveStat('statusPower').base }})</span>
-                <span v-if="getEffectiveStat('statusPower').buff > 0" class="stat-buff">(+{{ getEffectiveStat('statusPower').buff }})</span>
-                <span v-if="getEffectiveStat('statusPower').debuff > 0" class="stat-debuff">(-{{ getEffectiveStat('statusPower').debuff }})</span>
-              </span>
+            <div class="stat-item">
+              <Tooltip :title="formatStatTitle('speed')" :content="getStatTooltipContent('speed')">
+                <div class="stat-display">
+                  <span class="stat-label">⚡</span>
+                  <span class="stat-value">
+                    {{ coreStats.speed.value }}
+                    <span class="stat-detail">({{ coreStats.speed.base }}<span v-if="coreStats.speed.synergy > 0"> + {{
+                      coreStats.speed.synergy }}</span>)</span>
+                    <span v-if="coreStats.speed.buff > 0" class="stat-buff">(+{{ coreStats.speed.buff }})</span>
+                    <span v-if="coreStats.speed.debuff > 0" class="stat-debuff">(-{{ coreStats.speed.debuff }})</span>
+                  </span>
+                </div>
+              </Tooltip>
             </div>
-          </Tooltip>
-        </div>
-        <div class="stat-item">
-          <Tooltip :title="'🩸 ライフスティール'" :content="'与えたダメージの一部をHPとして吸収'">
-            <div class="stat-display">
-              <span class="stat-label">🩸</span>
-              <span class="stat-value">
-                {{ getEffectiveStat('lifeSteal').value }}%
-              </span>
+            <div class="stat-item">
+              <Tooltip :title="formatStatTitle('statusPower')" :content="getStatTooltipContent('statusPower')">
+                <div class="stat-display">
+                  <span class="stat-label">🧿</span>
+                  <span class="stat-value">
+                    {{ coreStats.statusPower.value }}
+                    <span class="stat-detail">({{ coreStats.statusPower.base }})</span>
+                    <span v-if="coreStats.statusPower.buff > 0" class="stat-buff">(+{{ coreStats.statusPower.buff
+                    }})</span>
+                    <span v-if="coreStats.statusPower.debuff > 0" class="stat-debuff">(-{{ coreStats.statusPower.debuff
+                    }})</span>
+                  </span>
+                </div>
+              </Tooltip>
             </div>
-          </Tooltip>
+          </div>
         </div>
-      </div>
+
+        <!-- サブステータスセクション -->
+        <div class="stats-subsection">
+          <div class="section-header accordion-header" @click="toggleSection('substats')">
+            <h3 style="font-size: 14px; margin: 10px 0;">サブ <span class="accordion-toggle">{{ expandedSections.substats
+              ? '▼' : '▶' }}</span></h3>
+          </div>
+          <div v-show="expandedSections.substats" class="stats-display stats-grid stats-grid-2col">
+            <div class="stat-item">
+              <Tooltip :title="formatStatTitle('lifeSteal')" :content="getStatSubstatsDescription('lifeSteal')">
+                <div class="stat-display">
+                  <span class="stat-label">🩸</span>
+                  <span class="stat-value">
+                    {{ subStats.lifeSteal.value }}%
+                    <span class="stat-detail">({{ subStats.lifeSteal.base }}<span v-if="subStats.lifeSteal.synergy > 0">
+                        +
+                        {{ subStats.lifeSteal.synergy }}</span>)</span>
+                  </span>
+                </div>
+              </Tooltip>
+            </div>
+            <div class="stat-item">
+              <Tooltip :title="formatStatTitle('critChance')" :content="getStatSubstatsDescription('critChance')">
+                <div class="stat-display">
+                  <span class="stat-label">🎯</span>
+                  <span class="stat-value">
+                    {{ subStats.critChance.value }}%
+                    <span class="stat-detail">({{ subStats.critChance.base }}<span
+                        v-if="subStats.critChance.synergy > 0"> +
+                        {{ subStats.critChance.synergy }}</span>)</span>
+                  </span>
+                </div>
+              </Tooltip>
+            </div>
+            <div class="stat-item">
+              <Tooltip :title="formatStatTitle('critDamage')" :content="getStatSubstatsDescription('critDamage')">
+                <div class="stat-display">
+                  <span class="stat-label">💥</span>
+                  <span class="stat-value">
+                    {{ subStats.critDamage.value }}%
+                    <span class="stat-detail">({{ subStats.critDamage.base }}<span
+                        v-if="subStats.critDamage.synergy > 0"> +
+                        {{ subStats.critDamage.synergy }}</span>)</span>
+                  </span>
+                </div>
+              </Tooltip>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
     <!-- 装備武器から得られるtraitボーナス -->
-    <div v-if="equipmentTraits.physicalResistance > 0 || equipmentTraits.magicalResistance > 0 || equipmentTraits.statusResistance > 0 || equipmentTraits.damageReduction > 0" class="section-with-action">
-      <div class="section-header">
-        <h3>🛡️ 装備特性</h3>
+    <div v-if="traitEntries.length > 0" class="section-with-action">
+      <div class="section-header accordion-header" @click="toggleSection('traits')">
+        <h3>🛡️ 装備特性 <span class="accordion-toggle">{{ expandedSections.traits ? '▼' : '▶' }}</span></h3>
       </div>
-      <div class="traits-display">
-        <div v-if="equipmentTraits.physicalResistance > 0" class="trait-item">
-          <Tooltip title="🏛️ 物理耐性" content="物理攻撃のダメージを軽減">
-            <span class="trait-label">🏛️ 物理耐性</span>
-            <span class="trait-value">{{ equipmentTraits.physicalResistance }}%</span>
-          </Tooltip>
-        </div>
-        <div v-if="equipmentTraits.magicalResistance > 0" class="trait-item">
-          <Tooltip title="🔮 魔法耐性" content="魔法攻撃のダメージを軽減">
-            <span class="trait-label">🔮 魔法耐性</span>
-            <span class="trait-value">{{ equipmentTraits.magicalResistance }}%</span>
-          </Tooltip>
-        </div>
-        <div v-if="equipmentTraits.statusResistance > 0" class="trait-item">
-          <Tooltip title="🧬 状態異常耐性" content="状態異常の効果を軽減">
-            <span class="trait-label">🧬 状態異常耐性</span>
-            <span class="trait-value">{{ equipmentTraits.statusResistance }}%</span>
-          </Tooltip>
-        </div>
-        <div v-if="equipmentTraits.damageReduction > 0" class="trait-item">
-          <Tooltip title="🛑 被ダメージ軽減" content="すべてのダメージを軽減">
-            <span class="trait-label">🛑 被ダメージ軽減</span>
-            <span class="trait-value">{{ equipmentTraits.damageReduction }}%</span>
+      <div v-show="expandedSections.traits" class="traits-display">
+        <div v-for="trait in traitEntries" :key="trait.key as string" class="trait-item">
+          <Tooltip :title="`${trait.icon} ${trait.name}`" :content="trait.description">
+            <span class="trait-label">{{ trait.icon }} {{ trait.name }}</span>
+            <span class="trait-value">{{ trait.value }}%</span>
           </Tooltip>
         </div>
       </div>
@@ -226,31 +249,28 @@
 
     <!-- 装備武器リスト -->
     <div class="section-with-action">
-      <div class="section-header">
-        <h3>⚔️ 装備武器</h3>
-        <div class="slot-actions">
-          <span class="slot-count">枠 {{ player.weapons.length }} / {{ player.weaponSlots }}</span>
-          <button
-            class="btn btn-primary btn-compact"
-            @click="$emit('purchaseSlot')"
-            :disabled="!nextSlotCost || !canPurchaseSlot || isRunLocked"
-          >
-            🔓 スロット拡張 <span v-if="nextSlotCost">({{ nextSlotCost }}G)</span>
-          </button>
-          <button class="btn btn-secondary btn-compact" @click="$emit('openWeaponManager')" :disabled="isRunLocked">
-            🛡️ 武器管理
-          </button>
-        </div>
+      <div class="section-header accordion-header" @click="toggleSection('weapons')">
+        <h3>⚔️ 装備武器 <span class="accordion-toggle">{{ expandedSections.weapons ? '▼' : '▶' }}</span></h3>
       </div>
-      <div class="weapons-section">
+      <div v-show="expandedSections.weapons" class="weapons-section">
+        <div class="weapons-toolbar">
+          <div class="toolbar-buttons">
+            <button class="btn btn-secondary btn-compact" @click.stop="$emit('openWeaponManager')"
+              :disabled="isRunLocked">
+              🛡️ 武器管理
+            </button>
+          </div>
+          <div class="toolbar-buttons">
+            <button class="btn btn-primary btn-compact" @click.stop="$emit('purchaseSlot')"
+              :disabled="!nextSlotCost || !canPurchaseSlot || isRunLocked">
+              🔓 スロット拡張 <span v-if="nextSlotCost">({{ nextSlotCost }}G)</span>
+              <span> 枠 {{ player.weapons.length }} / {{ player.weaponSlots }}</span>
+            </button>
+          </div>
+        </div>
         <div class="weapons-grid">
-          <div
-            v-for="(weapon, index) in slotEntries"
-            :key="weapon?.id || `slot-${index}`"
-            class="weapon-slot"
-            :class="{ empty: !weapon }"
-            :style="weapon ? { borderColor: getRarityColor(weapon.rarity) } : {}"
-          >
+          <div v-for="(weapon, index) in slotEntries" :key="weapon?.id || `slot-${index}`" class="weapon-slot"
+            :class="{ empty: !weapon }" :style="weapon ? { borderColor: getRarityColor(weapon.rarity) } : {}">
             <WeaponDetails v-if="weapon" :weapon="weapon" :showRarityBadge="true" compact />
             <div v-else class="empty-slot">
               <div class="empty-slot-icon">➕</div>
@@ -265,13 +285,16 @@
     </div>
 
     <!-- タグシナジー表示 -->
-    <div v-if="activeSynergies.length > 0" class="synergies-display">
-      <h3>✨ アクティブシナジー</h3>
-      <div class="synergy-list">
+    <div v-if="activeSynergies.length > 0" class="synergies-display accordion">
+      <div class="section-header accordion-header" @click="toggleSection('synergies')">
+        <h3>✨ アクティブシナジー <span class="accordion-toggle">{{ expandedSections.synergies ? '▼' : '▶' }}</span></h3>
+      </div>
+      <div v-show="expandedSections.synergies" class="synergy-list">
         <div v-for="synergy in activeSynergies" :key="synergy.id" class="synergy-item">
           <Tooltip :title="`🔥 ${synergy.name}`" :content="formatSynergyTooltip(synergy)">
             <span class="synergy-tag">{{ synergy.name }}</span>
-            <span v-if="synergy.stackable && getActiveSynergyCount(synergy.id) > 1" class="synergy-stack">×{{ getActiveSynergyCount(synergy.id) }}</span>
+            <span v-if="synergy.stackable && getActiveSynergyCount(synergy.id) > 1" class="synergy-stack">×{{
+              getActiveSynergyCount(synergy.id) }}</span>
           </Tooltip>
         </div>
       </div>
@@ -286,9 +309,11 @@ import { StatusEffectSystem } from '~/systems/StatusEffectSystem'
 import { WeaponSystem } from '~/systems/WeaponSystem'
 import { calculateActiveSynergies, getTotalSynergyBonus } from '~/data/synergies'
 import { STATUS_EFFECTS_DB } from '~/data/statusEffects'
+import { getStatDefinition, formatStatTitle, getStatSubstatsDescription } from '~/data/statDefinitions'
 import { usePlayerStatDisplay, getStatTooltipContent as getStatTooltip } from '~/composables/useStatDisplay'
 import WeaponDetails from './WeaponDetails.vue'
 import Tooltip from './Tooltip.vue'
+import { getWeaponTraitName, getWeaponTraitDescription, getWeaponTraitIcon } from '~/data/traits'
 
 const props = defineProps<{
   player: Player
@@ -304,39 +329,31 @@ const emit = defineEmits<{
   purchaseSlot: []
 }>()
 
-const isEditingName = ref(false)
-const editingName = ref(props.player.name)
+// アコーディオン状態管理
+const expandedSections = ref({
+  stats: true,
+  mainStats: true,
+  substats: true,
+  traits: true,
+  statusEffects: true,
+  weapons: true,
+  synergies: true
+})
 
-const startEditName = () => {
-  isEditingName.value = true
-  editingName.value = props.player.name
+const toggleSection = (section: keyof typeof expandedSections.value) => {
+  expandedSections.value[section] = !expandedSections.value[section]
 }
 
-const finishEditName = () => {
-  if (editingName.value.trim().length > 0) {
-    emit('updatePlayerName', editingName.value.trim())
-  }
-  isEditingName.value = false
-}
-
-const cancelEditName = () => {
-  isEditingName.value = false
-}
+const expPercentage = computed(() => {
+  const maxExp = props.player.nextLevelExp ?? 0
+  if (maxExp <= 0) return 0
+  const pct = ((props.player.exp ?? 0) / maxExp) * 100
+  return Math.min(100, Math.max(0, pct))
+})
 
 const hpPercentage = computed(() => {
   const pct = (props.player.currentHp / props.player.maxHp) * 100
   return Math.min(100, Math.max(0, pct))
-})
-
-const minDisplay = (value: number, threshold = 0.1) => {
-  if (value === 0) return 0
-  const abs = Math.abs(value)
-  if (abs < threshold) return threshold * Math.sign(value)
-  return value
-}
-
-const expPercentage = computed(() => {
-  return (props.player.exp / props.player.nextLevelExp) * 100
 })
 
 const sortedWeapons = computed(() => {
@@ -373,11 +390,40 @@ type StatKey = 'attack' | 'magic' | 'defense' | 'magicDefense' | 'speed' | 'stat
 
 // 装備武器から得られるtraitボーナス
 const equipmentTraits = computed(() => {
-  return WeaponSystem.getWeaponTraitsBonus(props.player.weapons)
+  return WeaponSystem.getWeaponTraitsBonus(props.player.weapons, synergyBonuses.value)
+})
+
+const traitEntries = computed(() => {
+  const traits = equipmentTraits.value
+  const keys: Array<keyof typeof traits> = ['physicalResistance', 'magicalResistance', 'statusResistance', 'damageReduction', 'resistancePenetration']
+  return keys
+    .filter(key => (traits[key] ?? 0) > 0)
+    .map(key => ({
+      key,
+      value: traits[key] ?? 0,
+      name: getWeaponTraitName(key),
+      description: getWeaponTraitDescription(key),
+      icon: getWeaponTraitIcon(key)
+    }))
 })
 
 // useStatDisplay composable を使用
-const { playerStatDetails, getEffectiveStat } = usePlayerStatDisplay(computed(() => props.player))
+const { getEffectiveStat } = usePlayerStatDisplay(computed(() => props.player))
+
+const coreStats = computed(() => ({
+  attack: getEffectiveStat('attack'),
+  magic: getEffectiveStat('magic'),
+  defense: getEffectiveStat('defense'),
+  magicDefense: getEffectiveStat('magicDefense'),
+  speed: getEffectiveStat('speed'),
+  statusPower: getEffectiveStat('statusPower')
+}))
+
+const subStats = computed(() => ({
+  lifeSteal: getEffectiveStat('lifeSteal'),
+  critChance: getEffectiveStat('critChance'),
+  critDamage: getEffectiveStat('critDamage')
+}))
 
 const getStatusIcon = (type: string) => {
   return StatusEffectSystem.getStatusIcon(type as any)
@@ -415,18 +461,18 @@ const getActiveSynergyCount = (synergyId: string): number => {
 // シナジーのボーナス情報をフォーマット
 const formatSynergyTooltip = (synergy: any): string => {
   let tooltip = synergy.description + '\n\n効果：\n'
-  
+
   const effects = synergy.effects || {}
   const bonuses = []
-  
+
   if (effects.attackBonus) bonuses.push(`⚔️ 攻撃力 +${effects.attackBonus}`)
   if (effects.magicBonus) bonuses.push(`✨ 魔法 +${effects.magicBonus}`)
   if (effects.speedBonus) bonuses.push(`⚡ 速度 +${effects.speedBonus}`)
   if (effects.statusPowerBonus) bonuses.push(`🧿 状態異常威力 +${effects.statusPowerBonus}`)
   if (effects.lifeStealBonus) bonuses.push(`🩸 ライフスティール +${effects.lifeStealBonus}%`)
   if (effects.critChanceBonus) bonuses.push(`💥 クリティカル率 +${effects.critChanceBonus}%`)
-  if (effects.critDamageBonus) bonuses.push(`⚡ クリティカルダメージ x${effects.critDamageBonus.toFixed(2)}`)
-  
+  if (effects.critDamageBonus) bonuses.push(`💥 クリティカルダメージ +${effects.critDamageBonus}%`)
+
   return tooltip + bonuses.join('\n')
 }
 </script>
@@ -556,9 +602,24 @@ h3 {
   opacity: 0.8;
 }
 
-.stats-display {
+.stats-toolbar {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  margin-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  flex-wrap: wrap;
+}
+
+.stats-toolbar .toolbar-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.stats-display {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   margin-bottom: 15px;
   padding: 12px;
@@ -566,10 +627,8 @@ h3 {
   border-radius: 10px;
 }
 
-.stat-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
-  gap: 8px;
+.stats-grid-2col {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .stat-item {
@@ -712,6 +771,29 @@ h3 {
 
 .weapons-section h3 {
   color: #e0e0e0;
+}
+
+.weapons-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  margin-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  flex-wrap: wrap;
+}
+
+.toolbar-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.slot-count {
+  font-size: 13px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  white-space: nowrap;
 }
 
 .no-weapons {
@@ -975,21 +1057,6 @@ h3 {
   margin: 0;
   color: #e0e0e0;
   font-size: 16px;
-}
-
-.slot-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
-.slot-count {
-  font-size: 13px;
-  padding: 4px 8px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.06);
 }
 
 .weapons-grid {

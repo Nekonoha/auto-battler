@@ -17,7 +17,7 @@ export const BASE_WEAPONS: Weapon[] = [
       magic: 0,
       speed: 20,
       critChance: 5,
-      critDamage: 1.5,
+      critDamage: 150,
       statusPower: 10
     },
     tags: ['fast'],
@@ -34,7 +34,7 @@ export const BASE_WEAPONS: Weapon[] = [
       magic: 0,
       speed: 22,
       critChance: 8,
-      critDamage: 1.6,
+      critDamage: 160,
       statusPower: 12
     },
     tags: ['fast'],
@@ -51,7 +51,7 @@ export const BASE_WEAPONS: Weapon[] = [
       magic: 0,
       speed: 15,
       critChance: 10,
-      critDamage: 1.8,
+      critDamage: 180,
       statusPower: 15
     },
     tags: ['heavy'],
@@ -68,7 +68,7 @@ export const BASE_WEAPONS: Weapon[] = [
       magic: 0,
       speed: 35,
       critChance: 15,
-      critDamage: 2.0,
+      critDamage: 200,
       statusPower: 18
     },
     tags: ['fast', 'precise'],
@@ -91,7 +91,7 @@ export const BASE_WEAPONS: Weapon[] = [
       magic: 0,
       speed: 12,
       critChance: 12,
-      critDamage: 2.2,
+      critDamage: 220,
       statusPower: 20
     },
     tags: ['heavy'],
@@ -113,7 +113,7 @@ export const BASE_WEAPONS: Weapon[] = [
       magic: 0,
       speed: 30,
       critChance: 25,
-      critDamage: 2.5,
+      critDamage: 250,
       statusPower: 15
     },
     tags: ['fast', 'precise'],
@@ -130,7 +130,7 @@ export const BASE_WEAPONS: Weapon[] = [
       magic: 0,
       speed: 10,
       critChance: 15,
-      critDamage: 2.5,
+      critDamage: 250,
       statusPower: 25
     },
     tags: ['heavy'],
@@ -152,7 +152,7 @@ export const BASE_WEAPONS: Weapon[] = [
       magic: 5,
       speed: 28,
       critChance: 30,
-      critDamage: 3.0,
+      critDamage: 300,
       statusPower: 22
     },
     tags: ['fast', 'precise', 'bloodthirsty'],
@@ -176,7 +176,7 @@ export const BASE_WEAPONS: Weapon[] = [
       magic: 0,
       speed: 25,
       critChance: 10,
-      critDamage: 1.8,
+      critDamage: 180,
       statusPower: 12
     },
     tags: ['fast'],
@@ -193,7 +193,7 @@ export const BASE_WEAPONS: Weapon[] = [
       magic: 0,
       speed: 18,
       critChance: 15,
-      critDamage: 2.0,
+      critDamage: 200,
       statusPower: 15
     },
     tags: ['heavy', 'precise'],
@@ -210,7 +210,7 @@ export const BASE_WEAPONS: Weapon[] = [
       magic: 0,
       speed: 22,
       critChance: 18,
-      critDamage: 2.2,
+      critDamage: 220,
       statusPower: 18
     },
     tags: ['fast', 'precise'],
@@ -227,7 +227,7 @@ export const BASE_WEAPONS: Weapon[] = [
       magic: 0,
       speed: 40,
       critChance: 20,
-      critDamage: 2.0,
+      critDamage: 200,
       statusPower: 20
     },
     tags: ['fast', 'precise'],
@@ -249,7 +249,7 @@ export const BASE_WEAPONS: Weapon[] = [
       magic: 0,
       speed: 15,
       critChance: 40,
-      critDamage: 3.5,
+      critDamage: 350,
       statusPower: 25
     },
     tags: ['heavy', 'precise'],
@@ -274,7 +274,7 @@ export const BASE_WEAPONS: Weapon[] = [
       magic: 18,
       speed: 20,
       critChance: 8,
-      critDamage: 1.5,
+      critDamage: 150,
       statusPower: 15
     },
     tags: ['elemental'],
@@ -291,7 +291,7 @@ export const BASE_WEAPONS: Weapon[] = [
       magic: 25,
       speed: 22,
       critChance: 12,
-      critDamage: 1.8,
+      critDamage: 180,
       statusPower: 22
     },
     tags: ['elemental', 'flame'],
@@ -313,7 +313,7 @@ export const BASE_WEAPONS: Weapon[] = [
       magic: 25,
       speed: 20,
       critChance: 10,
-      critDamage: 1.7,
+      critDamage: 170,
       statusPower: 25
     },
     tags: ['elemental', 'frost'],
@@ -335,7 +335,7 @@ export const BASE_WEAPONS: Weapon[] = [
       magic: 22,
       speed: 24,
       critChance: 10,
-      critDamage: 1.6,
+      critDamage: 160,
       statusPower: 30
     },
     tags: ['venomous', 'cursed'],
@@ -357,7 +357,7 @@ export const BASE_WEAPONS: Weapon[] = [
       magic: 40,
       speed: 18,
       critChance: 15,
-      critDamage: 2.0,
+      critDamage: 200,
       statusPower: 28
     },
     tags: ['elemental', 'cursed'],
@@ -379,7 +379,7 @@ export const BASE_WEAPONS: Weapon[] = [
       magic: 50,
       speed: 22,
       critChance: 20,
-      critDamage: 2.5,
+      critDamage: 250,
       statusPower: 35
     },
     tags: ['elemental', 'precise'],
@@ -404,7 +404,7 @@ export const BASE_WEAPONS: Weapon[] = [
       magic: 10,
       speed: 26,
       critChance: 12,
-      critDamage: 1.7,
+      critDamage: 170,
       statusPower: 35
     },
     tags: ['venomous', 'fast'],
@@ -426,7 +426,7 @@ export const BASE_WEAPONS: Weapon[] = [
       magic: 15,
       speed: 20,
       critChance: 18,
-      critDamage: 2.0,
+      critDamage: 200,
       statusPower: 40
     },
     tags: ['bloodthirsty', 'cursed', 'heavy'],
@@ -448,7 +448,7 @@ export const BASE_WEAPONS: Weapon[] = [
       magic: 30,
       speed: 24,
       critChance: 15,
-      critDamage: 1.9,
+      critDamage: 190,
       statusPower: 45
     },
     tags: ['flame', 'elemental', 'cursed'],
@@ -472,7 +472,7 @@ export const BASE_WEAPONS: Weapon[] = [
       magic: 20,
       speed: 20,
       critChance: 25,
-      critDamage: 2.8,
+      critDamage: 280,
       statusPower: 30
     },
     tags: ['cursed', 'heavy'],
@@ -494,7 +494,7 @@ export const BASE_WEAPONS: Weapon[] = [
       magic: 15,
       speed: 18,
       critChance: 8,
-      critDamage: 1.5,
+      critDamage: 150,
       statusPower: 20
     },
     tags: ['healing', 'defensive', 'heavy'],
@@ -517,7 +517,7 @@ export const BASE_WEAPONS: Weapon[] = [
       magic: 12,
       speed: 24,
       critChance: 12,
-      critDamage: 1.8,
+      critDamage: 180,
       statusPower: 18
     },
     tags: ['versatile', 'fast'],
@@ -540,7 +540,7 @@ export const BASE_WEAPONS: Weapon[] = [
       magic: 60,
       speed: 25,
       critChance: 20,
-      critDamage: 2.5,
+      critDamage: 250,
       statusPower: 50
     },
     tags: ['cursed', 'elemental', 'versatile'],
@@ -576,7 +576,7 @@ export const BASE_WEAPONS: Weapon[] = [
       magic: 25,
       speed: 22,
       critChance: 30,
-      critDamage: 3.5,
+      critDamage: 350,
       statusPower: 40
     },
     tags: ['heavy', 'elemental', 'bloodthirsty'],
@@ -606,7 +606,7 @@ export const BASE_WEAPONS: Weapon[] = [
       magic: 10,
       speed: 32,
       critChance: 20,
-      critDamage: 2.2,
+      critDamage: 220,
       statusPower: 35
     },
     tags: ['fast', 'cursed', 'healing'],
@@ -628,7 +628,7 @@ export const BASE_WEAPONS: Weapon[] = [
       magic: 55,
       speed: 20,
       critChance: 15,
-      critDamage: 2.0,
+      critDamage: 200,
       statusPower: 60
     },
     tags: ['cursed', 'elemental', 'venomous'],
@@ -650,7 +650,7 @@ export const BASE_WEAPONS: Weapon[] = [
       magic: 30,
       speed: 25,
       critChance: 10,
-      critDamage: 1.5,
+      critDamage: 150,
       statusPower: 40
     },
     tags: ['elemental', 'cursed'],
@@ -672,7 +672,7 @@ export const BASE_WEAPONS: Weapon[] = [
       magic: 35,
       speed: 28,
       critChance: 35,
-      critDamage: 4.0,
+      critDamage: 400,
       statusPower: 45
     },
     tags: ['cursed', 'fast', 'precise'],
@@ -683,6 +683,51 @@ export const BASE_WEAPONS: Weapon[] = [
       duration: 3
     }],
     description: '虚無から生まれた存在を消し去る刃'
+  },
+  {
+    id: 'warding_tome',
+    name: '守護の書',
+    type: 'magic',
+    rarity: 'rare',
+    stats: {
+      attack: 8,
+      magic: 35,
+      speed: 18,
+      critChance: 8,
+      critDamage: 180,
+      statusPower: 45
+    },
+    tags: ['defensive', 'healing'],
+    effects: [{
+      type: 'barrier',
+      chance: 50,
+      stacks: 3,
+      duration: 2,
+      target: 'self'
+    }],
+    description: '守護の術式が刻まれた書。バリアを展開する'
+  },
+  {
+    id: 'null_lance',
+    name: '無効のランス',
+    type: 'ranged',
+    rarity: 'epic',
+    stats: {
+      attack: 30,
+      magic: 20,
+      speed: 24,
+      critChance: 18,
+      critDamage: 240,
+      statusPower: 50
+    },
+    tags: ['precise', 'elemental'],
+    effects: [{
+      type: 'dispel',
+      chance: 35,
+      stacks: 1,
+      duration: 1
+    }],
+    description: '魔力を打ち消す穂先。命中時にバフを剥がす'
   }
 ]
 

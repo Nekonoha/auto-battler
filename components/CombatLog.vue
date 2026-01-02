@@ -194,6 +194,36 @@ h3 {
   font-weight: bold;
 }
 
+.log-overCritical {
+  border-left: 3px solid #ffdd57;
+  border-color: rgba(255, 221, 87, 1);
+  background: linear-gradient(90deg, rgba(255, 221, 87, 0.25), rgba(255, 221, 87, 0.15));
+  box-shadow: 0 0 0 2px rgba(255, 221, 87, 0.5), 0 0 20px rgba(255, 221, 87, 0.4), inset 0 0 15px rgba(255, 221, 87, 0.1);
+  font-weight: bold;
+  color: #ffdd57;
+  text-shadow: 0 0 8px rgba(255, 221, 87, 0.6);
+}
+
+.log-limitBreak {
+  border-left: 3px solid #ff6ec7;
+  border-color: rgba(255, 110, 199, 1);
+  background: linear-gradient(90deg, rgba(255, 110, 199, 0.3), rgba(255, 50, 100, 0.2));
+  box-shadow: 0 0 0 2px rgba(255, 110, 199, 0.6), 0 0 30px rgba(255, 110, 199, 0.5), inset 0 0 20px rgba(255, 110, 199, 0.15);
+  font-weight: bold;
+  color: #ff6ec7;
+  text-shadow: 0 0 10px rgba(255, 110, 199, 0.8);
+  animation: limitBreakPulse 0.6s ease;
+}
+
+@keyframes limitBreakPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 2px rgba(255, 110, 199, 0.6), 0 0 30px rgba(255, 110, 199, 0.5), inset 0 0 20px rgba(255, 110, 199, 0.15);
+  }
+  50% {
+    box-shadow: 0 0 0 3px rgba(255, 110, 199, 0.8), 0 0 50px rgba(255, 110, 199, 0.7), inset 0 0 30px rgba(255, 110, 199, 0.25);
+  }
+}
+
 .log-loot {
   border-left: 3px solid #2ecc71;
   border-color: rgba(46, 204, 113, 0.65);

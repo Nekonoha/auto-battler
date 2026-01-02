@@ -107,6 +107,33 @@ export class StatusEffectSystem {
   ): ApplyStatusResult {
     const def = getStatusEffectDefinition(type)
     if (!def) return { type, applied: false, finalStacks: 0, finalDuration: 0, reason: 'resisted' }
+    // ディスペルは即時にバフを1つ剥がし、自身は残さない
+    if (type === 'dispel') {
+      const buffIndex = target.statusEffects.findIndex(e => {
+        const eDef = getStatusEffectDefinition(e.type)
+        return eDef?.type === 'Buff'
+      })
+      if (buffIndex >= 0) {
+        target.statusEffects.splice(buffIndex, 1)
+        return { type, applied: true, finalStacks: 0, finalDuration: 0, reason: 'applied' }
+      }
+      return { type, applied: false, finalStacks: 0, finalDuration: 0, reason: 'resisted' }
+    }
+
+
+    // デバフ無効バフの処理（消費型）
+    if (def.type === 'Debuff') {
+      const shieldIndex = target.statusEffects.findIndex(e => e.type === 'debuffImmunity')
+      if (shieldIndex >= 0) {
+        const shield = target.statusEffects[shieldIndex]
+        if (shield.stacks > 1) {
+          target.statusEffects[shieldIndex] = { ...shield, stacks: shield.stacks - 1 }
+        } else {
+          target.statusEffects.splice(shieldIndex, 1)
+        }
+        return { type, applied: false, finalStacks: 0, finalDuration: 0, immunity: true, reason: 'immune' }
+      }
+    }
 
     const powerScale = opts.powerScale ?? 1
 
@@ -220,15 +247,19 @@ export class StatusEffectSystem {
       const dotPowerScale = 1 + (powerScale - 1) * 0.6
       const damage = Math.round(stacks * damagePerStack * dotPowerScale)
       if (damage > 0) {
-        unit.currentHp = Math.max(0, unit.currentHp - damage)
+        const barrierResult = this.absorbBarrier(unit, damage)
+        const finalDamage = barrierResult.remainingDamage
+        if (finalDamage > 0) {
+          unit.currentHp = Math.max(0, unit.currentHp - finalDamage)
+        }
         const healPercent = def.effects.lifeStealPercent ?? 0
-        const healAmount = healPercent > 0 ? Math.round(damage * healPercent / 100) : 0
+        const healAmount = healPercent > 0 ? Math.round(finalDamage * healPercent / 100) : 0
         const healTarget = healPercent > 0 ? effect.appliedBy : undefined
         return {
-          damage,
+          damage: finalDamage,
           healTarget,
           healAmount: healPercent > 0 ? healAmount : undefined,
-          message: `${unit.name}は${def.name}で${damage}ダメージ (${def.description})${healPercent > 0 ? ` / ${healAmount}吸収` : ''}`
+          message: `${unit.name}は${def.name}で${finalDamage}ダメージ (${def.description})${healPercent > 0 ? ` / ${healAmount}吸収` : ''}${barrierResult.absorbed > 0 ? ` / バリアが${barrierResult.absorbed}吸収` : ''}`
         }
       }
     }
@@ -248,6 +279,8 @@ export class StatusEffectSystem {
     damageTaken: number
     critChance: number
     statusPower?: number
+    lifeSteal?: number
+    barrier?: number
   } {
     const totals = {
       attack: 0,
@@ -257,7 +290,9 @@ export class StatusEffectSystem {
       speed: 0,
       damageTaken: 0,
       critChance: 0,
-      statusPower: 0
+      statusPower: 0,
+      lifeSteal: 0,
+      barrier: 0
     }
 
     for (const effect of unit.statusEffects) {
@@ -300,6 +335,15 @@ export class StatusEffectSystem {
       if (def.effects.critChanceModifier !== undefined) {
         totals.critChance += def.effects.critChanceModifier * stacksForCritChance * powerScale
       }
+
+      const stacksForLifeSteal = this.getEffectiveStacks(effect, def, 'lifeStealModifier')
+      if (def.effects.lifeStealModifier !== undefined) {
+        totals.lifeSteal += def.effects.lifeStealModifier * stacksForLifeSteal * powerScale
+      }
+
+      if (def.effects.barrierPerStack !== undefined) {
+        totals.barrier += (def.effects.barrierPerStack * effect.stacks) * powerScale
+      }
     }
 
     return totals
@@ -313,6 +357,11 @@ export class StatusEffectSystem {
     const traits = (unit as any).traits as EnemyTraits | undefined
     const resMap = traits?.statusResistances
     let baseResistance = 0
+
+    // バフは耐性の影響を受けない（デバフのみ軽減対象）
+    if (def.type === 'Buff') {
+      return 0
+    }
 
     if (resMap) {
       const byId = resMap[def.id]
@@ -423,6 +472,62 @@ export class StatusEffectSystem {
       speed: totals.speed,
       statusPower: totals.statusPower ?? 0
     }
+  }
+
+  /**
+   * ライフスティール修正の合計（倍率）
+   */
+  static getLifeStealModifier(unit: CombatUnit): number {
+    const totals = this.aggregateModifiers(unit)
+    return Math.max(0, 1 + (totals.lifeSteal ?? 0) / 100)
+  }
+
+  /**
+   * バリア吸収処理。HPに入る前にシールドで相殺する。
+   */
+  static absorbBarrier(unit: CombatUnit, incomingDamage: number): { remainingDamage: number; absorbed: number } {
+    if (incomingDamage <= 0) return { remainingDamage: 0, absorbed: 0 }
+
+    let remaining = incomingDamage
+    let absorbed = 0
+
+    // バリア効果のあるステータスのみ抽出
+    const barrierEffects = unit.statusEffects
+      .map((effect, idx) => ({ effect, idx, def: getStatusEffectDefinition(effect.type) }))
+      .filter(({ effect, def }) => {
+        if (!def?.effects.barrierPerStack || def.effects.barrierPerStack <= 0) return false
+        // 過剰スタックを事前にクランプ
+        if (def.maxStack && effect.stacks > def.maxStack) {
+          effect.stacks = def.maxStack
+        }
+        return true
+      })
+      .sort((a, b) => b.idx - a.idx) // 後ろから処理してspliceの影響を抑える
+
+    for (const { effect, idx, def } of barrierEffects) {
+      if (remaining <= 0) break
+      const perStack = (def!.effects.barrierPerStack ?? 0)
+      // powerScale は吸収量倍率としてのみ作用（スタック数は増やさない）
+      const powerMultiplier = Math.max(1, effect.powerScale ?? 1)
+      const totalValue = Math.max(0, Math.floor(perStack * effect.stacks * powerMultiplier))
+      if (totalValue <= 0) continue
+
+      const absorbHere = Math.min(remaining, totalValue)
+      absorbed += absorbHere
+      remaining -= absorbHere
+
+      const remainingValue = totalValue - absorbHere
+      if (remainingValue <= 0) {
+        // シールドを使い切ったので削除
+        unit.statusEffects.splice(idx, 1)
+      } else {
+        // 残量をスタック数に再計算し、上限でクランプ
+        const newStacks = Math.ceil(remainingValue / perStack)
+        unit.statusEffects[idx] = { ...effect, stacks: Math.min(newStacks, def!.maxStack ?? 999) }
+      }
+    }
+
+    return { remainingDamage: Math.max(0, remaining), absorbed }
   }
 
   /**

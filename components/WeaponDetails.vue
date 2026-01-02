@@ -18,42 +18,53 @@
     </div>
 
     <div class="weapon-stats">
-      <Tooltip v-if="weapon.stats.attack > 0" title="⚔️ 攻撃力" content="物理ダメージに影響">
-        <span class="stat" :class="statClass('attack')">
-          ⚔️ {{ formatStatValue(weapon.stats.attack) }}
-          <span v-if="hasDiff('attack')" class="stat-diff">{{ formatDiff('attack') }}</span>
-        </span>
-      </Tooltip>
-      <Tooltip v-if="weapon.stats.magic > 0" title="✨ 魔法力" content="魔法ダメージに影響">
-        <span class="stat" :class="statClass('magic')">
-          ✨ {{ formatStatValue(weapon.stats.magic) }}
-          <span v-if="hasDiff('magic')" class="stat-diff">{{ formatDiff('magic') }}</span>
-        </span>
-      </Tooltip>
-      <Tooltip v-if="weapon.stats.speed > 0" title="⚡ 速度" content="攻撃順序と頻度に影響">
-        <span class="stat" :class="statClass('speed')">
-          ⚡ {{ formatStatValue(weapon.stats.speed) }}
-          <span v-if="hasDiff('speed')" class="stat-diff">{{ formatDiff('speed') }}</span>
-        </span>
-      </Tooltip>
-      <Tooltip v-if="weapon.stats.critChance > 0" title="🎯 クリティカル率" content="クリティカルヒットの発生確率">
-        <span class="stat" :class="statClass('critChance')">
-          🎯 {{ formatStatValue(weapon.stats.critChance) }}%
-          <span v-if="hasDiff('critChance')" class="stat-diff">{{ formatDiff('critChance') }}%</span>
-        </span>
-      </Tooltip>
-      <Tooltip v-if="weapon.stats.critDamage > 1" title="💥 クリティカルダメージ" content="クリティカル時のダメージ倍率">
-        <span class="stat" :class="statClass('critDamage')">
-          💥 {{ formatStatValue(weapon.stats.critDamage) }}x
-          <span v-if="hasDiff('critDamage')" class="stat-diff">{{ formatDiff('critDamage') }}</span>
-        </span>
-      </Tooltip>
-      <Tooltip v-if="weapon.stats.statusPower > 0" title="🧿 状態異常威力" content="状態異常の効果を強化">
-        <span class="stat" :class="statClass('statusPower')">
-          🧿 {{ formatStatValue(weapon.stats.statusPower) }}
-          <span v-if="hasDiff('statusPower')" class="stat-diff">{{ formatDiff('statusPower') }}</span>
-        </span>
-      </Tooltip>
+      <div class="stat-group">
+        <Tooltip v-if="weapon.stats.attack > 0" title="⚔️ 攻撃力" content="物理ダメージに影響">
+          <span class="stat" :class="statClass('attack')">
+            ⚔️ {{ formatStatValue(weapon.stats.attack) }}
+            <span v-if="hasDiff('attack')" class="stat-diff">{{ formatDiff('attack') }}</span>
+          </span>
+        </Tooltip>
+        <Tooltip v-if="weapon.stats.magic > 0" title="✨ 魔法力" content="魔法ダメージに影響">
+          <span class="stat" :class="statClass('magic')">
+            ✨ {{ formatStatValue(weapon.stats.magic) }}
+            <span v-if="hasDiff('magic')" class="stat-diff">{{ formatDiff('magic') }}</span>
+          </span>
+        </Tooltip>
+        <Tooltip v-if="weapon.stats.speed > 0" title="⚡ 速度" content="攻撃順序と頻度に影響">
+          <span class="stat" :class="statClass('speed')">
+            ⚡ {{ formatStatValue(weapon.stats.speed) }}
+            <span v-if="hasDiff('speed')" class="stat-diff">{{ formatDiff('speed') }}</span>
+          </span>
+        </Tooltip>
+        <Tooltip v-if="weapon.stats.statusPower > 0" title="🧿 状態異常威力" content="状態異常の効果を強化">
+          <span class="stat" :class="statClass('statusPower')">
+            🧿 {{ formatStatValue(weapon.stats.statusPower) }}
+            <span v-if="hasDiff('statusPower')" class="stat-diff">{{ formatDiff('statusPower') }}</span>
+          </span>
+        </Tooltip>
+      </div>
+
+      <div class="stat-group substats">
+        <Tooltip v-if="weapon.stats.critChance > 0" title="🎯 クリティカル率" content="クリティカルヒットの発生確率（武器ごと判定）">
+          <span class="stat" :class="statClass('critChance')">
+            🎯 {{ formatStatValue(weapon.stats.critChance) }}%
+            <span v-if="hasDiff('critChance')" class="stat-diff">{{ formatDiff('critChance') }}%</span>
+          </span>
+        </Tooltip>
+        <Tooltip v-if="weapon.stats.critDamage > 100" title="💥 クリティカルダメージ" content="クリティカル時のダメージ倍率（武器ごと判定）">
+          <span class="stat" :class="statClass('critDamage')">
+            💥 {{ formatStatValue(weapon.stats.critDamage) }}%
+            <span v-if="hasDiff('critDamage')" class="stat-diff">{{ formatDiff('critDamage') }}%</span>
+          </span>
+        </Tooltip>
+        <Tooltip v-if="weapon.stats.lifeSteal" title="🩸 ライフスティール" content="与ダメージの一定割合を回復（武器ごと判定）">
+          <span class="stat" :class="statClass('lifeSteal')">
+            🩸 {{ formatStatValue(weapon.stats.lifeSteal || 0) }}%
+            <span v-if="hasDiff('lifeSteal')" class="stat-diff">{{ formatDiff('lifeSteal') }}%</span>
+          </span>
+        </Tooltip>
+      </div>
     </div>
 
     <div class="weapon-tags-effects">
@@ -145,7 +156,9 @@ const hasDiff = (key: keyof Weapon['stats']) => props.compareTo !== undefined &&
 
 const statDiff = (key: keyof Weapon['stats']) => {
   if (!props.compareTo) return 0
-  const diffRaw = props.weapon.stats[key] - props.compareTo.stats[key]
+  const lhs = props.weapon.stats[key] ?? 0
+  const rhs = props.compareTo?.stats[key] ?? 0
+  const diffRaw = lhs - rhs
   const rounded = Math.round(diffRaw * 100) / 100
   if (rounded !== 0) return rounded
   return Math.round(minDisplay(diffRaw) * 100) / 100

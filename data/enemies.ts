@@ -17,6 +17,8 @@ export interface EnemyTemplate {
     speed: number
     statusPower?: number
     lifeSteal?: number
+    critChance?: number
+    critDamage?: number
     hpMultiplier: number
   }
 }
@@ -143,6 +145,7 @@ export const enemyTemplates: EnemyTemplate[] = [
     actionPool: [
       { type: 'attack', weight: 6, name: '通常攻撃' },
       { type: 'defend', weight: 3, name: '防御' },
+      { type: 'status', weight: 2, effects: [{ type: 'power', chance: 100, stacks: 1, duration: 2, target: 'self' }], name: '力強さ' },
       { type: 'nothing', weight: 1, name: '様子を見る' }
     ],
     baseStats: { attack: 26, magic: 0, defense: 20, magicDefense: 8, speed: 8, hpMultiplier: 4.5 }
@@ -167,7 +170,8 @@ export const enemyTemplates: EnemyTemplate[] = [
     actionPool: [
       { type: 'attack', weight: 6, name: '通常攻撃', attackType: 'magic' },
       { type: 'defend', weight: 3, name: '防御' },
-      { type: 'nothing', weight: 1, name: '様子を見る' }
+      { type: 'status', weight: 1, effects: [{ type: 'intellect', chance: 100, stacks: 1, duration: 2, target: 'self' }], name: '魔力高揚' },
+      { type: 'dispel', weight: 1, name: 'ディスペル', logStyle: 'status' }
     ],
     baseStats: { attack: 19, magic: 15, defense: 10, magicDefense: 12, speed: 16, hpMultiplier: 3.4 }
   },
@@ -269,17 +273,14 @@ export const enemyTemplates: EnemyTemplate[] = [
     id: 'lich',
     baseName: 'リッチ',
     type: 'undead',
-    traits: {
-      physicalResistance: 30,
-      magicalResistance: 20,
-      statusImmunities: ['poison', 'bleed']
-    },
+    traits: { physicalResistance: 30, magicalResistance: 20, statusImmunities: ['poison', 'bleed'] },
     actionPool: [
       { type: 'attack', weight: 6, name: '通常攻撃', attackType: 'magic' },
       { type: 'defend', weight: 3, name: '防御' },
-      { type: 'nothing', weight: 1, name: '様子を見る' },
+      { type: 'status', weight: 2, effects: [{ type: 'barrier', chance: 100, stacks: 3, duration: 3, target: 'self' }], name: 'バリア' },
       { type: 'status', weight: 1, effects: [{ type: 'fear', chance: 40, stacks: 1, duration: 4 }], name: '恐怖' },
-      { type: 'status', weight: 1, effects: [{ type: 'stun', chance: 20, stacks: 1, duration: 2 }], name: '気絶' }
+      { type: 'status', weight: 1, effects: [{ type: 'stun', chance: 20, stacks: 1, duration: 2 }], name: '気絶' },
+      { type: 'dispel', weight: 1, name: 'ディスペル', logStyle: 'status' }
     ],
     baseStats: { attack: 13, magic: 29, defense: 12, magicDefense: 24, speed: 10, hpMultiplier: 4.0 }
   },
@@ -307,7 +308,8 @@ export const enemyTemplates: EnemyTemplate[] = [
     actionPool: [
       { type: 'attack', weight: 6, name: '通常攻撃' },
       { type: 'defend', weight: 3, name: '防御' },
-      { type: 'status', weight: 1, effects: [{ type: 'burn', chance: 45, stacks: 2, duration: 3 }], name: '灼熱斬り' }
+      { type: 'status', weight: 1, effects: [{ type: 'power', chance: 100, stacks: 2, duration: 2, target: 'self' }], name: '力強さ強化' },
+      { type: 'attack', weight: 1, effects: [{ type: 'burn', chance: 40, stacks: 1, duration: 4 }], name: '灼熱斬り', damage: { stat: 'attack', multiplier: 1.0, variance: 0.2 }, logStyle: 'special' },
     ],
     baseStats: { attack: 30, magic: 10, defense: 18, magicDefense: 14, speed: 14, hpMultiplier: 4.0 }
   },
@@ -633,9 +635,10 @@ export const enemyTemplates: EnemyTemplate[] = [
     },
     actionPool: [
       { type: 'attack', weight: 6, name: '通常攻撃', attackType: 'physical' },
-      { type: 'defend', weight: 3, name: '防御' },
-      { type: 'status', weight: 1, effects: [{ type: 'burn', chance: 40, stacks: 2, duration: 3 }], name: '火炎の息吹', damage: { stat: 'attack', multiplier: 1.2, variance: 0.25 }, logStyle: 'special' },
-      { type: 'status', weight: 1, effects: [{ type: 'bleed', chance: 30, stacks: 1, duration: 3 }], name: '鉤爪', damage: { stat: 'attack', multiplier: 1.0, variance: 0.2 }, logStyle: 'special' }
+      { type: 'defend', weight: 2, name: '防御' },
+      { type: 'status', weight: 2, effects: [{ type: 'power', chance: 100, stacks: 2, duration: 2, target: 'self' }], name: '力強さ強化' },
+      { type: 'attack', weight: 1, effects: [{ type: 'burn', chance: 40, stacks: 2, duration: 3 }], name: '火炎の息吹', damage: { stat: 'attack', multiplier: 1.2, variance: 0.25 }, logStyle: 'special' },
+      { type: 'attack', weight: 1, effects: [{ type: 'bleed', chance: 30, stacks: 1, duration: 3 }], name: '鉤爪', damage: { stat: 'attack', multiplier: 1.0, variance: 0.2 }, logStyle: 'special' }
     ],
     baseStats: { attack: 40, magic: 26, defense: 28, magicDefense: 24, speed: 14, hpMultiplier: 5.0 }
   },
@@ -647,7 +650,7 @@ export const enemyTemplates: EnemyTemplate[] = [
     actionPool: [
       { type: 'attack', weight: 6, name: '通常攻撃' },
       { type: 'defend', weight: 3, name: '防御' },
-      { type: 'status', weight: 2, effects: [], name: '吸血攻撃', damage: { stat: 'attack', multiplier: 1.0, variance: 0.2 }, lifeStealPercent: 30, logStyle: 'special' }
+      { type: 'attack', weight: 2, effects: [], name: '吸血攻撃', damage: { stat: 'attack', multiplier: 1.0, variance: 0.2 }, lifeStealPercent: 30, logStyle: 'special' }
     ],
     baseStats: { attack: 36, magic: 13, defense: 26, magicDefense: 18, speed: 14, hpMultiplier: 4.8, lifeSteal: 3 }
   },
@@ -672,8 +675,8 @@ export const enemyTemplates: EnemyTemplate[] = [
     actionPool: [
       { type: 'attack', weight: 6, name: '通常攻撃' },
       { type: 'defend', weight: 3, name: '防御' },
-      { type: 'status', weight: 1, effects: [{ type: 'fear', chance: 50, stacks: 1, duration: 4 }], name: '混沌の視線', damage: { stat: 'magic', multiplier: 1.1, variance: 0.25 }, logStyle: 'special' },
-      { type: 'status', weight: 1, effects: [{ type: 'stun', chance: 35, stacks: 1, duration: 2 }], name: '精神崩落', damage: { stat: 'magic', multiplier: 1.0, variance: 0.25 }, logStyle: 'special' }
+      { type: 'attack', weight: 1, effects: [{ type: 'fear', chance: 50, stacks: 1, duration: 4 }], name: '混沌の視線', damage: { stat: 'magic', multiplier: 1.1, variance: 0.25 }, logStyle: 'special' },
+      { type: 'attack', weight: 1, effects: [{ type: 'stun', chance: 35, stacks: 1, duration: 2 }], name: '精神崩落', damage: { stat: 'magic', multiplier: 1.0, variance: 0.25 }, logStyle: 'special' }
     ],
     baseStats: { attack: 30, magic: 38, defense: 22, magicDefense: 30, speed: 16, hpMultiplier: 5.2 }
   },
@@ -687,12 +690,13 @@ export const enemyTemplates: EnemyTemplate[] = [
       statusImmunities: ['poison']
     },
     actionPool: [
-      { type: 'attack', weight: 6, name: '通常攻撃', attackType: 'physical' },
-      { type: 'defend', weight: 3, name: '防御' },
-      { type: 'status', weight: 1, effects: [{ type: 'burn', chance: 50, stacks: 3, duration: 4 }], name: '紅蓮のブレス', damage: { stat: 'attack', multiplier: 1.3, variance: 0.3 }, logStyle: 'special' },
-      { type: 'status', weight: 1, effects: [{ type: 'bleed', chance: 40, stacks: 2, duration: 4 }], name: '裂傷の尾撃', damage: { stat: 'attack', multiplier: 1.1, variance: 0.25 }, logStyle: 'special' },
-      { type: 'status', weight: 1, effects: [{ type: 'fear', chance: 30, stacks: 1, duration: 3 }], name: '威圧の咆哮', damage: { stat: 'attack', multiplier: 1.0, variance: 0.2 }, logStyle: 'special' },
-      { type: 'status', weight: 2, effects: [], name: '生命吸収', damage: { stat: 'attack', multiplier: 1.1, variance: 0.2 }, lifeStealPercent: 35, logStyle: 'special' }
+      { type: 'attack', weight: 6, name: '通常攻撃', attackType: 'magic' },
+      { type: 'defend', weight: 2, name: '防御' },
+      { type: 'status', weight: 2, effects: [{ type: 'barrier', chance: 100, stacks: 5, duration: 3, target: 'self' }], name: 'アーマー強化', logStyle: 'status' },
+      { type: 'attack', weight: 1, effects: [{ type: 'burn', chance: 50, stacks: 3, duration: 4 }], name: '紅蓮のブレス', damage: { stat: 'attack', multiplier: 1.3, variance: 0.3 }, logStyle: 'special' },
+      { type: 'attack', weight: 1, effects: [{ type: 'bleed', chance: 40, stacks: 2, duration: 4 }], name: '裂傷の尾撃', damage: { stat: 'attack', multiplier: 1.1, variance: 0.25 }, logStyle: 'special' },
+      { type: 'attack', weight: 1, effects: [{ type: 'fear', chance: 30, stacks: 1, duration: 3 }], name: '威圧の咆哮', damage: { stat: 'attack', multiplier: 1.0, variance: 0.2 }, logStyle: 'special' },
+      { type: 'attack', weight: 2, effects: [], name: '生命吸収', damage: { stat: 'attack', multiplier: 1.1, variance: 0.2 }, lifeStealPercent: 35, logStyle: 'special' }
     ],
     baseStats: { attack: 48, magic: 34, defense: 34, magicDefense: 30, speed: 16, hpMultiplier: 5.8, lifeSteal: 4 }
   },
@@ -711,8 +715,8 @@ export const enemyTemplates: EnemyTemplate[] = [
     actionPool: [
       { type: 'attack', weight: 6, name: '通常攻撃' },
       { type: 'defend', weight: 3, name: '防御' },
-      { type: 'status', weight: 1, effects: [{ type: 'burn', chance: 45, stacks: 2, duration: 3 }], name: '虚空のブレス', damage: { stat: 'attack', multiplier: 1.2, variance: 0.3 }, logStyle: 'special' },
-      { type: 'status', weight: 2, effects: [], name: '虚無の吸収', damage: { stat: 'attack', multiplier: 1.0, variance: 0.2 }, lifeStealPercent: 30, logStyle: 'special' }
+      { type: 'attack', weight: 1, effects: [{ type: 'burn', chance: 45, stacks: 2, duration: 3 }], name: '虚空のブレス', damage: { stat: 'attack', multiplier: 1.2, variance: 0.3 }, logStyle: 'special' },
+      { type: 'attack', weight: 2, effects: [], name: '虚無の吸収', damage: { stat: 'attack', multiplier: 1.0, variance: 0.2 }, lifeStealPercent: 30, logStyle: 'special' }
     ],
     baseStats: { attack: 42, magic: 32, defense: 30, magicDefense: 28, speed: 16, hpMultiplier: 6.0, lifeSteal: 3 }
   },
@@ -728,7 +732,7 @@ export const enemyTemplates: EnemyTemplate[] = [
     actionPool: [
       { type: 'attack', weight: 6, name: '通常攻撃', attackType: 'magic' },
       { type: 'defend', weight: 3, name: '防御' },
-      { type: 'status', weight: 1, effects: [{ type: 'stun', chance: 50, stacks: 1, duration: 2 }], name: '幽界の衝撃', damage: { stat: 'magic', multiplier: 1.1, variance: 0.25 }, logStyle: 'special' }
+      { type: 'attack', weight: 1, effects: [{ type: 'stun', chance: 50, stacks: 1, duration: 2 }], name: '幽界の衝撃', damage: { stat: 'magic', multiplier: 1.1, variance: 0.25 }, logStyle: 'special' }
     ],
     baseStats: { attack: 16, magic: 44, defense: 16, magicDefense: 36, speed: 16, hpMultiplier: 4.8 }
   },
@@ -760,9 +764,9 @@ export const enemyTemplates: EnemyTemplate[] = [
     actionPool: [
       { type: 'attack', weight: 6, name: '通常攻撃' },
       { type: 'defend', weight: 3, name: '防御' },
-      { type: 'status', weight: 1, effects: [{ type: 'burn', chance: 50, stacks: 3, duration: 5 }], name: '永遠の炎', damage: { stat: 'attack', multiplier: 1.3, variance: 0.3 }, logStyle: 'special' },
-      { type: 'status', weight: 1, effects: [{ type: 'fear', chance: 40, stacks: 1, duration: 4 }], name: '尊厳の威圧', damage: { stat: 'attack', multiplier: 1.0, variance: 0.2 }, logStyle: 'special' },
-      { type: 'status', weight: 2, effects: [], name: '永遠の吸収', damage: { stat: 'attack', multiplier: 1.1, variance: 0.2 }, lifeStealPercent: 40, logStyle: 'special' }
+      { type: 'attack', weight: 1, effects: [{ type: 'burn', chance: 50, stacks: 3, duration: 5 }], name: '永遠の炎', damage: { stat: 'attack', multiplier: 1.3, variance: 0.3 }, logStyle: 'special' },
+      { type: 'attack', weight: 1, effects: [{ type: 'fear', chance: 40, stacks: 1, duration: 4 }], name: '尊厳の威圧', damage: { stat: 'attack', multiplier: 1.0, variance: 0.2 }, logStyle: 'special' },
+      { type: 'attack', weight: 2, effects: [], name: '永遠の吸収', damage: { stat: 'attack', multiplier: 1.1, variance: 0.2 }, lifeStealPercent: 40, logStyle: 'special' }
     ],
     baseStats: { attack: 46, magic: 34, defense: 34, magicDefense: 32, speed: 16, hpMultiplier: 5.8, lifeSteal: 4 }
   },
@@ -780,7 +784,7 @@ export const enemyTemplates: EnemyTemplate[] = [
     actionPool: [
       { type: 'attack', weight: 6, name: '通常攻撃' },
       { type: 'defend', weight: 3, name: '防御' },
-      { type: 'status', weight: 2, effects: [], name: '次元の吸収', damage: { stat: 'attack', multiplier: 1.0, variance: 0.2 }, lifeStealPercent: 25, logStyle: 'special' }
+      { type: 'attack', weight: 2, effects: [], name: '次元の吸収', damage: { stat: 'attack', multiplier: 1.0, variance: 0.2 }, lifeStealPercent: 25, logStyle: 'special' }
     ],
     baseStats: { attack: 36, magic: 28, defense: 32, magicDefense: 32, speed: 12, hpMultiplier: 5.8, lifeSteal: 3 }
   },
@@ -796,9 +800,9 @@ export const enemyTemplates: EnemyTemplate[] = [
     actionPool: [
       { type: 'attack', weight: 6, name: '通常攻撃', attackType: 'magic' },
       { type: 'defend', weight: 3, name: '防御' },
-      { type: 'status', weight: 1, effects: [{ type: 'fear', chance: 60, stacks: 2, duration: 4 }], name: '絶望の視線', damage: { stat: 'magic', multiplier: 1.1, variance: 0.25 }, logStyle: 'special' },
-      { type: 'status', weight: 1, effects: [{ type: 'stun', chance: 40, stacks: 1, duration: 2 }], name: '虚無の拘束', damage: { stat: 'magic', multiplier: 1.0, variance: 0.2 }, logStyle: 'special' },
-      { type: 'status', weight: 2, effects: [], name: '存在の吸収', damage: { stat: 'magic', multiplier: 1.1, variance: 0.2 }, lifeStealPercent: 35, logStyle: 'special' }
+      { type: 'attack', weight: 1, effects: [{ type: 'fear', chance: 60, stacks: 2, duration: 4 }], name: '絶望の視線', damage: { stat: 'magic', multiplier: 1.1, variance: 0.25 }, logStyle: 'special' },
+      { type: 'attack', weight: 1, effects: [{ type: 'stun', chance: 40, stacks: 1, duration: 2 }], name: '虚無の拘束', damage: { stat: 'magic', multiplier: 1.0, variance: 0.2 }, logStyle: 'special' },
+      { type: 'attack', weight: 2, effects: [], name: '存在の吸収', damage: { stat: 'magic', multiplier: 1.1, variance: 0.2 }, lifeStealPercent: 35, logStyle: 'special' }
     ],
     baseStats: { attack: 42, magic: 46, defense: 32, magicDefense: 34, speed: 16, hpMultiplier: 5.8, lifeSteal: 4 }
   },
@@ -812,10 +816,70 @@ export const enemyTemplates: EnemyTemplate[] = [
     actionPool: [
       { type: 'attack', weight: 6, name: '通常攻撃', attackType: 'magic' },
       { type: 'defend', weight: 3, name: '防御' },
-      { type: 'status', weight: 2, effects: [], name: '無限の吸収', damage: { stat: 'magic', multiplier: 1.1, variance: 0.2 }, lifeStealPercent: 40, logStyle: 'special' }
+      { type: 'attack', weight: 2, effects: [], name: '無限の吸収', damage: { stat: 'magic', multiplier: 1.1, variance: 0.2 }, lifeStealPercent: 40, logStyle: 'special' }
     ],
     baseStats: { attack: 44, magic: 44, defense: 30, magicDefense: 36, speed: 18, hpMultiplier: 5.5, lifeSteal: 4 }
-  }
+  },
+
+  // ========== 超究極難易度専用敵 (Lv1500-2000) ==========
+  {
+    id: 'time_god',
+    baseName: '時の神',
+    type: 'divine',
+    traits: {
+      statusImmunities: ['poison', 'bleed', 'burn', 'frozen', 'stun', 'curse', 'sleep'],
+      physicalResistance: 35,
+      magicalResistance: 35,
+      resistancePenetration: 25
+    },
+    actionPool: [
+      { type: 'attack', weight: 4, name: '通常攻撃' },
+      { type: 'defend', weight: 2, name: '時間停止防御' },
+      { type: 'attack', weight: 3, effects: [{ type: 'stun', chance: 60, stacks: 2, duration: 3 }], name: '時間停止', damage: { stat: 'magic', multiplier: 0.8, variance: 0.2 }, logStyle: 'special' },
+      { type: 'attack', weight: 2, effects: [{ type: 'curse', chance: 50, stacks: 2, duration: 4 }], name: '永遠の呪い', damage: { stat: 'magic', multiplier: 1.0, variance: 0.2 }, logStyle: 'special' },
+      { type: 'attack', weight: 2, effects: [], name: '時の吸収', damage: { stat: 'magic', multiplier: 1.2, variance: 0.3 }, lifeStealPercent: 50, logStyle: 'special' }
+    ],
+    baseStats: { attack: 50, magic: 52, defense: 38, magicDefense: 40, speed: 20, hpMultiplier: 6.5, lifeSteal: 5, statusPower: 15 }
+  },
+  {
+    id: 'space_wraith',
+    baseName: '空間の怨霊',
+    type: 'undead',
+    traits: {
+      statusImmunities: ['poison', 'bleed', 'burn', 'frozen', 'sleep'],
+      physicalResistance: 40,
+      magicalResistance: 40,
+      resistancePenetration: 30
+    },
+    actionPool: [
+      { type: 'attack', weight: 5, name: '通常攻撃', attackType: 'magic' },
+      { type: 'defend', weight: 2, name: '空間扭曲防御' },
+      { type: 'attack', weight: 3, effects: [{ type: 'curse', chance: 55, stacks: 2, duration: 3 }], name: '空間の裂け目', damage: { stat: 'magic', multiplier: 1.1, variance: 0.25 }, logStyle: 'special' },
+      { type: 'attack', weight: 2, effects: [{ type: 'stun', chance: 45, stacks: 1, duration: 2 }], name: '空間転送', damage: { stat: 'magic', multiplier: 0.9, variance: 0.2 }, logStyle: 'special' },
+      { type: 'attack', weight: 2, effects: [], name: '空間侵食', damage: { stat: 'magic', multiplier: 1.15, variance: 0.3 }, lifeStealPercent: 45, logStyle: 'special' }
+    ],
+    baseStats: { attack: 48, magic: 54, defense: 35, magicDefense: 42, speed: 22, hpMultiplier: 6.2, lifeSteal: 5, statusPower: 16 }
+  },
+  {
+    id: 'chaos_incarnate',
+    baseName: 'カオスの具現化',
+    type: 'elemental',
+    traits: {
+      statusImmunities: ['poison', 'bleed', 'burn', 'frozen', 'stun', 'curse', 'sleep', 'petrification'],
+      physicalResistance: 45,
+      magicalResistance: 45,
+      resistancePenetration: 35
+    },
+    actionPool: [
+      { type: 'attack', weight: 3, name: '通常攻撃' },
+      { type: 'defend', weight: 1, name: 'カオス防壁' },
+      { type: 'status', weight: 2, effects: [{ type: 'barrier', chance: 100, stacks: 8, duration: 2, target: 'self' }], name: 'カオス防護', logStyle: 'status' },
+      { type: 'attack', weight: 4, effects: [{ type: 'curse', chance: 65, stacks: 3, duration: 4 }], name: 'カオスの矛', damage: { stat: 'magic', multiplier: 1.3, variance: 0.35 }, logStyle: 'special' },
+      { type: 'attack', weight: 3, effects: [{ type: 'stun', chance: 50, stacks: 2, duration: 3 }, { type: 'curse', chance: 40, stacks: 1, duration: 2 }], name: 'カオスの嵐', damage: { stat: 'magic', multiplier: 1.2, variance: 0.3 }, logStyle: 'special' },
+      { type: 'attack', weight: 2, effects: [], name: 'カオスの吸収', damage: { stat: 'magic', multiplier: 1.25, variance: 0.3 }, lifeStealPercent: 55, logStyle: 'special' }
+    ],
+    baseStats: { attack: 52, magic: 56, defense: 36, magicDefense: 44, speed: 24, hpMultiplier: 6.8, lifeSteal: 6, statusPower: 18 }
+  },
 ]
 
 // 敵IDのユニオン型

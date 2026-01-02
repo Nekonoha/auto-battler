@@ -16,11 +16,14 @@ export type StatusEffectEffectKey =
   | 'damageTakenModifier'
   | 'reflectPercent'
   | 'critChanceModifier'
+  | 'lifeStealModifier'
 
 interface StatusSpecialEffects {
   lifeStealPercent?: number
   /** 受けたダメージを割合で反射（thorn 用） */
   reflectPercent?: number
+  /** バリア吸収量（1スタックあたり） */
+  barrierPerStack?: number
 }
 
 export interface StatusEffectDefinition {
@@ -53,6 +56,7 @@ export interface StatusEffectDefinition {
     speedModifier?: number        // 速度に対する修正
     damageTakenModifier?: number  // 被ダメージ修正（+25 = +25%）
     critChanceModifier?: number   // クリティカル率に対する修正（15 = +15%）
+    lifeStealModifier?: number    // ライフスティール修正（%）
     // 特殊効果
     breakOnDamage?: boolean       // ダメージで解除（sleep用）
     cannotAct?: boolean           // 行動不能（stun, sleep, frozen, petrification用）
@@ -198,6 +202,42 @@ export const STATUS_EFFECTS_DB: Record<StatusEffectType, StatusEffectDefinition>
     },
     stackable: true,
     maxStack: 4,
+    refreshRule: 'add'
+  },
+
+  debuffImmunity: {
+    id: 'debuffImmunity',
+    type: 'Buff',
+    category: 'Enhancement',
+    name: '弱体無効',
+    tag: 'Debuff Guard',
+    icon: '🛡️',
+    color: '#1abc9c',
+    description: '次に受けるデバフを無効化し、効果が消える',
+    flavor: '守護の加護が弱体を弾く',
+    numbers: 'デバフを1回無効化/スタック (消費型)',
+    effects: {},
+    stackable: true,
+    maxStack: 5,
+    refreshRule: 'add'
+  },
+
+  barrier: {
+    id: 'barrier',
+    type: 'Buff',
+    category: 'Enhancement',
+    name: 'バリア',
+    tag: 'Barrier',
+    icon: '🛡️',
+    color: '#6dd5ed',
+    description: '一定量のダメージを肩代わりするシールド',
+    flavor: '光の膜が衝撃を吸収する',
+    numbers: '1スタックあたり15ダメージを吸収 (最大999スタック)',
+    effects: {
+      barrierPerStack: 15
+    },
+    stackable: true,
+    maxStack: 999,
     refreshRule: 'add'
   },
 
@@ -566,7 +606,7 @@ export const STATUS_EFFECTS_DB: Record<StatusEffectType, StatusEffectDefinition>
     id: 'kissed',
     type: 'Debuff',
     category: 'Damage',
-    name: '口付け',
+    name: '血の口づけ',
     tag: 'Kissed',
     icon: '💋',
     color: '#e91e63',
@@ -642,6 +682,63 @@ export const STATUS_EFFECTS_DB: Record<StatusEffectType, StatusEffectDefinition>
     maxStack: 6,
     maxDuration: 4,
     refreshRule: 'add'
+  },
+
+  curse: {
+    id: 'curse',
+    type: 'Debuff',
+    category: 'Modifier',
+    name: '呪い',
+    tag: 'Curse',
+    icon: '☠️',
+    color: '#6c5ce7',
+    description: '呪いに蝕まれ、力と防御が削がれる',
+    numbers: '被ダメージ +12%/スタック\n攻撃力 -6%/スタック\n魔法力 -6%/スタック\n(最大4スタック)',
+    effects: {
+      damageTakenModifier: 12,
+      attackModifier: -6,
+      magicModifier: -6
+    },
+    stackable: true,
+    maxStack: 4,
+    maxDuration: 4,
+    refreshRule: 'add'
+  },
+
+  grievousWound: {
+    id: 'grievousWound',
+    type: 'Debuff',
+    category: 'Modifier',
+    name: '重症',
+    tag: 'Grievous Wound',
+    icon: '🩹',
+    color: '#c0392b',
+    description: '傷口が開き、吸収がほとんど効かなくなる',
+    numbers: 'ライフスティール -25%/スタック (最大4スタック)',
+    effects: {
+      lifeStealModifier: -25
+    },
+    stackable: true,
+    maxStack: 4,
+    maxDuration: 4,
+    refreshRule: 'add'
+  },
+
+  dispel: {
+    id: 'dispel',
+    type: 'Debuff',
+    category: 'Modifier',
+    name: 'ディスペル',
+    tag: 'Dispel',
+    icon: '✨',
+    color: '#95a5a6',
+    description: '対象のバフを1つ打ち消す（バフが無ければ無効）',
+    numbers: 'バフを1つ除去し、即座に消滅',
+    effects: {},
+    stackable: false,
+    maxStack: 1,
+    maxDuration: 1,
+    refreshRule: 'refresh'
   },
 
   // ===== Debuffs: Composite & Additional Modifiers =====

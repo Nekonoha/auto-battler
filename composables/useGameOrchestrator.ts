@@ -104,9 +104,9 @@ export function useGameOrchestrator(
 
   // ゴールド報酬計算
   const calculateGoldReward = (foe: { level: number; tier: string }) => {
-    const base = 12 + foe.level * 6
-    const levelScale = Math.pow(1.04, Math.max(0, foe.level - 1))
-    const tierMultiplier = foe.tier === 'boss' ? 3 : foe.tier === 'named' ? 2.1 : foe.tier === 'elite' ? 1.4 : 1
+    const base = 5 + foe.level * 2.5
+    const levelScale = Math.pow(1.015, Math.max(0, foe.level - 1))
+    const tierMultiplier = foe.tier === 'boss' ? 2.2 : foe.tier === 'named' ? 1.5 : foe.tier === 'elite' ? 1.1 : 1
     return Math.floor(base * tierMultiplier * levelScale)
   }
 

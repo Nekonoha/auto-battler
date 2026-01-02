@@ -74,10 +74,6 @@ export function useWeaponFilters(availableWeapons: { value: Weapon[] }) {
       filtered.sort((a, b) => b.stats.magic - a.stats.magic)
     } else if (sortBy.value === 'speed') {
       filtered.sort((a, b) => b.stats.speed - a.stats.speed)
-    } else if (sortBy.value === 'defense') {
-      filtered.sort((a, b) => b.stats.defense - a.stats.defense)
-    } else if (sortBy.value === 'magicDefense') {
-      filtered.sort((a, b) => b.stats.magicDefense - a.stats.magicDefense)
     } else if (sortBy.value === 'critChance') {
       filtered.sort((a, b) => b.stats.critChance - a.stats.critChance)
     } else if (sortBy.value === 'critDamage') {

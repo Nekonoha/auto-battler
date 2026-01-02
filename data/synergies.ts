@@ -62,6 +62,18 @@ export const TAG_DEFINITIONS: Record<WeaponTag, TagDefinition> = {
     description: '防御力を高める武器。耐久性重視。',
     icon: '🛡️'
   },
+  supportive: {
+    id: 'supportive',
+    name: 'サポート',
+    description: 'サポート効果を持つ武器。バフと状態異常付与に優れる。',
+    icon: '✨'
+  },
+  holy: {
+    id: 'holy',
+    name: '聖なる',
+    description: '聖なる力を宿した武器。バリアとバフに優れる。',
+    icon: '✡️'
+  },
   versatile: {
     id: 'versatile',
     name: '万能',
@@ -105,9 +117,14 @@ export interface TagSynergy {
     magicBonus?: number      // 魔法力ボーナス（%）
     speedBonus?: number      // 速度ボーナス（%）
     critChanceBonus?: number // クリティカル率ボーナス（%）
-    critDamageBonus?: number // クリティカルダメージボーナス（%）
+    critDamageBonus?: number // クリティカルダメージボーナス（%の加算・スタック）
     statusPowerBonus?: number // 状態異常威力ボーナス（%）
     lifeStealBonus?: number  // ライフスティールボーナス（%）
+    physicalResistanceBonus?: number // 物理耐性ボーナス（%）
+    magicalResistanceBonus?: number  // 魔法耐性ボーナス（%）
+    statusResistanceBonus?: number   // 状態異常耐性ボーナス（%）
+    damageReductionBonus?: number    // 被ダメージ軽減ボーナス（%）
+    resistancePenetrationBonus?: number // 耐性貫通ボーナス（%）
   }
 }
 
@@ -120,8 +137,8 @@ export const TAG_SYNERGIES: TagSynergy[] = [
     requiredTags: ['fast'],
     stackable: true,
     effects: {
-      speedBonus: 20,
-      attackBonus: 8
+      speedBonus: 12,
+      attackBonus: 5
     }
   },
   {
@@ -131,8 +148,8 @@ export const TAG_SYNERGIES: TagSynergy[] = [
     requiredTags: ['heavy'],
     stackable: true,
     effects: {
-      attackBonus: 25,
-      critDamageBonus: 15
+      attackBonus: 15,
+      critDamageBonus: 10
     }
   },
   {
@@ -142,8 +159,8 @@ export const TAG_SYNERGIES: TagSynergy[] = [
     requiredTags: ['precise'],
     stackable: true,
     effects: {
-      critChanceBonus: 15,
-      critDamageBonus: 20
+      critChanceBonus: 10,
+      critDamageBonus: 12
     }
   },
   {
@@ -153,8 +170,8 @@ export const TAG_SYNERGIES: TagSynergy[] = [
     requiredTags: ['elemental'],
     stackable: true,
     effects: {
-      magicBonus: 20,
-      statusPowerBonus: 12
+      magicBonus: 12,
+      statusPowerBonus: 8
     }
   },
   {
@@ -164,9 +181,9 @@ export const TAG_SYNERGIES: TagSynergy[] = [
     requiredTags: ['cursed'],
     stackable: true,
     effects: {
-      attackBonus: 12,
-      magicBonus: 12,
-      statusPowerBonus: 18,
+      attackBonus: 8,
+      magicBonus: 8,
+      statusPowerBonus: 12,
       lifeStealBonus: 1
     }
   },
@@ -177,8 +194,8 @@ export const TAG_SYNERGIES: TagSynergy[] = [
     requiredTags: ['venomous'],
     stackable: true,
     effects: {
-      statusPowerBonus: 25,
-      magicBonus: 8
+      statusPowerBonus: 15,
+      magicBonus: 5
     }
   },
   {
@@ -188,9 +205,9 @@ export const TAG_SYNERGIES: TagSynergy[] = [
     requiredTags: ['bloodthirsty'],
     stackable: true,
     effects: {
-      attackBonus: 12,
-      statusPowerBonus: 20,
-      lifeStealBonus: 2
+      attackBonus: 8,
+      statusPowerBonus: 12,
+      lifeStealBonus: 1
     }
   },
   {
@@ -200,8 +217,8 @@ export const TAG_SYNERGIES: TagSynergy[] = [
     requiredTags: ['flame'],
     stackable: true,
     effects: {
-      magicBonus: 16,
-      statusPowerBonus: 24
+      magicBonus: 10,
+      statusPowerBonus: 14
     }
   },
   {
@@ -211,9 +228,9 @@ export const TAG_SYNERGIES: TagSynergy[] = [
     requiredTags: ['frost'],
     stackable: true,
     effects: {
-      magicBonus: 16,
-      statusPowerBonus: 20,
-      speedBonus: 8
+      magicBonus: 10,
+      statusPowerBonus: 12,
+      speedBonus: 5
     }
   },
   {
@@ -223,8 +240,8 @@ export const TAG_SYNERGIES: TagSynergy[] = [
     requiredTags: ['defensive'],
     stackable: true,
     effects: {
-      attackBonus: 8,
-      statusPowerBonus: 16
+      attackBonus: 5,
+      statusPowerBonus: 10
     }
   },
   {
@@ -234,9 +251,9 @@ export const TAG_SYNERGIES: TagSynergy[] = [
     requiredTags: ['healing'],
     stackable: true,
     effects: {
-      attackBonus: 12,
-      magicBonus: 12,
-      lifeStealBonus: 3
+      attackBonus: 8,
+      magicBonus: 8,
+      lifeStealBonus: 2
     }
   },
   {
@@ -246,10 +263,10 @@ export const TAG_SYNERGIES: TagSynergy[] = [
     requiredTags: ['versatile'],
     stackable: true,
     effects: {
-      attackBonus: 10,
-      magicBonus: 10,
-      speedBonus: 10,
-      critChanceBonus: 8
+      attackBonus: 6,
+      magicBonus: 6,
+      speedBonus: 6,
+      critChanceBonus: 5
     }
   },
 
@@ -365,17 +382,19 @@ export function calculateActiveSynergies(weaponTags: WeaponTag[][]): ActiveSyner
     }
   }
   
-  // 通常シナジーを処理（タグが1つ以上あればスタック）
+  // 通常シナジーを処理（同タグ2つ目からスタック開始）
   for (const synergy of normalSynergies) {
     const stackCount = synergy.requiredTags.reduce((max, tag) => {
       const count = tagCounts.get(tag) || 0
       return Math.max(max, count)
     }, 0)
 
-    if (stackCount > 0) {
+    const effectiveStacks = Math.max(0, stackCount - 1) // 2個目で1スタック目
+
+    if (effectiveStacks > 0) {
       activeSynergies.push({
         ...synergy,
-        stackCount: stackCount
+        stackCount: effectiveStacks
       })
     }
   }
@@ -417,7 +436,12 @@ export function getTotalSynergyBonus(synergies: ActiveSynergy[]): TagSynergy['ef
       critChanceBonus: (total.critChanceBonus || 0) + ((synergy.effects.critChanceBonus || 0) * multiplier),
       critDamageBonus: (total.critDamageBonus || 0) + ((synergy.effects.critDamageBonus || 0) * multiplier),
       statusPowerBonus: (total.statusPowerBonus || 0) + ((synergy.effects.statusPowerBonus || 0) * multiplier),
-      lifeStealBonus: (total.lifeStealBonus || 0) + ((synergy.effects.lifeStealBonus || 0) * multiplier)
+      lifeStealBonus: (total.lifeStealBonus || 0) + ((synergy.effects.lifeStealBonus || 0) * multiplier),
+      physicalResistanceBonus: (total.physicalResistanceBonus || 0) + ((synergy.effects.physicalResistanceBonus || 0) * multiplier),
+      magicalResistanceBonus: (total.magicalResistanceBonus || 0) + ((synergy.effects.magicalResistanceBonus || 0) * multiplier),
+      statusResistanceBonus: (total.statusResistanceBonus || 0) + ((synergy.effects.statusResistanceBonus || 0) * multiplier),
+      damageReductionBonus: (total.damageReductionBonus || 0) + ((synergy.effects.damageReductionBonus || 0) * multiplier),
+      resistancePenetrationBonus: (total.resistancePenetrationBonus || 0) + ((synergy.effects.resistancePenetrationBonus || 0) * multiplier)
     }
   }, {} as TagSynergy['effects'])
 }

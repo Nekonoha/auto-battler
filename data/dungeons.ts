@@ -323,5 +323,71 @@ export const dungeons: Dungeon[] = [
       resistanceTheme: { type: 'mixed', baseResistance: 35 },
       immunitiesTheme: ['poison', 'bleed', 'burn', 'frozen', 'stun', 'curse']
     }
+  },
+
+  // ========== 超究極難易度（Lv1500-2000）- 永遠の炎：全てを焼き尽くす終焉 ==========
+  {
+    id: 'eternal-inferno',
+    name: '永遠の炎',
+    description: '時間と空間を超えた永遠の炎。すべての物質を焼き尽くす。戻ることのない領域。',
+    levelRange: [1500, 2000],
+    prereq: 'void-nexus',
+    tierWeights: { normal: 0.2, elite: 0.3, named: 0.35, boss: 0.15 },
+    eliteChance: 0.38,
+    namedChance: 0.28,
+    lootWeights: { common: 0.1, rare: 0.25, epic: 0.3, legendary: 0.2, mythic: 0.12, 'mythic+': 0.03 },
+    chestLootWeights: { common: 0.08, rare: 0.22, epic: 0.32, legendary: 0.22, mythic: 0.13, 'mythic+': 0.03 },
+    chestChance: 0.25,
+    enemyPool: ['time_god', 'chaos_incarnate', 'space_wraith', 'void_ruler', 'eternal_dragon'],
+    bossId: 'chaos_incarnate',
+    characteristics: {
+      statusAffinity: { high: ['burn', 'curse', 'stun', 'bleed'], chance: 60 },
+      resistanceTheme: { type: 'mixed', baseResistance: 40 },
+      immunitiesTheme: ['poison', 'bleed', 'burn', 'frozen', 'stun', 'curse', 'sleep']
+    }
+  },
+
+  // ========== 最高難易度1（Lv1500-2000）- 時の迷宮 ==========
+  {
+    id: 'time-labyrinth',
+    name: '時の迷宮',
+    description: '時間そのものが敵である無限迷宮。時の神が支配する領域。',
+    levelRange: [1500, 2000],
+    prereq: 'eternal-inferno',
+    tierWeights: { normal: 0.15, elite: 0.25, named: 0.4, boss: 0.2 },
+    eliteChance: 0.4,
+    namedChance: 0.35,
+    lootWeights: { common: 0.05, rare: 0.15, epic: 0.25, legendary: 0.3, mythic: 0.2, 'mythic+': 0.05 },
+    chestLootWeights: { common: 0.03, rare: 0.12, epic: 0.25, legendary: 0.35, mythic: 0.2, 'mythic+': 0.05 },
+    chestChance: 0.3,
+    enemyPool: ['time_god', 'chaos_incarnate', 'space_wraith', 'void_ruler', 'eternal_dragon'],
+    bossId: 'time_god',
+    characteristics: {
+      statusAffinity: { high: ['stun', 'curse'], chance: 70 },
+      resistanceTheme: { type: 'mixed', baseResistance: 45 },
+      immunitiesTheme: ['poison', 'bleed', 'burn', 'frozen', 'stun', 'curse', 'sleep', 'petrification']
+    }
+  },
+
+  // ========== 最高難易度2（Lv1700-2200）- 虚空の境界 ==========
+  {
+    id: 'void-boundary',
+    name: '虚空の境界',
+    description: '存在と非存在の境界線。現実が崩壊する絶対領域。',
+    levelRange: [1700, 2200],
+    prereq: 'time-labyrinth',
+    tierWeights: { normal: 0.1, elite: 0.2, named: 0.45, boss: 0.25 },
+    eliteChance: 0.42,
+    namedChance: 0.4,
+    lootWeights: { common: 0.03, rare: 0.1, epic: 0.2, legendary: 0.3, mythic: 0.25, 'mythic+': 0.12 },
+    chestLootWeights: { common: 0.02, rare: 0.08, epic: 0.2, legendary: 0.35, mythic: 0.25, 'mythic+': 0.1 },
+    chestChance: 0.35,
+    enemyPool: ['chaos_incarnate', 'space_wraith', 'time_god', 'void_ruler', 'infinite_avatar'],
+    bossId: 'chaos_incarnate',
+    characteristics: {
+      statusAffinity: { high: ['curse', 'stun', 'bleed'], chance: 75 },
+      resistanceTheme: { type: 'mixed', baseResistance: 50 },
+      immunitiesTheme: ['poison', 'bleed', 'burn', 'frozen', 'stun', 'curse', 'sleep', 'petrification']
+    }
   }
 ]

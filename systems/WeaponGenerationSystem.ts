@@ -51,7 +51,7 @@ function applyStatModifiers(baseStats: WeaponStats, modifiers: any): WeaponStats
     magic: Math.round(baseStats.magic * (modifiers.magic || 1)),
     speed: Math.round(baseStats.speed * (modifiers.speed || 1)),
     critChance: Math.round(baseStats.critChance * (modifiers.critChance || 1)),
-    critDamage: Number((baseStats.critDamage * (modifiers.critDamage || 1)).toFixed(2)),
+    critDamage: Math.round(baseStats.critDamage * (modifiers.critDamage || 1)),
     statusPower: Math.round(baseStats.statusPower * (modifiers.statusPower || 1))
   }
 }
@@ -89,7 +89,7 @@ function applyRarityStatBonus(baseStats: WeaponStats, rarity: WeaponRarity): Wea
     magic: Math.round(baseStats.magic * multiplier),
     speed: Math.round(baseStats.speed * multiplier),
     critChance: Math.round(baseStats.critChance * multiplier),
-    critDamage: Number((baseStats.critDamage * multiplier).toFixed(2)),
+    critDamage: Math.round(baseStats.critDamage * multiplier),
     statusPower: Math.round(baseStats.statusPower * multiplier)
   }
 }
@@ -175,10 +175,10 @@ export function generateEnchantedWeapon(
   // 最大エンチャント数を決定
   const maxEnchantsByRarity: Record<string, number> = {
     common: 1,
-    rare: 2,
-    epic: 3,
-    legendary: 5,
-    mythic: 5
+    rare: 3,
+    epic: 5,
+    legendary: 7,
+    mythic: 10
   }
   const rarityRank = getRarityRank(baseWeapon.rarity)
   const mythicRank = getRarityRank('mythic')

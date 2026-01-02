@@ -2134,3 +2134,54 @@
   0% { opacity: 1; }
   100% { opacity: 0; }
 }
+/* アコーディオンスタイル */
+.section-header.accordion-header {
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  transition: background 0.2s ease;
+  flex-wrap: nowrap;
+  width: 100%;
+}
+
+.section-header.accordion-header:hover {
+  background: rgba(66, 165, 245, 0.1);
+  border-radius: 4px;
+}
+
+.section-header.accordion-header h3 {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.accordion-toggle {
+  display: inline-block;
+  transition: transform 0.2s ease;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.accordion {
+  border: 1px solid rgba(66, 165, 245, 0.2);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* 装備武器セクション用の調整 */
+.section-with-action .section-header.accordion-header {
+  flex-wrap: nowrap;
+}
+
+.section-with-action .slot-actions {
+  flex: 1 1 auto;
+  margin-left: auto;
+  justify-content: flex-end;
+}

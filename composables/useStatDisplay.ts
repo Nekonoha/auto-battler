@@ -11,7 +11,7 @@ import { calculateActiveSynergies, getTotalSynergyBonus } from '~/data/synergies
 export interface StatDetail {
   value: number
   base: number
-  synergy?: number
+  synergy: number
   buff: number
   debuff: number
   modifierPct: number
@@ -29,6 +29,12 @@ export interface TraitBonus {
 }
 
 type StatKey = keyof PlayerStats | keyof EnemyStats
+
+// クリティカル倍率を%表記に正規化（1.5 → 150）
+const toCritDamagePercent = (value: number): number => {
+  if (!value) return 0
+  return Math.round(value < 5 ? value * 100 : value)
+}
 
 /**
  * プレイヤーのステータス表示を計算
@@ -51,7 +57,7 @@ export function usePlayerStatDisplay(player: ComputedRef<Player> | Player) {
       magic: result.magicBonus || 0,
       speed: result.speedBonus || 0,
       critChance: result.critChanceBonus || 0,
-      critDamage: result.critDamageBonus || 0,
+      critDamage: result.critDamageBonus || 0,  // %値（加算）
       statusPower: result.statusPowerBonus || 0,
       lifeSteal: result.lifeStealBonus || 0
     }
@@ -65,15 +71,17 @@ export function usePlayerStatDisplay(player: ComputedRef<Player> | Player) {
     }
 
     // 武器の各ステータスを合計
+    // critChance は1回の攻撃で参照されるのは使用中の武器のみなので、合算ではなく最大値を表示
     return p.weapons.reduce((total, w) => ({
       attack: total.attack + (w.stats.attack || 0),
       magic: total.magic + (w.stats.magic || 0),
       speed: total.speed + (w.stats.speed || 0),
-      critChance: total.critChance + (w.stats.critChance || 0),
-      critDamage: Math.max(total.critDamage, w.stats.critDamage || 1),
+      // クリ率/クリダメ/ライフスティールは武器ごと判定なので集計しない（表示は基礎＋シナジー＋特性のみ）
+      critChance: total.critChance,
+      critDamage: total.critDamage,
       statusPower: total.statusPower + (w.stats.statusPower || 0),
-      lifeSteal: total.lifeSteal + (w.stats.lifeSteal || 0)
-    }), { attack: 0, magic: 0, speed: 0, critChance: 0, critDamage: 1, statusPower: 0, lifeSteal: 0 })
+      lifeSteal: total.lifeSteal
+    }), { attack: 0, magic: 0, speed: 0, critChance: 0, critDamage: 0, statusPower: 0, lifeSteal: 0 })
   })
 
   // ステータス詳細計算
@@ -90,22 +98,27 @@ export function usePlayerStatDisplay(player: ComputedRef<Player> | Player) {
       base = p.stats.statusPower || 0
     } else if (stat === 'lifeSteal') {
       base = p.stats.lifeSteal || 0
+    } else if (stat === 'critChance') {
+      base = p.stats.critChance || 0
+    } else if (stat === 'critDamage') {
+      base = toCritDamagePercent(p.stats.critDamage || 0)
     }
 
     // 武器ステータス
     const weaponStat = weaponStats.value[stat as keyof typeof weaponStats.value] || 0
     base += weaponStat
 
-    // シナジーボーナス（attack, magic, speed など）
+    // シナジーボーナス（加算）
     if (stat in synergyBonuses.value) {
-      synergy = synergyBonuses.value[stat as keyof typeof synergyBonuses.value]
+      const bonusValue = synergyBonuses.value[stat as keyof typeof synergyBonuses.value]
+      synergy = bonusValue
     }
 
-    // 状態異常による修正（ライフスティールは修正なし）
+    // 状態異常による修正（ライフスティール、クリティカル率、クリティカル倍率は修正なし）
     let buff = 0
     let debuff = 0
     let modifierPct = 0
-    if (stat !== 'lifeSteal') {
+    if (stat !== 'lifeSteal' && stat !== 'critChance' && stat !== 'critDamage') {
       const modifiers = StatusEffectSystem.getStatModifiers(p)
       modifierPct = modifiers[stat as keyof typeof modifiers] || 0
       const buffDebuffValue = Math.round(base * (modifierPct / 100))
@@ -116,12 +129,15 @@ export function usePlayerStatDisplay(player: ComputedRef<Player> | Player) {
       }
     }
 
-    const finalValue = Math.max(0, Math.round(base + synergy + buff - debuff))
+    const isCritDamage = stat === 'critDamage'
+    const finalValue = isCritDamage
+      ? Math.max(0, Math.round(base + synergy))  // クリダメは%表示（基礎倍率→%換算済みを前提）
+      : Math.max(0, Math.round(base + synergy + buff - debuff))
     const entries = StatusEffectSystem.getStatModifierEntries(p, stat as any)
 
     return {
       value: finalValue,
-      base,
+      base: isCritDamage ? base : Math.round(base),
       synergy,
       buff,
       debuff,
@@ -133,7 +149,7 @@ export function usePlayerStatDisplay(player: ComputedRef<Player> | Player) {
   // 全ステータス詳細
   const playerStatDetails = computed(() => {
     const stats: Partial<Record<StatKey, StatDetail>> = {}
-    const statKeys: StatKey[] = ['attack', 'magic', 'defense', 'magicDefense', 'speed', 'statusPower', 'lifeSteal']
+    const statKeys: StatKey[] = ['attack', 'magic', 'defense', 'magicDefense', 'speed', 'statusPower', 'lifeSteal', 'critChance', 'critDamage']
     
     for (const stat of statKeys) {
       stats[stat] = getEffectiveStat(stat)
@@ -169,13 +185,17 @@ export function useEnemyStatDisplay(enemy: ComputedRef<Enemy> | Enemy) {
       base = e.stats.statusPower || 0
     } else if (stat === 'lifeSteal') {
       base = e.stats.lifeSteal || 0
+    } else if (stat === 'critChance') {
+      base = e.stats.critChance || 0
+    } else if (stat === 'critDamage') {
+      base = toCritDamagePercent(e.stats.critDamage || 0)
     }
 
-    // 状態異常による修正（ライフスティールは修正なし）
+    // 状態異常による修正（ライフスティール、クリティカル率、クリティカル倍率は修正なし）
     let buff = 0
     let debuff = 0
     let modifierPct = 0
-    if (stat !== 'lifeSteal') {
+    if (stat !== 'lifeSteal' && stat !== 'critChance' && stat !== 'critDamage') {
       const modifiers = StatusEffectSystem.getStatModifiers(e)
       modifierPct = modifiers[stat as keyof typeof modifiers] || 0
       const buffDebuffValue = Math.round(base * (modifierPct / 100))
@@ -186,12 +206,15 @@ export function useEnemyStatDisplay(enemy: ComputedRef<Enemy> | Enemy) {
       }
     }
 
-    const finalValue = Math.max(0, Math.round(base + buff - debuff))
+    const finalValue = stat === 'critDamage'
+      ? Math.max(0, Math.round(base))  // クリダメは%表示（倍率ではなく%）
+      : Math.max(0, Math.round(base + buff - debuff))
     const entries = StatusEffectSystem.getStatModifierEntries(e, stat as any)
 
     return {
       value: finalValue,
-      base,
+      base: stat === 'critDamage' ? base : Math.round(base),
+      synergy: 0,
       buff,
       debuff,
       modifierPct,
@@ -202,7 +225,7 @@ export function useEnemyStatDisplay(enemy: ComputedRef<Enemy> | Enemy) {
   // 全ステータス詳細
   const enemyStatDetails = computed(() => {
     const stats: Partial<Record<StatKey, StatDetail>> = {}
-    const statKeys: StatKey[] = ['attack', 'magic', 'defense', 'magicDefense', 'speed', 'statusPower', 'lifeSteal']
+    const statKeys: StatKey[] = ['attack', 'magic', 'defense', 'magicDefense', 'speed', 'statusPower', 'lifeSteal', 'critChance', 'critDamage']
     
     for (const stat of statKeys) {
       stats[stat] = getEnemyStat(stat)
