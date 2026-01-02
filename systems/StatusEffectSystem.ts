@@ -307,26 +307,45 @@ export class StatusEffectSystem {
 
   /**
    * 状態異常耐性（%）を取得。個別ID > カテゴリ > all の順で適用。
+   * プレイヤーの場合は装備武器のtraitsからも加算。
    */
   private static getStatusResistance(unit: CombatUnit, def: StatusEffectDefinition): number {
     const traits = (unit as any).traits as EnemyTraits | undefined
     const resMap = traits?.statusResistances
-    if (!resMap) return 0
+    let baseResistance = 0
 
-    const byId = resMap[def.id]
-    if (byId !== undefined) return Math.max(0, byId)
+    if (resMap) {
+      const byId = resMap[def.id]
+      if (byId !== undefined) {
+        baseResistance = Math.max(0, byId)
+      } else {
+        const byCategory = def.category === 'Control'
+          ? resMap.control
+          : def.category === 'Damage'
+            ? resMap.damage
+            : def.category === 'Modifier'
+              ? resMap.modifier
+              : undefined
+        if (byCategory !== undefined) {
+          baseResistance = Math.max(0, byCategory)
+        } else {
+          const all = resMap.all
+          baseResistance = all ? Math.max(0, all) : 0
+        }
+      }
+    }
 
-    const byCategory = def.category === 'Control'
-      ? resMap.control
-      : def.category === 'Damage'
-        ? resMap.damage
-        : def.category === 'Modifier'
-          ? resMap.modifier
-          : undefined
-    if (byCategory !== undefined) return Math.max(0, byCategory)
+    // プレイヤーの武器traits（statusResistance）を加算
+    const weapons = (unit as any).weapons
+    if (weapons && Array.isArray(weapons)) {
+      for (const weapon of weapons) {
+        if (weapon.traits?.statusResistance) {
+          baseResistance += weapon.traits.statusResistance
+        }
+      }
+    }
 
-    const all = resMap.all
-    return all ? Math.max(0, all) : 0
+    return baseResistance
   }
 
   /**

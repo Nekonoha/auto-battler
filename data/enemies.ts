@@ -16,6 +16,7 @@ export interface EnemyTemplate {
     magicDefense: number
     speed: number
     statusPower?: number
+    lifeSteal?: number
     hpMultiplier: number
   }
 }

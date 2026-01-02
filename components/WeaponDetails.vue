@@ -86,6 +86,24 @@
         </div>
       </div>
     </div>
+
+    <div v-if="weapon.traits" class="weapon-traits">
+      <div class="trait-title">🛡️ 特性</div>
+      <div class="trait-list">
+        <Tooltip v-if="weapon.traits.physicalResistance" title="物理耐性" content="物理ダメージを軽減">
+          <span class="trait-item">🛡️ 物理耐性 {{ weapon.traits.physicalResistance }}%</span>
+        </Tooltip>
+        <Tooltip v-if="weapon.traits.magicalResistance" title="魔法耐性" content="魔法ダメージを軽減">
+          <span class="trait-item">🔮 魔法耐性 {{ weapon.traits.magicalResistance }}%</span>
+        </Tooltip>
+        <Tooltip v-if="weapon.traits.statusResistance" title="状態異常耐性" content="状態異常の効果を軽減">
+          <span class="trait-item">✨ 状態異常耐性 {{ weapon.traits.statusResistance }}%</span>
+        </Tooltip>
+        <Tooltip v-if="weapon.traits.damageReduction" title="ダメージ軽減" content="受けるダメージを軽減">
+          <span class="trait-item">💎 ダメージ軽減 {{ weapon.traits.damageReduction }}%</span>
+        </Tooltip>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -107,6 +125,13 @@ const props = defineProps<{
 
 const showDesc = computed(() => props.showDescription ?? !props.compact)
 
+const minDisplay = (value: number, threshold = 0.1) => {
+  if (value === 0) return 0
+  const abs = Math.abs(value)
+  if (abs < threshold) return threshold * Math.sign(value)
+  return value
+}
+
 const formatNumber = (value: number, decimals = 2) => {
   if (!Number.isFinite(value)) return '0'
   if (Math.abs(value - Math.round(value)) < 1e-6) return Math.round(value).toString()
@@ -119,8 +144,10 @@ const hasDiff = (key: keyof Weapon['stats']) => props.compareTo !== undefined &&
 
 const statDiff = (key: keyof Weapon['stats']) => {
   if (!props.compareTo) return 0
-  const diff = props.weapon.stats[key] - props.compareTo.stats[key]
-  return Math.round(diff * 100) / 100
+  const diffRaw = props.weapon.stats[key] - props.compareTo.stats[key]
+  const rounded = Math.round(diffRaw * 100) / 100
+  if (rounded !== 0) return rounded
+  return Math.round(minDisplay(diffRaw) * 100) / 100
 }
 
 const statClass = (key: keyof Weapon['stats']) => {
@@ -132,7 +159,8 @@ const statClass = (key: keyof Weapon['stats']) => {
 const formatDiff = (key: keyof Weapon['stats']) => {
   const diff = statDiff(key)
   if (diff === 0) return ''
-  const formatted = formatNumber(Math.abs(diff), 2)
+  const adjusted = minDisplay(diff)
+  const formatted = formatNumber(Math.abs(adjusted), 2)
   return diff > 0 ? `+${formatted}` : `-${formatted}`
 }
 
@@ -276,6 +304,46 @@ const getStatusName = (type: string) => StatusEffectSystem.getStatusName(type as
 }
 
 .effect-badge.buff {
+  background: rgba(76, 175, 80, 0.25);
+  border: 1px solid rgba(76, 175, 80, 0.5);
+}
+
+.effect-badge.debuff {
+  background: rgba(244, 67, 54, 0.25);
+  border: 1px solid rgba(244, 67, 54, 0.5);
+}
+
+.weapon-traits {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 8px;
+  background: rgba(255, 215, 0, 0.08);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+}
+
+.trait-title {
+  font-size: 13px;
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+.trait-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.trait-item {
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-size: 12px;
+  background: rgba(255, 215, 0, 0.15);
+  border: 1px solid rgba(255, 215, 0, 0.4);
+}
+
+.compact {
   background: rgba(46, 204, 113, 0.16);
   color: #8ee0b0;
 }

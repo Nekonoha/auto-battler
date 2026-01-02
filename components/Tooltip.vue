@@ -6,16 +6,18 @@
     @mouseleave="handleMouseLeave"
   >
     <slot></slot>
-    <Teleport to="body">
-      <div 
-        v-if="showTooltip" 
-        class="tooltip"
-        :style="tooltipStyle"
-      >
-        <div class="tooltip-title">{{ title }}</div>
-        <div class="tooltip-content" v-html="formattedContent"></div>
-      </div>
-    </Teleport>
+    <ClientOnly>
+      <Teleport to="body">
+        <div 
+          v-if="showTooltip" 
+          class="tooltip"
+          :style="tooltipStyle"
+        >
+          <div class="tooltip-title">{{ title }}</div>
+          <div class="tooltip-content" v-html="formattedContent"></div>
+        </div>
+      </Teleport>
+    </ClientOnly>
   </div>
 </template>
 

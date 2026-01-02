@@ -120,9 +120,8 @@ export function useLootSystem(
       baseWeapons = baseWeapons.filter(w => weaponPool.includes(w.id))
     }
     if (baseWeapons.length === 0) {
-      // フォールバック: ランダムな武器を生成
-      const randomBase = getRandomBaseWeapon()
-      return generateEnchantedWeapon(randomBase, 50, 20)
+      // フォールバック: プールが空でも基礎武器から選ぶ（レアリティは picked を維持）
+      baseWeapons = weaponPool && weaponPool.length ? BASE_WEAPONS.filter(w => weaponPool.includes(w.id)) : BASE_WEAPONS
     }
 
     // ランダムにベース武器を選択してエンチャント付きで生成

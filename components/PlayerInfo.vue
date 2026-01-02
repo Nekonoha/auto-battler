@@ -177,6 +177,16 @@
             </div>
           </Tooltip>
         </div>
+        <div class="stat-item">
+          <Tooltip :title="'🩸 ライフスティール'" :content="'与えたダメージの一部をHPとして吸収'">
+            <div class="stat-display">
+              <span class="stat-label">🩸</span>
+              <span class="stat-value">
+                {{ (getEffectiveStat('lifeSteal')?.value ?? 0).toFixed(1) }}%
+              </span>
+            </div>
+          </Tooltip>
+        </div>
       </div>
       </div>
     </div>
@@ -282,6 +292,13 @@ const hpPercentage = computed(() => {
   const pct = (props.player.currentHp / props.player.maxHp) * 100
   return Math.min(100, Math.max(0, pct))
 })
+
+const minDisplay = (value: number, threshold = 0.1) => {
+  if (value === 0) return 0
+  const abs = Math.abs(value)
+  if (abs < threshold) return threshold * Math.sign(value)
+  return value
+}
 
 const expPercentage = computed(() => {
   return (props.player.exp / props.player.nextLevelExp) * 100
@@ -413,8 +430,10 @@ const getStatTooltipContent = (stat: StatKey): string => {
     parts.push(`<span class="tooltip-positive">シナジー: +${statInfo.synergy}</span>`)
   }
 
+  const displayModifier = minDisplay(statInfo.modifierPct)
+
   if (stat === 'statusPower') {
-    parts.push(`適用倍率: ${(statInfo.modifierPct).toFixed(1)}%`)
+    parts.push(`適用倍率: ${displayModifier.toFixed(1)}%`)
     parts.push(`実数値: ${statInfo.value}`)
     return parts.join('<br>')
   }
@@ -433,7 +452,7 @@ const getStatTooltipContent = (stat: StatKey): string => {
     parts.push(`<span class="tooltip-negative">デバフ: ${detail}</span>`)
   }
 
-  parts.push(`適用倍率: ${(statInfo.modifierPct).toFixed(1)}%`)
+  parts.push(`適用倍率: ${displayModifier.toFixed(1)}%`)
   parts.push(`実数値: ${statInfo.value} (基準 ${raw})`)
 
   return parts.join('<br>')
@@ -456,14 +475,16 @@ const getRarityColor = (rarity: string) => {
 
 .player-header {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
   margin-bottom: 15px;
 }
 
 .player-resources {
   display: flex;
-  gap: 12px;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .player-actions-row {

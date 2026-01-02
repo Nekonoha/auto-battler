@@ -117,6 +117,16 @@
             </div>
           </div>
         </Tooltip>
+        <Tooltip title="🩸 ライフスティール" :content="'与えたダメージの一部をHPとして吸収'">
+          <div class="stat-item">
+            <span class="stat-icon">🩸</span>
+            <div class="stat-info">
+              <span class="stat-value">
+                {{ (getEnemyStat('lifeSteal')?.value ?? 0).toFixed(1) }}%
+              </span>
+            </div>
+          </div>
+        </Tooltip>
       </div>
     </div>
 
@@ -199,6 +209,13 @@ const hpPercentage = computed(() => {
   return Math.min(100, Math.max(0, pct))
 })
 
+const minDisplay = (value: number, threshold = 0.1) => {
+  if (value === 0) return 0
+  const abs = Math.abs(value)
+  if (abs < threshold) return threshold * Math.sign(value)
+  return value
+}
+
 const hasTraits = computed(() => {
   const traits = props.enemy.traits
   if (!traits) return false
@@ -247,9 +264,9 @@ const getStatusDescription = (type: StatusEffectType) => {
   return StatusEffectSystem.getStatusDescription(type)
 }
 
-type StatKey = 'attack' | 'magic' | 'defense' | 'magicDefense' | 'speed' | 'statusPower'
+type StatKey = 'attack' | 'magic' | 'defense' | 'magicDefense' | 'speed' | 'statusPower' | 'lifeSteal'
 
-const statKeys: StatKey[] = ['attack', 'magic', 'defense', 'magicDefense', 'speed', 'statusPower']
+const statKeys: StatKey[] = ['attack', 'magic', 'defense', 'magicDefense', 'speed', 'statusPower', 'lifeSteal']
 
 type StatModifierEntry = ReturnType<typeof StatusEffectSystem.getStatModifierEntries>[number]
 
@@ -261,7 +278,8 @@ const enemyStatDetails = computed(() => {
     defense: { value: 0, base: 0, buff: 0, debuff: 0, modifierPct: 0, entries: [] },
     magicDefense: { value: 0, base: 0, buff: 0, debuff: 0, modifierPct: 0, entries: [] },
     speed: { value: 0, base: 0, buff: 0, debuff: 0, modifierPct: 0, entries: [] },
-    statusPower: { value: 0, base: 0, buff: 0, debuff: 0, modifierPct: 0, entries: [] }
+    statusPower: { value: 0, base: 0, buff: 0, debuff: 0, modifierPct: 0, entries: [] },
+    lifeSteal: { value: 0, base: 0, buff: 0, debuff: 0, modifierPct: 0, entries: [] }
   }
 
   statKeys.forEach(stat => {
@@ -280,7 +298,7 @@ const enemyStatDetails = computed(() => {
       buff: buffValue,
       debuff: debuffValue,
       modifierPct,
-      entries: stat === 'statusPower' ? [] : StatusEffectSystem.getStatModifierEntries(props.enemy, stat as any)
+      entries: (stat === 'statusPower' || stat === 'lifeSteal') ? [] : StatusEffectSystem.getStatModifierEntries(props.enemy, stat as any)
     }
   })
 
@@ -312,14 +330,16 @@ const getStatTooltipContent = (stat: StatKey): string => {
     parts.push(`<span class="tooltip-negative">デバフ: ${detailText}</span>`)
   }
 
+  const displayModifier = minDisplay(detail?.modifierPct ?? 0)
+
   if (stat === 'statusPower') {
-    parts.push(`適用倍率: ${(detail?.modifierPct ?? 0).toFixed(1)}%`)
+    parts.push(`適用倍率: ${displayModifier.toFixed(1)}%`)
     parts.push(`実数値: ${detail?.value ?? 0}`)
     return parts.join('<br>')
   }
 
   if (detail) {
-    parts.push(`適用倍率: ${detail.modifierPct.toFixed(1)}%`)
+    parts.push(`適用倍率: ${displayModifier.toFixed(1)}%`)
     parts.push(`実数値: ${detail.value}`)
   }
 

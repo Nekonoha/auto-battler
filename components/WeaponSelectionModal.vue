@@ -18,15 +18,19 @@
 
       <div class="current-weapons">
         <h3>装備中の武器 ({{ player.weapons.length }}/{{ player.weaponSlots }})</h3>
-        <div v-if="player.weapons.length === 0" class="empty-slot">
-          装備武器がありません
-        </div>
-        <div v-else class="weapon-grid">
+        <div class="weapon-grid">
+          <!-- 装備中の武器 -->
           <div
-            v-for="weapon in player.weapons"
-            :key="weapon.id"
-            class="weapon-list-item"
+            v-for="(weapon, index) in player.weapons"
+            :key="`equipped-${weapon.id}`"
+            class="weapon-list-item equipped-item"
+            :class="{ 'drag-over': dragOverIndex === index }"
             :style="{ borderColor: getWeaponRarityColor(weapon.rarity) }"
+            draggable="true"
+            @dragstart="handleDragStart(index, weapon, $event)"
+            @dragover.prevent="handleDragOver(index, $event)"
+            @dragleave="handleDragLeave"
+            @drop="handleDropOnEquipped(index, $event)"
           >
             <WeaponDetails :weapon="weapon" />
             <button
@@ -36,6 +40,23 @@
             >
               外す
             </button>
+          </div>
+          
+          <!-- 空きスロット -->
+          <div
+            v-for="index in emptySlotCount"
+            :key="`empty-${index}`"
+            class="weapon-list-item empty-weapon-slot"
+            :class="{ 'drag-over': dragOverIndex === (player.weapons.length + index - 1) }"
+            @dragover.prevent="handleDragOver(player.weapons.length + index - 1, $event)"
+            @dragleave="handleDragLeave"
+            @drop="handleDropOnEmpty(player.weapons.length + index - 1, $event)"
+          >
+            <div class="empty-slot-content">
+              <div class="empty-slot-icon">➕</div>
+              <div class="empty-slot-text">空きスロット</div>
+              <div class="empty-slot-hint">ここにドラッグ</div>
+            </div>
           </div>
         </div>
       </div>
@@ -102,8 +123,10 @@
           <div
             v-for="weapon in filteredWeapons"
             :key="weapon.id"
-            class="weapon-list-item selectable"
+            class="weapon-list-item selectable available-item"
             :style="{ borderColor: getWeaponRarityColor(weapon.rarity) }"
+            draggable="true"
+            @dragstart="handleDragStartAvailable(weapon, $event)"
             @click.stop="$emit('select', weapon)"
           >
             <WeaponDetails :weapon="weapon" />
@@ -120,6 +143,7 @@ import WeaponDetails from './WeaponDetails.vue'
 import type { Player, Weapon } from '~/types'
 import { getWeaponRarityColor } from '~/utils/weaponPresentation'
 import { WeaponSystem } from '~/systems/WeaponSystem'
+import { ref } from 'vue'
 
 type Emits = {
   (e: 'close'): void
@@ -131,6 +155,8 @@ type Emits = {
   (e: 'update:sortBy', value: string): void
   (e: 'update:selectedTags', value: string[]): void
   (e: 'update:selectedEffects', value: string[]): void
+  (e: 'reorder-weapons', fromIndex: number, toIndex: number): void
+  (e: 'equip-from-available', weapon: Weapon, targetIndex?: number): void
 }
 
 const props = defineProps<{
@@ -178,6 +204,81 @@ const localSelectedEffects = computed({
 const equippedRatingTotal = computed(() =>
   props.player.weapons.reduce((sum, w) => sum + WeaponSystem.evaluateWeapon(w), 0)
 )
+
+// ドラッグアンドドロップ
+const dragOverIndex = ref<number | null>(null)
+let dragSourceIndex: number | null = null
+let dragSourceType: 'equipped' | 'available' | null = null
+let dragSourceWeapon: Weapon | null = null
+
+const emptySlotCount = computed(() => {
+  return Math.max(0, (props.player.weaponSlots || 2) - props.player.weapons.length)
+})
+
+const handleDragStart = (index: number, _weapon: Weapon, event: DragEvent) => {
+  dragSourceIndex = index
+  dragSourceType = 'equipped'
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('source', 'equipped')
+  }
+}
+
+const handleDragOver = (index: number, event: DragEvent) => {
+  event.preventDefault()
+  dragOverIndex.value = index
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = dragSourceType === 'equipped' ? 'move' : 'copy'
+  }
+}
+
+const handleDragLeave = () => {
+  dragOverIndex.value = null
+}
+
+const handleDropOnEquipped = (targetIndex: number, event: DragEvent) => {
+  event.preventDefault()
+  dragOverIndex.value = null
+  
+  // 装備中の武器へのドロップ
+  if (dragSourceType === 'equipped' && dragSourceIndex !== null && dragSourceIndex !== targetIndex) {
+    // 装備中の武器を並べ替え
+    emit('reorder-weapons', dragSourceIndex, targetIndex)
+  } else if (dragSourceType === 'available' && dragSourceWeapon) {
+    // 利用可能な武器をドロップして置き替え
+    emit('equip-from-available', dragSourceWeapon, targetIndex)
+  }
+  
+  dragSourceIndex = null
+  dragSourceType = null
+  dragSourceWeapon = null
+}
+
+const handleDropOnEmpty = (_targetIndex: number, event: DragEvent) => {
+  event.preventDefault()
+  dragOverIndex.value = null
+  
+  // 空きスロットへのドロップ
+  if (dragSourceType === 'available' && dragSourceWeapon) {
+    emit('equip-from-available', dragSourceWeapon, undefined)
+  } else if (dragSourceType === 'equipped' && dragSourceIndex !== null) {
+    // 装備中の武器を空きスロットに移動（事実上何もしない、同じ武器を持つだけ）
+  }
+  
+  dragSourceIndex = null
+  dragSourceType = null
+  dragSourceWeapon = null
+}
+
+const handleDragStartAvailable = (weapon: Weapon, event: DragEvent) => {
+  dragSourceType = 'available'
+  dragSourceWeapon = weapon
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'copy'
+    event.dataTransfer.setData('source', 'available')
+    event.dataTransfer.setData('weaponId', weapon.id)
+  }
+}
 </script>
 
 <style scoped>
@@ -201,6 +302,51 @@ const equippedRatingTotal = computed(() =>
   display: flex;
   flex-direction: column;
   gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.weapon-list-item.equipped-item {
+  cursor: move;
+}
+
+.weapon-list-item.empty-weapon-slot {
+  border-style: dashed;
+  border-color: rgba(255, 255, 255, 0.15);
+  background: rgba(0, 0, 0, 0.15);
+  align-items: center;
+  justify-content: center;
+  min-height: 180px;
+  cursor: copy;
+}
+
+.empty-slot-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-align: center;
+  width: 100%;
+}
+
+.empty-slot-icon {
+  font-size: 26px;
+}
+
+.empty-slot-text {
+  font-size: 13px;
+  opacity: 0.8;
+}
+
+.empty-slot-hint {
+  font-size: 11px;
+  opacity: 0.6;
+}
+
+.weapon-list-item.drag-over {
+  border-color: rgba(255, 200, 0, 0.6);
+  background: rgba(255, 200, 0, 0.1);
+  box-shadow: 0 0 8px rgba(255, 200, 0, 0.3);
 }
 
 .weapon-list-item.selectable {

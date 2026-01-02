@@ -1,4 +1,4 @@
-import type { Weapon, EnchantedWeapon, WeaponRarity, WeaponStats, WeaponTag, WeaponEffect } from '~/types'
+import type { Weapon, EnchantedWeapon, WeaponRarity, WeaponStats, WeaponTag, WeaponEffect, WeaponTraits } from '~/types'
 import { getRandomEnchantment } from '../data/enchantments'
 
 const TAG_STATUS_EFFECT_MAP: Partial<Record<WeaponTag, WeaponEffect>> = {
@@ -75,6 +75,80 @@ function calculateSellValue(rarity: WeaponRarity, enchantmentCount: number): num
 }
 
 /**
+ * レア度に基づいてステータスを上昇させる
+ */
+function applyRarityStatBonus(baseStats: WeaponStats, rarity: WeaponRarity): WeaponStats {
+  const rank = getRarityRank(rarity)
+  const commonRank = getRarityRank('common')
+  
+  // レア度ごとのステータスブースト係数
+  const multiplier = 1 + (rank - commonRank) * 0.08 // 1段階ごとに8%増加
+  
+  return {
+    attack: Math.round(baseStats.attack * multiplier),
+    magic: Math.round(baseStats.magic * multiplier),
+    speed: Math.round(baseStats.speed * multiplier),
+    critChance: Math.round(baseStats.critChance * multiplier),
+    critDamage: Number((baseStats.critDamage * multiplier).toFixed(2)),
+    statusPower: Math.round(baseStats.statusPower * multiplier)
+  }
+}
+
+/**
+ * 高レアリティ武器にtraitsを付与（10-20%の耐性・軽減率）
+ * legendary以上は必ず1つ以上のtraitが付与される
+ */
+function generateWeaponTraits(rarity: WeaponRarity): WeaponTraits | undefined {
+  const rank = getRarityRank(rarity)
+  const legendaryRank = getRarityRank('legendary')
+  
+  // legendary未満はtraitsなし
+  if (rank < legendaryRank) return undefined
+  
+  // legendary以降は必ずtraitを付与（100%）
+  // レア度が高いほどtraitの数が増える
+  let traitCount = 1
+  if (rank >= legendaryRank + 2) {
+    traitCount = Math.random() < 0.5 ? 2 : 1
+  } else if (rank >= legendaryRank + 1) {
+    traitCount = Math.random() < 0.3 ? 2 : 1
+  }
+  
+  const traits: WeaponTraits = {}
+  const availableTraits = ['physicalResistance', 'magicalResistance', 'statusResistance', 'damageReduction']
+  
+  for (let i = 0; i < traitCount; i++) {
+    if (availableTraits.length === 0) break
+    
+    const traitIndex = Math.floor(Math.random() * availableTraits.length)
+    const traitType = availableTraits.splice(traitIndex, 1)[0]
+    
+    // 10-25%の範囲でランダム（レア度が高いほど高い値）
+    const isMythicPlus = rank > legendaryRank + 1
+    const minValue = isMythicPlus ? 15 : 12
+    const maxValue = isMythicPlus ? 25 : 20
+    const value = minValue + Math.floor(Math.random() * (maxValue - minValue + 1))
+    
+    switch (traitType) {
+      case 'physicalResistance':
+        traits.physicalResistance = value
+        break
+      case 'magicalResistance':
+        traits.magicalResistance = value
+        break
+      case 'statusResistance':
+        traits.statusResistance = value
+        break
+      case 'damageReduction':
+        traits.damageReduction = value
+        break
+    }
+  }
+  
+  return Object.keys(traits).length > 0 ? traits : undefined
+}
+
+/**
  * エンチャントされた武器を生成
  * @param baseWeapon - ベース武器
  * @param enchantmentChance - エンチャント発生確率 (0-100)
@@ -90,7 +164,7 @@ export function generateEnchantedWeapon(
 ): EnchantedWeapon {
   const enchantmentIds: string[] = []
   let finalRarity = baseWeapon.rarity
-  let finalStats = { ...baseWeapon.stats }
+  let finalStats = applyRarityStatBonus({ ...baseWeapon.stats }, baseWeapon.rarity)
   let finalTags = [...baseWeapon.tags]
   // ベース武器のエフェクトを破壊的にいじらないようディープコピー
   let finalEffects = baseWeapon.effects.map(effect => ({ ...effect }))
@@ -112,6 +186,27 @@ export function generateEnchantedWeapon(
   const effectiveMaxEnchants = opts?.maxEnchantsOverride
     ?? maxEnchants
     ?? (maxEnchantsByRarity[baseWeapon.rarity] ?? 5) + extraFromPlus
+
+  // 確率的にレア度を上昇させる（エンチャント前の初期処理）
+  // 各レア度ごとに異なる上昇確率
+  const rarityUpgradeChances: Record<string, number> = {
+    common: 5,      // 5%
+    rare: 8,        // 8%
+    epic: 12,       // 12%
+    legendary: 15,  // 15%
+    mythic: 8       // 8%（mythic+はさらに低い）
+  }
+  const currentRarityKey = baseWeapon.rarity.split('+')[0]
+  const upgradeChance = rarityUpgradeChances[currentRarityKey] ?? 3
+  
+  let initialRarity = baseWeapon.rarity
+  const rarityUpgradeRoll = Math.random() * 100
+  if (rarityUpgradeRoll < upgradeChance) {
+    initialRarity = upgradeRarity(initialRarity)
+    finalRarity = initialRarity
+    // 初期レア度が上昇した場合、ステータスボーナスを再計算
+    finalStats = applyRarityStatBonus(finalStats, initialRarity)
+  }
 
   // エンチャント判定
   if (Math.random() * 100 < enchantmentChance && enchantmentIds.length < effectiveMaxEnchants) {
@@ -187,6 +282,15 @@ export function generateEnchantedWeapon(
   finalEffects = appendTagBasedEffects(finalEffects, enchantmentAddedTags)
   finalEffects = mergeWeaponEffects(finalEffects)
 
+  // targetRarityを決定
+  const targetRarity = opts?.targetRarity ?? finalRarity
+
+  // 最終レア度でステータスを再計算（エンチャントによる上昇も考慮）
+  const finalStatBonus = applyRarityStatBonus(finalStats, targetRarity)
+
+  // traits生成（高レアリティ武器用）
+  const traits = generateWeaponTraits(targetRarity)
+
   // 最終的な武器名を構築
   let finalName = baseWeapon.name
   if (namePrefix && nameSuffix) {
@@ -200,20 +304,19 @@ export function generateEnchantedWeapon(
   // ユニークIDを生成
   const uniqueId = `${baseWeapon.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 
-  const targetRarity = opts?.targetRarity ?? finalRarity
-
   return {
     id: uniqueId,
     name: finalName,
     type: baseWeapon.type,
     rarity: targetRarity,
-    stats: finalStats,
+    stats: finalStatBonus,
     tags: finalTags as WeaponTag[],
     effects: finalEffects,
     description: baseWeapon.description,
     baseWeaponId: baseWeapon.id,
     enchantments: enchantmentIds,
-    sellValue: calculateSellValue(targetRarity, enchantmentIds.length)
+    sellValue: calculateSellValue(targetRarity, enchantmentIds.length),
+    traits
   }
 }
 

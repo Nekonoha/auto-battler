@@ -30,7 +30,7 @@
         <div class="dungeon-text">{{ selectedDungeon.description }}</div>
         <div class="dungeon-meta">
           敵レベル: {{ selectedDungeon.levelRange[0] }}-{{ selectedDungeon.levelRange[1] }} / 宝箱確率: {{ Math.round((selectedDungeon.chestChance ?? 0.1) * 100) }}%<br />
-          レアリティ傾向: Common {{ Math.round(selectedDungeon.lootWeights.common * 100) }}%・Rare {{ Math.round(selectedDungeon.lootWeights.rare * 100) }}%・Epic {{ Math.round(selectedDungeon.lootWeights.epic * 100) }}%・Legend {{ Math.round(selectedDungeon.lootWeights.legendary * 100) }}%
+          レアリティ傾向: {{ rarityDisplay }}
         </div>
       </div>
     </div>
@@ -100,6 +100,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { Dungeon } from '~/types'
 
 type DungeonUnlockChecker = (id: string) => boolean
@@ -135,6 +136,36 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<Emits>()
+
+const rarityDisplay = computed(() => {
+  const weights = props.selectedDungeon?.lootWeights
+  if (!weights) return ''
+
+  const baseOrder = ['common', 'rare', 'epic', 'legendary', 'mythic']
+  const mythicPlusOrder = Object.keys(weights)
+    .filter(key => key.startsWith('mythic') && !baseOrder.includes(key))
+    .sort()
+  const otherOrder = Object.keys(weights)
+    .filter(key => !baseOrder.includes(key) && !mythicPlusOrder.includes(key))
+    .sort()
+  const orderedKeys = [...baseOrder, ...mythicPlusOrder, ...otherOrder]
+
+  const labelFor = (key: string) => {
+    if (key === 'legendary') return 'Legend'
+    if (key === 'mythic') return 'Mythic'
+    if (key.startsWith('mythic')) return `Mythic${key.slice('mythic'.length)}`
+    return key.charAt(0).toUpperCase() + key.slice(1)
+  }
+
+  return orderedKeys
+    .filter(key => weights[key] > 0)
+    .map(key => {
+      const percent = Math.round(weights[key] * 1000) / 10
+      const formatted = percent % 1 === 0 ? percent.toFixed(0) : percent.toFixed(1)
+      return `${labelFor(key)} ${formatted}%`
+    })
+    .join('・')
+})
 
 const onSelect = (event: Event) => {
   const value = (event.target as HTMLSelectElement)?.value

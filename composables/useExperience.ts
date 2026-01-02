@@ -6,7 +6,24 @@ import { CombatSystem } from '~/systems/CombatSystem'
  */
 export function useExperience(player: Player) {
   const grantExpForEnemy = (enemy: Enemy) => {
-    const expGained = CombatSystem.calculateExpReward(enemy.level, enemy.tier, enemy.traits?.expMultiplier ?? 1)
+    // プレイヤーレベルと敵レベルの差に基づいた経験値計算
+    const levelDifference = player.level - enemy.level
+    let expMultiplier = enemy.traits?.expMultiplier ?? 1
+    
+    // 敵が適正レベルを大きく下回る場合は経験値を制限
+    // プレイヤーレベルより10レベル以上低い敵からは経験値なし
+    // 5～9レベル低い敵は経験値が30%～90%に減少
+    // 4～0レベル低い敵は通常通り
+    if (levelDifference >= 10) {
+      // 経験値なし
+      expMultiplier = 0
+    } else if (levelDifference >= 5) {
+      // 5レベル低い：30%、6レベル：45%、7レベル：60%、8レベル：75%、9レベル：90%
+      const scalingFactor = 0.3 + (levelDifference - 5) * 0.15
+      expMultiplier *= scalingFactor
+    }
+    
+    const expGained = CombatSystem.calculateExpReward(enemy.level, enemy.tier, expMultiplier)
     player.exp += expGained
 
     let levelUps = 0

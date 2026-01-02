@@ -118,7 +118,8 @@ export class WeaponSystem {
       isCritical,
       statusEffects: appliedEffects,
       resistanceApplied,
-      blocked
+      blocked,
+      actualDamageInflicted: finalDamage
     }
   }
 
@@ -222,5 +223,32 @@ export class WeaponSystem {
     }
     if (rarity.startsWith('mythic')) return colors.mythic
     return colors[rarity] || '#95a5a6'
+  }
+
+  /**
+   * 装備武器からtraitsボーナスを集計（プレイヤー用）
+   */
+  static getWeaponTraitsBonus(weapons: Weapon[]): {
+    physicalResistance: number
+    magicalResistance: number
+    statusResistance: number
+    damageReduction: number
+  } {
+    const bonus = {
+      physicalResistance: 0,
+      magicalResistance: 0,
+      statusResistance: 0,
+      damageReduction: 0
+    }
+
+    for (const weapon of weapons) {
+      if (!weapon.traits) continue
+      if (weapon.traits.physicalResistance) bonus.physicalResistance += weapon.traits.physicalResistance
+      if (weapon.traits.magicalResistance) bonus.magicalResistance += weapon.traits.magicalResistance
+      if (weapon.traits.statusResistance) bonus.statusResistance += weapon.traits.statusResistance
+      if (weapon.traits.damageReduction) bonus.damageReduction += weapon.traits.damageReduction
+    }
+
+    return bonus
   }
 }

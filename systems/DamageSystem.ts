@@ -61,5 +61,53 @@ export class DamageSystem {
             blocked: false
         };
     }
+
+    /**
+     * プレイヤーが受けるダメージに武器traitsを適用
+     * @param baseDamage 基本ダメージ
+     * @param player プレイヤー
+     * @param isMagic 魔法攻撃かどうか
+     * @param weaponTraitsBonus 装備武器からのtraitsボーナス
+     * @returns 最終ダメージ
+     */
+    static calculatePlayerDamageWithTraits(
+        baseDamage: number,
+        player: Player,
+        isMagic: boolean,
+        weaponTraitsBonus?: { 
+            physicalResistance: number
+            magicalResistance: number
+            damageReduction: number
+        }
+    ): number {
+        // 通常の防御計算
+        const defense = isMagic ? player.stats.magicDefense : player.stats.defense;
+        let finalDamage = baseDamage * this.defenseMultiplier(defense);
+
+        if (!weaponTraitsBonus) {
+            return Math.round(finalDamage);
+        }
+
+        // 耐性適用
+        let resistancePercent = 0;
+        if (isMagic && weaponTraitsBonus.magicalResistance) {
+            resistancePercent = weaponTraitsBonus.magicalResistance;
+        } else if (!isMagic && weaponTraitsBonus.physicalResistance) {
+            resistancePercent = weaponTraitsBonus.physicalResistance;
+        }
+
+        if (resistancePercent !== 0) {
+            const multiplier = 1 - (resistancePercent / 100);
+            finalDamage = finalDamage * multiplier;
+        }
+
+        // ダメージ軽減適用
+        if (weaponTraitsBonus.damageReduction > 0) {
+            const reductionMultiplier = 1 - (weaponTraitsBonus.damageReduction / 100);
+            finalDamage = finalDamage * reductionMultiplier;
+        }
+
+        return Math.max(0, Math.round(finalDamage));
+    }
 }
 

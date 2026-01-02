@@ -97,8 +97,9 @@ export interface TagSynergy {
   id: string
   name: string
   description: string
-  requiredTags: WeaponTag[]  // 必要なタグ（OR条件）
-  minCount: number           // 最小武器数
+  requiredTags: WeaponTag[]  // 必要なタグ
+  isSpecial?: boolean        // 特殊シナジー（複合タグ、1回のみ判定、効果は上昇しない）
+  stackable?: boolean        // スタック可能（デフォルト: true、同一タグの数だけ効果が増加）
   effects: {
     attackBonus?: number     // 攻撃力ボーナス（%）
     magicBonus?: number      // 魔法力ボーナス（%）
@@ -106,230 +107,243 @@ export interface TagSynergy {
     critChanceBonus?: number // クリティカル率ボーナス（%）
     critDamageBonus?: number // クリティカルダメージボーナス（%）
     statusPowerBonus?: number // 状態異常威力ボーナス（%）
+    lifeStealBonus?: number  // ライフスティールボーナス（%）
   }
 }
 
 export const TAG_SYNERGIES: TagSynergy[] = [
-  // === 2武器シナジー ===
+  // === 基本シナジー（タグごと、スタック可能） ===
   {
-    id: 'dual_fast',
-    name: '二刀流',
-    description: '速度+25%、攻撃力+10%',
+    id: 'fast_synergy',
+    name: '高速シナジー',
+    description: '同じ「高速」タグが増えるほど効果が上昇',
     requiredTags: ['fast'],
-    minCount: 2,
-    effects: {
-      speedBonus: 25,
-      attackBonus: 10
-    }
-  },
-  {
-    id: 'dual_heavy',
-    name: '重撃戦術',
-    description: '攻撃力+30%、クリティカルダメージ+20%',
-    requiredTags: ['heavy'],
-    minCount: 2,
-    effects: {
-      attackBonus: 30,
-      critDamageBonus: 20
-    }
-  },
-  {
-    id: 'precision_pair',
-    name: '精密二連',
-    description: 'クリティカル率+20%、クリティカルダメージ+25%',
-    requiredTags: ['precise'],
-    minCount: 2,
-    effects: {
-      critChanceBonus: 20,
-      critDamageBonus: 25
-    }
-  },
-  {
-    id: 'elemental_dual',
-    name: '魔力共鳴',
-    description: '魔法力+25%、状態異常威力+15%',
-    requiredTags: ['elemental'],
-    minCount: 2,
-    effects: {
-      magicBonus: 25,
-      statusPowerBonus: 15
-    }
-  },
-  {
-    id: 'poison_combo',
-    name: '猛毒連鎖',
-    description: '状態異常威力+30%、魔法力+10%',
-    requiredTags: ['venomous'],
-    minCount: 2,
-    effects: {
-      statusPowerBonus: 30,
-      magicBonus: 10
-    }
-  },
-  {
-    id: 'bleed_combo',
-    name: '血渇戦術',
-    description: '攻撃力+15%、状態異常威力+25%',
-    requiredTags: ['bloodthirsty'],
-    minCount: 2,
-    effects: {
-      attackBonus: 15,
-      statusPowerBonus: 25
-    }
-  },
-  {
-    id: 'fire_combo',
-    name: '業火の舞',
-    description: '魔法力+20%、状態異常威力+30%',
-    requiredTags: ['flame'],
-    minCount: 2,
-    effects: {
-      magicBonus: 20,
-      statusPowerBonus: 30
-    }
-  },
-  {
-    id: 'ice_combo',
-    name: '氷結の息吹',
-    description: '魔法力+20%、状態異常威力+25%、速度+10%',
-    requiredTags: ['frost'],
-    minCount: 2,
-    effects: {
-      magicBonus: 20,
-      statusPowerBonus: 25,
-      speedBonus: 10
-    }
-  },
-
-  // === 3武器シナジー ===
-  {
-    id: 'triple_fast',
-    name: '疾風三連',
-    description: '速度+50%、攻撃力+20%、クリティカル率+15%',
-    requiredTags: ['fast'],
-    minCount: 3,
-    effects: {
-      speedBonus: 50,
-      attackBonus: 20,
-      critChanceBonus: 15
-    }
-  },
-  {
-    id: 'triple_heavy',
-    name: '破壊の三叉',
-    description: '攻撃力+60%、クリティカルダメージ+40%',
-    requiredTags: ['heavy'],
-    minCount: 3,
-    effects: {
-      attackBonus: 60,
-      critDamageBonus: 40
-    }
-  },
-  {
-    id: 'elemental_trinity',
-    name: '三位一体',
-    description: '攻撃力+15%、魔法力+40%、状態異常威力+30%、クリティカル率+10%',
-    requiredTags: ['elemental'],
-    minCount: 3,
-    effects: {
-      attackBonus: 15,
-      magicBonus: 40,
-      statusPowerBonus: 30,
-      critChanceBonus: 10
-    }
-  },
-  {
-    id: 'cursed_trinity',
-    name: '呪いの三重奏',
-    description: '攻撃力+25%、魔法力+25%、状態異常威力+40%、クリティカルダメージ+20%',
-    requiredTags: ['cursed'],
-    minCount: 3,
-    effects: {
-      attackBonus: 25,
-      magicBonus: 25,
-      statusPowerBonus: 40,
-      critDamageBonus: 20
-    }
-  },
-  {
-    id: 'dot_trinity',
-    name: '継続ダメージ特化',
-    description: '状態異常威力+50%、魔法力+20%（毒/血渇/炎いずれか3つ）',
-    requiredTags: ['venomous', 'bloodthirsty', 'flame'],
-    minCount: 3,
-    effects: {
-      statusPowerBonus: 50,
-      magicBonus: 20
-    }
-  },
-
-  // === 混合シナジー ===
-  {
-    id: 'speed_precision',
-    name: '高速精密',
-    description: '速度+20%、クリティカル率+25%、クリティカルダメージ+15%（高速+精密）',
-    requiredTags: ['fast', 'precise'],
-    minCount: 2,
+    stackable: true,
     effects: {
       speedBonus: 20,
-      critChanceBonus: 25,
+      attackBonus: 8
+    }
+  },
+  {
+    id: 'heavy_synergy',
+    name: '重撃シナジー',
+    description: '同じ「重撃」タグが増えるほど効果が上昇',
+    requiredTags: ['heavy'],
+    stackable: true,
+    effects: {
+      attackBonus: 25,
       critDamageBonus: 15
     }
   },
   {
-    id: 'power_precision',
-    name: '豪腕精密',
-    description: '攻撃力+25%、クリティカル率+15%、クリティカルダメージ+30%（重撃+精密）',
-    requiredTags: ['heavy', 'precise'],
-    minCount: 2,
+    id: 'precise_synergy',
+    name: '精密シナジー',
+    description: '同じ「精密」タグが増えるほど効果が上昇',
+    requiredTags: ['precise'],
+    stackable: true,
     effects: {
-      attackBonus: 25,
       critChanceBonus: 15,
-      critDamageBonus: 30
+      critDamageBonus: 20
     }
   },
   {
-    id: 'versatile_master',
-    name: '万能の極み',
-    description: '攻撃力+15%、魔法力+15%、速度+15%、クリティカル率+10%',
-    requiredTags: ['versatile'],
-    minCount: 2,
+    id: 'elemental_synergy',
+    name: '属性シナジー',
+    description: '同じ「属性」タグが増えるほど効果が上昇',
+    requiredTags: ['elemental'],
+    stackable: true,
     effects: {
-      attackBonus: 15,
-      magicBonus: 15,
-      speedBonus: 15,
-      critChanceBonus: 10
+      magicBonus: 20,
+      statusPowerBonus: 12
     }
   },
   {
-    id: 'defensive_stance',
-    name: '防御態勢',
-    description: '攻撃力+10%、状態異常威力+20%',
+    id: 'cursed_synergy',
+    name: '呪いシナジー',
+    description: '同じ「呪い」タグが増えるほど効果が上昇',
+    requiredTags: ['cursed'],
+    stackable: true,
+    effects: {
+      attackBonus: 12,
+      magicBonus: 12,
+      statusPowerBonus: 18,
+      lifeStealBonus: 1
+    }
+  },
+  {
+    id: 'venomous_synergy',
+    name: '猛毒シナジー',
+    description: '同じ「猛毒」タグが増えるほど効果が上昇',
+    requiredTags: ['venomous'],
+    stackable: true,
+    effects: {
+      statusPowerBonus: 25,
+      magicBonus: 8
+    }
+  },
+  {
+    id: 'bloodthirsty_synergy',
+    name: '血渇シナジー',
+    description: '同じ「血渇」タグが増えるほど効果が上昇',
+    requiredTags: ['bloodthirsty'],
+    stackable: true,
+    effects: {
+      attackBonus: 12,
+      statusPowerBonus: 20,
+      lifeStealBonus: 2
+    }
+  },
+  {
+    id: 'flame_synergy',
+    name: '業火シナジー',
+    description: '同じ「業火」タグが増えるほど効果が上昇',
+    requiredTags: ['flame'],
+    stackable: true,
+    effects: {
+      magicBonus: 16,
+      statusPowerBonus: 24
+    }
+  },
+  {
+    id: 'frost_synergy',
+    name: '氷結シナジー',
+    description: '同じ「氷結」タグが増えるほど効果が上昇',
+    requiredTags: ['frost'],
+    stackable: true,
+    effects: {
+      magicBonus: 16,
+      statusPowerBonus: 20,
+      speedBonus: 8
+    }
+  },
+  {
+    id: 'defensive_synergy',
+    name: '防御シナジー',
+    description: '同じ「防御」タグが増えるほど効果が上昇',
     requiredTags: ['defensive'],
-    minCount: 2,
+    stackable: true,
+    effects: {
+      attackBonus: 8,
+      statusPowerBonus: 16
+    }
+  },
+  {
+    id: 'healing_synergy',
+    name: '回復シナジー',
+    description: '同じ「回復」タグが増えるほど効果が上昇',
+    requiredTags: ['healing'],
+    stackable: true,
+    effects: {
+      attackBonus: 12,
+      magicBonus: 12,
+      lifeStealBonus: 3
+    }
+  },
+  {
+    id: 'versatile_synergy',
+    name: '万能シナジー',
+    description: '同じ「万能」タグが増えるほど効果が上昇',
+    requiredTags: ['versatile'],
+    stackable: true,
     effects: {
       attackBonus: 10,
-      statusPowerBonus: 20
+      magicBonus: 10,
+      speedBonus: 10,
+      critChanceBonus: 8
+    }
+  },
+
+  // === 特殊シナジー（複合タグ、1回のみ判定、効果は上昇しない） ===
+  {
+    id: 'speed_precision_synergy',
+    name: '高速精密の極意',
+    description: '速度+30%、クリティカル率+35%、クリティカルダメージ+40%（高速+精密両方で発動）',
+    requiredTags: ['fast', 'precise'],
+    isSpecial: true,
+    stackable: false,
+    effects: {
+      speedBonus: 30,
+      critChanceBonus: 35,
+      critDamageBonus: 40
     }
   },
   {
-    id: 'healing_focus',
-    name: '生命の鼓動',
-    description: '攻撃力+15%、魔法力+15%',
-    requiredTags: ['healing'],
-    minCount: 2,
+    id: 'power_precision_synergy',
+    name: '豪腕精密の秘訣',
+    description: '攻撃力+40%、クリティカル率+25%、クリティカルダメージ+50%（重撃+精密両方で発動）',
+    requiredTags: ['heavy', 'precise'],
+    isSpecial: true,
+    stackable: false,
     effects: {
-      attackBonus: 15,
-      magicBonus: 15
+      attackBonus: 40,
+      critChanceBonus: 25,
+      critDamageBonus: 50
+    }
+  },
+  {
+    id: 'magic_status_synergy',
+    name: '魔力と異常の共鳴',
+    description: '魔法力+50%、状態異常威力+60%（属性+いずれかの状態異常タグ両方で発動）',
+    requiredTags: ['elemental', 'venomous', 'bloodthirsty', 'flame', 'frost'],
+    isSpecial: true,
+    stackable: false,
+    effects: {
+      magicBonus: 50,
+      statusPowerBonus: 60
+    }
+  },
+  {
+    id: 'defensive_absorption',
+    name: '防御による吸収',
+    description: '攻撃力+25%、魔法力+25%、状態異常威力+35%（防御+いずれかの状態異常タグ両方で発動）',
+    requiredTags: ['defensive', 'venomous', 'bloodthirsty', 'flame', 'frost', 'cursed'],
+    isSpecial: true,
+    stackable: false,
+    effects: {
+      attackBonus: 25,
+      magicBonus: 25,
+      statusPowerBonus: 35
+    }
+  },
+  {
+    id: 'dot_trinity_ultimate',
+    name: '継続ダメージの集約',
+    description: '状態異常威力+80%、魔法力+40%、攻撃力+20%（毒/血渇/炎 すべて1つ以上で発動）',
+    requiredTags: ['venomous', 'bloodthirsty', 'flame'],
+    isSpecial: true,
+    stackable: false,
+    effects: {
+      statusPowerBonus: 80,
+      magicBonus: 40,
+      attackBonus: 20
+    }
+  },
+  {
+    id: 'ice_magic_mastery',
+    name: '氷結魔法の極限',
+    description: '魔法力+60%、状態異常威力+70%、速度+35%（氷結+属性両方で発動）',
+    requiredTags: ['frost', 'elemental'],
+    isSpecial: true,
+    stackable: false,
+    effects: {
+      magicBonus: 60,
+      statusPowerBonus: 70,
+      speedBonus: 35
     }
   }
 ]
 
 /**
  * 装備武器から発動しているシナジーを計算
+ * 通常シナジーはタグの数だけスタックして効果が増加
+ * 特殊シナジーは複合タグで1回のみ判定され、効果は上昇しない
  */
-export function calculateActiveSynergies(weaponTags: WeaponTag[][]): TagSynergy[] {
-  const activeSynergies: TagSynergy[] = []
+export interface ActiveSynergy extends TagSynergy {
+  stackCount?: number  // スタック数（通常シナジー用）
+}
+
+export function calculateActiveSynergies(weaponTags: WeaponTag[][]): ActiveSynergy[] {
+  const activeSynergies: ActiveSynergy[] = []
   
   // 全タグを集計
   const tagCounts = new Map<WeaponTag, number>()
@@ -339,16 +353,49 @@ export function calculateActiveSynergies(weaponTags: WeaponTag[][]): TagSynergy[
     })
   })
 
-  // 各シナジーをチェック
+  // 通常シナジーをチェック（タグごと、最小1つ必要）
+  const normalSynergies: TagSynergy[] = []
+  const specialSynergies: TagSynergy[] = []
+  
   for (const synergy of TAG_SYNERGIES) {
-    // 必要なタグのいずれかが必要数以上あるかチェック
-    const matchingTagCount = synergy.requiredTags.reduce((max, tag) => {
+    if (synergy.isSpecial) {
+      specialSynergies.push(synergy)
+    } else {
+      normalSynergies.push(synergy)
+    }
+  }
+  
+  // 通常シナジーを処理（タグが1つ以上あればスタック）
+  for (const synergy of normalSynergies) {
+    const stackCount = synergy.requiredTags.reduce((max, tag) => {
       const count = tagCounts.get(tag) || 0
       return Math.max(max, count)
     }, 0)
 
-    if (matchingTagCount >= synergy.minCount) {
-      activeSynergies.push(synergy)
+    if (stackCount > 0) {
+      activeSynergies.push({
+        ...synergy,
+        stackCount: stackCount
+      })
+    }
+  }
+  
+  // 特殊シナジーを処理（複合タグ、1回のみ）
+  const appliedSpecialIds = new Set<string>()
+  
+  for (const synergy of specialSynergies) {
+    // 必要なタグのすべてが1つ以上あるかチェック
+    const allTagsPresent = synergy.requiredTags.every(tag => {
+      const count = tagCounts.get(tag) || 0
+      return count > 0
+    })
+    
+    if (allTagsPresent && !appliedSpecialIds.has(synergy.id)) {
+      activeSynergies.push({
+        ...synergy,
+        stackCount: 1  // 特殊シナジーは常にスタック1
+      })
+      appliedSpecialIds.add(synergy.id)
     }
   }
 
@@ -357,16 +404,20 @@ export function calculateActiveSynergies(weaponTags: WeaponTag[][]): TagSynergy[
 
 /**
  * シナジーボーナスを合計
+ * スタック可能なシナジーはスタック数だけ効果が増加
  */
-export function getTotalSynergyBonus(synergies: TagSynergy[]): TagSynergy['effects'] {
+export function getTotalSynergyBonus(synergies: ActiveSynergy[]): TagSynergy['effects'] {
   return synergies.reduce((total, synergy) => {
+    const multiplier = (synergy.stackable !== false) ? (synergy.stackCount || 1) : 1
+    
     return {
-      attackBonus: (total.attackBonus || 0) + (synergy.effects.attackBonus || 0),
-      magicBonus: (total.magicBonus || 0) + (synergy.effects.magicBonus || 0),
-      speedBonus: (total.speedBonus || 0) + (synergy.effects.speedBonus || 0),
-      critChanceBonus: (total.critChanceBonus || 0) + (synergy.effects.critChanceBonus || 0),
-      critDamageBonus: (total.critDamageBonus || 0) + (synergy.effects.critDamageBonus || 0),
-      statusPowerBonus: (total.statusPowerBonus || 0) + (synergy.effects.statusPowerBonus || 0)
+      attackBonus: (total.attackBonus || 0) + ((synergy.effects.attackBonus || 0) * multiplier),
+      magicBonus: (total.magicBonus || 0) + ((synergy.effects.magicBonus || 0) * multiplier),
+      speedBonus: (total.speedBonus || 0) + ((synergy.effects.speedBonus || 0) * multiplier),
+      critChanceBonus: (total.critChanceBonus || 0) + ((synergy.effects.critChanceBonus || 0) * multiplier),
+      critDamageBonus: (total.critDamageBonus || 0) + ((synergy.effects.critDamageBonus || 0) * multiplier),
+      statusPowerBonus: (total.statusPowerBonus || 0) + ((synergy.effects.statusPowerBonus || 0) * multiplier),
+      lifeStealBonus: (total.lifeStealBonus || 0) + ((synergy.effects.lifeStealBonus || 0) * multiplier)
     }
   }, {} as TagSynergy['effects'])
 }

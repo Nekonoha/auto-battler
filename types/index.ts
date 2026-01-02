@@ -19,6 +19,7 @@ export interface WeaponStats {
   critChance: number    // クリティカル率（0-100）
   critDamage: number    // クリティカルダメージ倍率（1.5 = 150%）
   statusPower: number   // 状態異常の効果量
+  lifeSteal?: number    // ライフスティール（与えたダメージの％で回復）
 }
 
 /**
@@ -37,6 +38,16 @@ export type WeaponTag =
   | 'venomous'      // 毒系（シナジー用）
   | 'flame'         // 炎系（シナジー用）
   | 'frost'         // 氷系（シナジー用）
+
+/**
+ * 武器の特性（高レアリティ武器に付く可能性があるマイルドな効果）
+ */
+export interface WeaponTraits {
+  physicalResistance?: number     // 物理耐性（%）10-20%程度
+  magicalResistance?: number      // 魔法耐性（%）10-20%程度
+  statusResistance?: number       // 状態異常全般への耐性（%）10-20%程度
+  damageReduction?: number        // 被ダメージ軽減（%）5-15%程度
+}
 
 /**
  * 武器エンチャント（接頭辞/接尾辞）
@@ -107,6 +118,7 @@ export interface Weapon {
   tags: WeaponTag[]
   effects: WeaponEffect[]
   description: string
+  traits?: WeaponTraits    // 高レアリティ武器に付く可能性がある特性
 }
 
 /**
@@ -160,6 +172,7 @@ export interface PlayerStats {
   magicDefense: number    // 魔法防御力
   speed: number           // 攻撃速度
   statusPower: number     // 状態異常威力（%加算換算）
+  lifeSteal?: number      // ライフスティール（与えたダメージの％で回復）
 }
 
 export interface PlayerAllocatedStats {
@@ -170,6 +183,7 @@ export interface PlayerAllocatedStats {
   magicDefense: number
   speed: number
   statusPower: number
+  lifeSteal?: number
 }
 
 /**
@@ -226,6 +240,7 @@ export interface EnemyStats {
   magicDefense: number
   speed: number
   statusPower: number
+  lifeSteal?: number
 }
 
 export type EnemyActionType = 'attack' | 'defend' | 'nothing' | 'status'
@@ -362,6 +377,10 @@ export interface DamageResult {
   damage: number
   isCritical: boolean
   statusEffects: Array<WeaponEffect & { powerScale?: number }>
+  resistanceApplied?: number
+  blocked?: boolean
+  actualDamageInflicted?: number  // 実際に与えたダメージ（防御・耐性後）
+}
   resistanceApplied?: number
   blocked?: boolean
 }

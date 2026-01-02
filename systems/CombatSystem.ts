@@ -229,6 +229,16 @@ export class CombatSystem {
           this.addLog(message, 'damage', 'player', 'attack')
         }
 
+        // ライフスティール効果（物理・魔法攻撃のみ、状態異常ダメージは対象外）
+        const totalLifeSteal = (weapon.stats.lifeSteal ?? 0) + (this.synergyBonus?.lifeStealBonus ?? 0)
+        if (totalLifeSteal > 0 && result.actualDamageInflicted) {
+          const healAmount = Math.floor(result.actualDamageInflicted * (totalLifeSteal / 100))
+          if (healAmount > 0) {
+            this.player.currentHp = Math.min(this.player.maxHp, this.player.currentHp + healAmount)
+            this.addLog(`${this.player.name}は${healAmount}のHPを吸収した！`, 'heal', 'player', 'attack')
+          }
+        }
+
         // 反射ダメージ処理（敵が棘の鎧などを持つ場合）
         this.applyReflection(this.enemy, this.player, result.damage)
 
@@ -312,7 +322,10 @@ export class CombatSystem {
           
           const variance = 0.8 + Math.random() * 0.4 // 80%～120%のランダム性
           const attackDamage = finalBaseDamage * variance
-          let finalDamage = DamageSystem.calculateDamage(attackDamage, this.player, !isPhysical)
+          
+          // 武器traitsボーナスを取得
+          const weaponTraitsBonus = WeaponSystem.getWeaponTraitsBonus(this.player.weapons)
+          let finalDamage = DamageSystem.calculatePlayerDamageWithTraits(attackDamage, this.player, !isPhysical, weaponTraitsBonus)
           finalDamage = StatusEffectSystem.applyVulnerabilityModifier(this.player, finalDamage)
 
           this.player.currentHp = Math.max(0, this.player.currentHp - finalDamage)
@@ -402,7 +415,10 @@ export class CombatSystem {
             const variance = Math.max(0, action.damage.variance ?? 0.2)
             const varFactor = (1 - variance) + Math.random() * (variance * 2)
             const raw = (baseStat * mult + flat) * varFactor
-            let finalDamage = DamageSystem.calculateDamage(raw, this.player, action.damage.stat === 'magic')
+            
+            // 武器traitsボーナスを取得
+            const weaponTraitsBonus = WeaponSystem.getWeaponTraitsBonus(this.player.weapons)
+            let finalDamage = DamageSystem.calculatePlayerDamageWithTraits(raw, this.player, action.damage.stat === 'magic', weaponTraitsBonus)
             finalDamage = StatusEffectSystem.applyVulnerabilityModifier(this.player, finalDamage)
             this.player.currentHp = Math.max(0, this.player.currentHp - finalDamage)
 
@@ -481,15 +497,21 @@ export class CombatSystem {
     const breakdown = StatusEffectSystem.getDamageTakenBreakdown(target)
     if (breakdown.length === 0) return null
 
-    const total = breakdown.reduce((sum, b) => sum + b.total, 0)
-    const sign = total > 0 ? '+' : ''
+    const formatPercent = (value: number) => {
+      const rounded = Math.round(value * 10) / 10
+      return Number.isInteger(rounded) ? rounded.toFixed(0) : rounded.toFixed(1)
+    }
+
+    const totalRaw = breakdown.reduce((sum, b) => sum + b.total, 0)
+    const total = formatPercent(totalRaw)
+    const sign = totalRaw > 0 ? '+' : ''
     const detail = breakdown
       .map(b => {
         const name = this.getStatusName(b.type)
         const icon = StatusEffectSystem.getStatusIcon(b.type)
         const stacks = b.stacks > 1 ? `x${b.stacks}` : ''
         const modSign = b.total > 0 ? '+' : ''
-        return `${icon}${name}${stacks}(${modSign}${b.total}%)`
+        return `${icon}${name}${stacks}(${modSign}${formatPercent(b.total)}%)`
       })
       .join(', ')
 
@@ -611,7 +633,8 @@ export class CombatSystem {
             defense: 9999,
             magicDefense: 9999,
             speed: 10,
-            statusPower: 0
+            statusPower: 0,
+            lifeSteal: 0
           },
           actionPool: [
             { type: 'nothing', weight: 1 }
@@ -635,7 +658,8 @@ export class CombatSystem {
             defense: 9999,
             magicDefense: 9999,
             speed: 10,
-            statusPower: 0
+            statusPower: 0,
+            lifeSteal: 0
           },
           actionPool: [
             { type: 'nothing', weight: 1 }
@@ -654,13 +678,15 @@ export class CombatSystem {
       const hpMult = tierHpMultiplier[tier]
       const scale = (base: number) => Math.max(1, Math.round(base * levelStatGrowth * statMult))
       const statusPowerBase = template.baseStats.statusPower ?? 0
+      const lifeStealBase = template.baseStats.lifeSteal ?? 0
       const scaledStats = {
         attack: scale(template.baseStats.attack),
         magic: scale(template.baseStats.magic),
         defense: scale(template.baseStats.defense),
         magicDefense: scale(template.baseStats.magicDefense),
         speed: Math.max(1, Math.round(template.baseStats.speed * (1 + (templateLevel - 1) * 0.04) * statMult)),
-        statusPower: Math.max(0, Math.round(statusPowerBase * levelStatGrowth * statMult))
+        statusPower: Math.max(0, Math.round(statusPowerBase * levelStatGrowth * statMult)),
+        lifeSteal: Math.max(0, Math.round(lifeStealBase * levelStatGrowth * 10) / 10)
       }
       const baseHp = 70 * template.baseStats.hpMultiplier
       const hp = Math.max(30, Math.floor(baseHp * levelHpGrowth * hpMult))
@@ -785,13 +811,15 @@ export class CombatSystem {
     const scale = (base: number) => Math.max(1, Math.round(base * levelStatGrowth * statMult))
 
     const statusPowerBase = template.baseStats.statusPower ?? 0
+    const lifeStealBase = template.baseStats.lifeSteal ?? 0
     const scaledStats = {
       attack: scale(template.baseStats.attack),
       magic: scale(template.baseStats.magic),
       defense: scale(template.baseStats.defense),
       magicDefense: scale(template.baseStats.magicDefense),
       speed: Math.max(1, Math.round(template.baseStats.speed * (1 + (actualLevel - 1) * 0.04) * statMult)),
-      statusPower: Math.max(0, Math.round(statusPowerBase * levelStatGrowth * statMult * levelScale))
+      statusPower: Math.max(0, Math.round(statusPowerBase * levelStatGrowth * statMult * levelScale)),
+      lifeSteal: Math.max(0, Math.round(lifeStealBase * levelStatGrowth * levelScale * 10) / 10)
     }
 
     const baseHp = 70 * template.baseStats.hpMultiplier

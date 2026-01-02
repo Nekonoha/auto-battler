@@ -59,6 +59,14 @@
             >
               +10
             </button>
+            <button 
+              class="btn btn-spinner btn-spinner-small"
+              @click="adjustStat('maxHp', 100)"
+              :disabled="isRunLocked || tempStatAlloc.maxHp >= maxHpMax"
+              title="100ずつ増やす"
+            >
+              +100
+            </button>
           </div>
           <div class="stat-slider-info">
             <div class="stat-current">現在: <strong>{{ player.maxHp }}</strong></div>
@@ -117,6 +125,14 @@
               title="10ずつ増やす"
             >
               +10
+            </button>
+            <button 
+              class="btn btn-spinner btn-spinner-small"
+              @click="adjustStat('statusPower', 100)"
+              :disabled="isRunLocked || tempStatAlloc.statusPower >= statusPowerMax"
+              title="100ずつ増やす"
+            >
+              +100
             </button>
           </div>
           <div class="stat-slider-info">
@@ -177,6 +193,14 @@
             >
               +10
             </button>
+            <button 
+              class="btn btn-spinner btn-spinner-small"
+              @click="adjustStat('attack', 100)"
+              :disabled="isRunLocked || tempStatAlloc.attack >= attackMax"
+              title="100ずつ増やす"
+            >
+              +100
+            </button>
           </div>
           <div class="stat-slider-info">
             <div class="stat-current">現在: <strong>{{ player.stats.attack }}</strong></div>
@@ -235,6 +259,14 @@
               title="10ずつ増やす"
             >
               +10
+            </button>
+            <button 
+              class="btn btn-spinner btn-spinner-small"
+              @click="adjustStat('magic', 100)"
+              :disabled="isRunLocked || tempStatAlloc.magic >= magicMax"
+              title="100ずつ増やす"
+            >
+              +100
             </button>
           </div>
           <div class="stat-slider-info">
@@ -295,6 +327,14 @@
             >
               +10
             </button>
+            <button 
+              class="btn btn-spinner btn-spinner-small"
+              @click="adjustStat('defense', 100)"
+              :disabled="isRunLocked || tempStatAlloc.defense >= defenseMax"
+              title="100ずつ増やす"
+            >
+              +100
+            </button>
           </div>
           <div class="stat-slider-info">
             <div class="stat-current">現在: <strong>{{ player.stats.defense }}</strong></div>
@@ -354,6 +394,14 @@
             >
               +10
             </button>
+            <button 
+              class="btn btn-spinner btn-spinner-small"
+              @click="adjustStat('magicDefense', 100)"
+              :disabled="isRunLocked || tempStatAlloc.magicDefense >= magicDefenseMax"
+              title="100ずつ増やす"
+            >
+              +100
+            </button>
           </div>
           <div class="stat-slider-info">
             <div class="stat-current">現在: <strong>{{ player.stats.magicDefense }}</strong></div>
@@ -412,6 +460,14 @@
               title="10ずつ増やす"
             >
               +10
+            </button>
+            <button 
+              class="btn btn-spinner btn-spinner-small"
+              @click="adjustStat('speed', 100)"
+              :disabled="isRunLocked || tempStatAlloc.speed >= speedMax"
+              title="100ずつ増やす"
+            >
+              +100
             </button>
           </div>
           <div class="stat-slider-info">

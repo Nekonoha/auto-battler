@@ -61,7 +61,7 @@
         <div>
           <CombatLog :logs="combatLogs" />
           <ExplorationLogPanel
-            v-if="explorationTimeline.length"
+            v-if="explorationTimeline && explorationTimeline.length"
             :explorationTimeline="explorationTimeline"
           />
           <div v-if="combat?.isGameOver()" class="battle-result">
@@ -96,6 +96,8 @@
       @close="showWeaponSelection = false"
       @remove="removeWeapon"
       @select="equipWeapon"
+      @reorder-weapons="reorderWeapons"
+      @equip-from-available="equipFromAvailable"
       @openSellMenu="showSellMenu = true"
       @update:rarityFilter="rarityFilter = $event"
       @update:typeFilter="typeFilter = $event"
@@ -121,9 +123,9 @@
 
     <SettingsModal
       :show="showSettings"
-      :combatLogsLength="combatLogs.length"
-      :explorationLogsLength="explorationCombatLogs.length"
-      :dungeonLogsLength="dungeonLogs.length"
+      :combatLogsLength="combatLogs?.length ?? 0"
+      :explorationLogsLength="explorationCombatLogs?.length ?? 0"
+      :dungeonLogsLength="dungeonLogs?.length ?? 0"
       @close="showSettings = false"
       @export-combat="exportCombatLog"
       @export-exploration="exportExplorationCombatLog"
@@ -132,7 +134,7 @@
 
     <DebugWeaponModal
       :show="showDebugWeaponModal"
-      :presets="presetWeapons"
+      :presets="presetWeapons || []"
       @close="showDebugWeaponModal = false"
       @select="handleSelectDebugWeapon"
       @custom="handleCustomDebugWeapon"
@@ -140,14 +142,14 @@
 
     <DebugEnemyModal
       :show="showDebugEnemyModal"
-      :enemies="debugEnemyPresets"
+      :enemies="debugEnemyPresets || []"
       @close="showDebugEnemyModal = false"
       @select="handleSelectDebugEnemy"
     />
 
     <SaveLoadModal
       :show="showSaveMenu"
-      :saveEntries="saveEntries"
+      :saveEntries="saveEntries || []"
       :formatTime="formatTime"
       @close="showSaveMenu = false"
       @save-entry="handleSaveEntry"
@@ -476,7 +478,9 @@ const currentEventLabel = computed(() => {
 
 const explorationTimeline = computed(() => {
   const maxItems = 15
-  return explorationCombatLogs.value
+  const logs = explorationCombatLogs.value
+  if (!logs || !Array.isArray(logs)) return []
+  return logs
     .slice(-maxItems)
     .map((entry, idx) => ({ ...entry, id: `${entry.dungeonName}-${entry.stage}-${entry.enemyName}-${idx}` }))
     .reverse()
@@ -488,6 +492,31 @@ const handleOpenChestsWrapper = (count?: number) => {
 
 function equipWeapon(weapon: Weapon) {
   equipWeaponFromComposable(weapon, removeWeapon)
+}
+
+function reorderWeapons(fromIndex: number, toIndex: number) {
+  // 装備中の武器を並べ替え
+  if (fromIndex >= 0 && toIndex >= 0 && fromIndex < player.weapons.length && toIndex < player.weapons.length) {
+    const temp = player.weapons[fromIndex]
+    player.weapons[fromIndex] = player.weapons[toIndex]
+    player.weapons[toIndex] = temp
+  }
+}
+
+function equipFromAvailable(weapon: Weapon, targetIndex?: number) {
+  // 利用可能な武器を装備に追加または置き替え
+  if (targetIndex !== undefined && targetIndex < player.weapons.length) {
+    // 指定されたスロットの武器と置き替え
+    const oldWeapon = player.weapons[targetIndex]
+    player.weapons[targetIndex] = weapon
+    addToAvailableIfNeeded(oldWeapon)
+  } else {
+    // 空きスロットに追加
+    if (player.weapons.length < (player.weaponSlots || 2)) {
+      player.weapons.push(weapon)
+    }
+  }
+  pruneAvailableWeapons()
 }
 
 function replaceWeapon(oldIndex: number) {
