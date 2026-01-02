@@ -6,7 +6,8 @@ export function getWeaponRarityColor(rarity: string) {
     common: '#95a5a6',
     rare: '#3a86ff',
     epic: '#8338ec',
-    legendary: '#ffb800'
+    legendary: '#ffb800',
+    mythic: '#ff006e'
   }
   return colors[rarity] || '#95a5a6'
 }

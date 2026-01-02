@@ -202,13 +202,24 @@ export function useSaveSystem(
       ? restoredPlayer.unlockedDungeons
       : (Array.isArray(player.unlockedDungeons) && player.unlockedDungeons.length > 0 ? player.unlockedDungeons : ['tutorial-field'])
 
+    const restoredWeapons = Array.isArray(restoredPlayer.weapons) && restoredPlayer.weapons.length > 0
+      ? restoredPlayer.weapons
+      : player.weapons
+
+    const restoredSlots = Math.max(
+      restoredPlayer.weaponSlots ?? player.weaponSlots ?? 2,
+      restoredWeapons.length,
+      2
+    )
+
     Object.assign(player, {
       ...player,
       ...restoredPlayer,
+      weaponSlots: restoredSlots,
       stats: { ...player.stats, ...(restoredPlayer.stats ?? {}) },
       allocatedStats: { ...player.allocatedStats, ...(restoredPlayer.allocatedStats ?? {}) },
       unlockedDungeons: unlockedList,
-      weapons: Array.isArray(restoredPlayer.weapons) && restoredPlayer.weapons.length > 0 ? restoredPlayer.weapons : player.weapons,
+      weapons: restoredWeapons,
       statusEffects: restoredPlayer.statusEffects ?? []
     })
 

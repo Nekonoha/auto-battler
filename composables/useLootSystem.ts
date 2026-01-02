@@ -3,12 +3,11 @@ import type { Enemy, EnemyTier, Weapon, Dungeon, Player, WeaponRarity } from '~/
 import { BASE_WEAPONS, getBaseWeaponsByRarity, getRandomBaseWeapon } from '~/data/baseWeapons'
 import { generateEnchantedWeapon } from '~/systems/WeaponGenerationSystem'
 
-const DEFAULT_WEIGHTS = { common: 0.6, rare: 0.3, epic: 0.09, legendary: 0.01 }
-const MAX_LIMIT_BREAK = 4
+const DEFAULT_WEIGHTS: Record<string, number> = { common: 0.6, rare: 0.3, epic: 0.09, legendary: 0.01, mythic: 0.01 }
 
 export type LootResult =
   | { type: 'chest'; options: Weapon[]; source: EnemyTier }
-  | { type: 'weapon'; weapon: Weapon; status: 'new' | 'limitbreak' | 'maxed'; level: number }
+  | { type: 'weapon'; weapon: Weapon; status: 'new'; level: number }
   | { type: 'none' }
 
 /**
@@ -24,50 +23,14 @@ export function useLootSystem(
   const lastLootSource = computed<EnemyTier | null>(() => chestQueue.value[0]?.tier ?? null)
   const hasPendingChest = computed<boolean>(() => chestQueue.value.length > 0)
   const chestCount = computed<number>(() => chestQueue.value.length)
-  const chestLootHistory = ref<Array<{ id: string; name: string; rarity: WeaponRarity; tier: EnemyTier; status: 'new' | 'limitbreak' | 'maxed'; level: number; timestamp: number }>>([])
+  const chestLootHistory = ref<Array<{ id: string; name: string; rarity: WeaponRarity; tier: EnemyTier; status: 'new'; level: number; timestamp: number }>>([])
   const cloneWeapon = (weapon: Weapon): Weapon => ({
     ...weapon,
     rarity: weapon.rarity,
-    limitBreak: weapon.limitBreak ?? 0,
-    limitBreakMax: weapon.limitBreakMax ?? MAX_LIMIT_BREAK,
     stats: { ...weapon.stats },
     tags: [...weapon.tags],
     effects: weapon.effects.map(e => ({ ...e }))
   })
-
-  const rarityOrder: WeaponRarity[] = ['common', 'rare', 'epic', 'legendary']
-
-  const promoteRarity = (weapon: Weapon) => {
-    const currentIdx = rarityOrder.indexOf(weapon.rarity)
-    if (currentIdx >= 0 && currentIdx < rarityOrder.length - 1) {
-      weapon.rarity = rarityOrder[currentIdx + 1]
-    }
-  }
-
-  const boostWeaponPower = (weapon: Weapon, step: number) => {
-    const scale = 1 + 0.08 * step
-    weapon.stats.attack = Math.round(weapon.stats.attack * scale)
-    weapon.stats.magic = Math.round(weapon.stats.magic * scale)
-    weapon.stats.speed = Math.round(weapon.stats.speed * scale)
-    weapon.stats.critChance = Math.min(100, Math.round(weapon.stats.critChance * (1 + 0.05 * step)))
-    weapon.stats.critDamage = parseFloat((weapon.stats.critDamage * (1 + 0.03 * step)).toFixed(2))
-    weapon.stats.statusPower = Math.round(weapon.stats.statusPower * (1 + 0.1 * step))
-
-    weapon.effects = weapon.effects.map(effect => ({
-      ...effect,
-      chance: Math.min(100, Math.round(effect.chance * (1 + 0.05 * step))),
-      stacks: Math.max(1, Math.round(effect.stacks * (1 + 0.05 * step))),
-      duration: Math.max(1, Math.round(effect.duration * (1 + 0.03 * step)))
-    }))
-  }
-
-  const isWeaponMaxed = (candidateId: string): boolean => {
-    const pool = [...player.weapons, ...availableWeapons.value]
-    const owned = pool.find(w => w.id === candidateId)
-    if (!owned) return false
-    const max = owned.limitBreakMax ?? MAX_LIMIT_BREAK
-    return (owned.limitBreak ?? 0) >= max
-  }
 
   const resetLoot = () => {
     showChestModal.value = false
@@ -89,71 +52,59 @@ export function useLootSystem(
     )
   }
 
-  const upgradeExistingWeapon = (existing: Weapon) => {
-    existing.limitBreak = existing.limitBreak ?? 0
-    const max = existing.limitBreakMax ?? MAX_LIMIT_BREAK
-    if (existing.limitBreak >= max) {
-      return { status: 'maxed' as const, weapon: existing, level: existing.limitBreak }
-    }
+  const addWeaponToInventory = (weapon: Weapon) => {
+    // 既に所持している武器も新規として扱う（限界突破はなし）
+    const ownedCopy = cloneWeapon(weapon)
+    addToAvailableIfNeeded(ownedCopy)
 
-    existing.limitBreak += 1
-    boostWeaponPower(existing, 1)
-
-    const isMax = existing.limitBreak >= max
-    if (isMax) {
-      promoteRarity(existing)
-      boostWeaponPower(existing, 1)
-    }
-
-    return { status: 'limitbreak' as const, weapon: existing, level: existing.limitBreak, isMax }
+    return { status: 'new' as const, weapon: ownedCopy, level: 0 }
   }
 
-  const addWeaponToInventory = (weapon: Weapon) => {
-    // 既に所持している武器なら限界突破
-    const owned = player.weapons.find(w => w.id === weapon.id)
-    if (owned) {
-      return upgradeExistingWeapon(owned)
-    }
+  const rarityRank = (rarity: string): number => {
+    const baseOrder: WeaponRarity[] = ['common', 'rare', 'epic', 'legendary', 'mythic']
+    const idx = baseOrder.indexOf(rarity as WeaponRarity)
+    if (idx >= 0) return idx
+    const plus = /^mythic(\+*)$/.exec(rarity)
+    if (plus) return baseOrder.indexOf('mythic') + (plus[1]?.length || 0)
+    return baseOrder.length
+  }
 
-    const stored = availableWeapons.value.find(w => w.id === weapon.id)
-    if (stored) {
-      return upgradeExistingWeapon(stored)
-    }
+  const rarityPlusLevel = (rarity: string): number => {
+    const plus = /^mythic(\+*)$/.exec(rarity)
+    return plus ? (plus[1]?.length || 0) : 0
+  }
 
-    const ownedCopy = cloneWeapon(weapon)
-    if (player.weapons.length < 3) {
-      player.weapons.push(ownedCopy)
-      pruneAvailableWeapons()
-    } else {
-      addToAvailableIfNeeded(ownedCopy)
-    }
-
-    return { status: 'new' as const, weapon: ownedCopy, level: ownedCopy.limitBreak ?? 0 }
+  const normalizeRarityForPool = (rarity: string): string => {
+    if (rarity.startsWith('mythic')) return 'mythic'
+    return rarity
   }
 
   const getBumpedWeights = (
     tier: EnemyTier,
-    base: Record<'common' | 'rare' | 'epic' | 'legendary', number>
+    base: Record<string, number>
   ) => {
     const bump = tier === 'boss' ? 2.0 : tier === 'named' ? 1.6 : 1.2
-    return {
-      common: base.common * 0.6,
-      rare: base.rare * bump,
-      epic: base.epic * bump,
-      legendary: base.legendary * bump
+    const entries = Object.entries(base)
+    if (!entries.length) return {}
+    const lowestKey = entries.reduce((min, cur) => rarityRank(cur[0]) < rarityRank(min) ? cur[0] : min, entries[0][0])
+    const result: Record<string, number> = {}
+    for (const [key, value] of entries) {
+      const factor = key === lowestKey ? 0.6 : bump
+      result[key] = value * factor
     }
+    return result
   }
 
   const rollWeaponByWeights = (
-    weights: Record<'common' | 'rare' | 'epic' | 'legendary', number>,
+    weights: Record<string, number>,
     weaponPool?: string[]
   ): Weapon => {
-    const rarities = Object.keys(weights) as Array<keyof typeof weights>
+    const rarities = Object.keys(weights)
     const total = rarities.reduce((sum, key) => sum + weights[key], 0)
 
     // レアリティをランダムに選択
     let r = Math.random() * total
-    let picked: keyof typeof weights = 'common'
+    let picked: string = 'common'
     for (const key of rarities) {
       if (r < weights[key]) {
         picked = key
@@ -163,7 +114,8 @@ export function useLootSystem(
     }
 
     // 選択されたレアリティのベース武器を取得
-    let baseWeapons = getBaseWeaponsByRarity(picked)
+    const rarityForPool = normalizeRarityForPool(picked)
+    let baseWeapons = getBaseWeaponsByRarity(rarityForPool)
     if (weaponPool && weaponPool.length) {
       baseWeapons = baseWeapons.filter(w => weaponPool.includes(w.id))
     }
@@ -175,25 +127,67 @@ export function useLootSystem(
 
     // ランダムにベース武器を選択してエンチャント付きで生成
     const baseWeapon = baseWeapons[Math.floor(Math.random() * baseWeapons.length)]
-    // レアリティに応じてエンチャント確率を調整
-    const enchantChance = picked === 'legendary' ? 90 : picked === 'epic' ? 70 : picked === 'rare' ? 50 : 30
-    const multiEnchantChance = picked === 'legendary' ? 40 : picked === 'epic' ? 25 : 10
-    return generateEnchantedWeapon(baseWeapon, enchantChance, multiEnchantChance)
+    const plusLevel = rarityPlusLevel(picked)
+    // レアリティに応じてエンチャント確率を調整（mythic+ ならボーナス）
+    const enchantChanceBase = rarityForPool === 'legendary' ? 90 : rarityForPool === 'epic' ? 70 : rarityForPool === 'rare' ? 50 : 30
+    const multiEnchantChanceBase = rarityForPool === 'legendary' ? 40 : rarityForPool === 'epic' ? 25 : 10
+    const enchantChance = Math.min(100, enchantChanceBase + plusLevel * 15)
+    const multiEnchantChance = Math.min(100, multiEnchantChanceBase + plusLevel * 10)
+    const maxEnchantsOverride = plusLevel > 0 ? 5 + plusLevel : undefined
+    return generateEnchantedWeapon(baseWeapon, enchantChance, multiEnchantChance, undefined, { targetRarity: picked as WeaponRarity, maxEnchantsOverride })
+  }
+
+  /**
+   * 敵レベルに応じてエンチャント確率を調整
+   */
+  const getEnchantChanceForLevel = (level: number): { enchant: number; multiEnchant: number } => {
+    // Lv1-100: 基本確率
+    // Lv100-200: 1.2倍
+    // Lv200-300: 1.5倍
+    // Lv300-400: 1.8倍
+    // Lv400-500: 2.2倍
+    // Lv500+: 2.5倍
+    let multiplier = 1.0
+    if (level >= 500) multiplier = 2.5
+    else if (level >= 400) multiplier = 2.2
+    else if (level >= 300) multiplier = 1.8
+    else if (level >= 200) multiplier = 1.5
+    else if (level >= 100) multiplier = 1.2
+
+    return {
+      enchant: Math.min(100, 50 * multiplier),
+      multiEnchant: Math.min(100, 20 * multiplier)
+    }
   }
 
   const rollChestReward = (
     tier: EnemyTier,
-    base: Record<'common' | 'rare' | 'epic' | 'legendary', number>,
-    weaponPool?: string[]
+    base: Record<string, number>,
+    weaponPool?: string[],
+    enemyLevel?: number
   ): Weapon => {
-    const tierUpWeights = {
-      common: 0, // チェストはワンランク上を狙うので共通枠は0
-      rare: base.common,
-      epic: base.rare,
-      legendary: base.epic + base.legendary
-    }
+    const rarityKeys = Object.keys(base)
+    const sorted = rarityKeys.sort((a, b) => rarityRank(a) - rarityRank(b))
+    const tierUpWeights: Record<string, number> = {}
+    sorted.forEach((key, idx) => {
+      if (idx === 0) {
+        tierUpWeights[key] = 0
+      } else {
+        const prev = sorted[idx - 1]
+        tierUpWeights[key] = (base[prev] ?? 0) + (idx === sorted.length - 1 ? (base[key] ?? 0) : 0)
+      }
+    })
+
     const weights = getBumpedWeights(tier, tierUpWeights)
-    return rollWeaponByWeights(weights, weaponPool)
+    const weapon = rollWeaponByWeights(weights, weaponPool)
+    
+    // 敵レベルが高い場合、エンチャント確率を高める
+    if (enemyLevel && enemyLevel >= 100) {
+      const bonus = getEnchantChanceForLevel(enemyLevel)
+      return generateEnchantedWeapon(weapon, bonus.enchant, bonus.multiEnchant)
+    }
+    
+    return weapon
   }
 
   const rollReward = (target: Enemy): LootResult => {
@@ -260,8 +254,8 @@ export function useLootSystem(
         name: reward.name,
         rarity: reward.rarity,
         tier: entry.tier,
-        status: result.status,
-        level: result.level,
+        status: 'new',
+        level: 0,
         timestamp: Date.now()
       })
       chestLootHistory.value = chestLootHistory.value.slice(0, 20)

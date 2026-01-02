@@ -1,17 +1,20 @@
 import type { Enemy, Player } from '~/types';
 
 export class DamageSystem {
+    private static defenseMultiplier(defense: number): number {
+        const def = Math.max(0, defense);
+        const ratio = def / (def + 200); // 200 で半減寄りのなだらか曲線
+        const multiplier = 1 - 0.7 * ratio; // 防御が無限大でも 30% ダメージは通す
+        return Math.max(0.2, multiplier); // 安全下限
+    }
+
     /**
      * Calculates the damage dealt to a defender after considering their defense.
-     * Uses the formula: FinalDamage = BaseDamage * (100 / (100 + DefenderDefense))
-     * @param baseDamage The base damage of the attack.
-     * @param defender The defending entity (player or enemy).
-     * @param isMagic Determines if magic defense should be used.
-     * @returns The calculated damage, rounded to the nearest integer.
+     * Uses a diminishing-returns curve so defense cannot zero-out damage.
      */
     static calculateDamage(baseDamage: number, defender: Player | Enemy, isMagic = false): number {
         const defense = isMagic ? defender.stats.magicDefense : defender.stats.defense;
-        const finalDamage = baseDamage * (100 / (100 + defense));
+        const finalDamage = baseDamage * this.defenseMultiplier(defense);
         return Math.round(finalDamage);
     }
 
@@ -36,7 +39,7 @@ export class DamageSystem {
 
         // 通常の防御計算
         const defense = isMagic ? defender.stats.magicDefense : defender.stats.defense;
-        let finalDamage = baseDamage * (100 / (100 + defense));
+        let finalDamage = baseDamage * this.defenseMultiplier(defense);
 
         // 耐性適用
         let resistancePercent = 0;

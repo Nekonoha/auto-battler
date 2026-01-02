@@ -66,6 +66,65 @@
           </div>
           <div class="stat-allocated">割り振り済み: <strong>+{{ allocatedStats.maxHp }}P</strong></div>
         </div>
+        
+        <div class="stat-slider-item">
+          <div class="stat-slider-header">
+            <span class="stat-icon">🔮</span>
+            <span class="stat-name">状態異常威力</span>
+            <button 
+              v-if="allocatedStats.statusPower > 0"
+              class="btn btn-mini btn-danger"
+              @click="resetStat('statusPower')"
+              :disabled="isRunLocked"
+              title="このステータスのみリセット"
+            >
+              ↺
+            </button>
+          </div>
+          <div class="stat-spinner">
+            <button 
+              class="btn btn-spinner btn-spinner-small"
+              @click="adjustStat('statusPower', -10)"
+              :disabled="isRunLocked || tempStatAlloc.statusPower <= 0"
+              title="10ずつ減らす"
+            >
+              -10
+            </button>
+            <button 
+              class="btn btn-spinner"
+              @click="adjustStat('statusPower', -1)"
+              :disabled="isRunLocked || tempStatAlloc.statusPower <= 0"
+              title="1ずつ減らす"
+            >
+              −
+            </button>
+            <div class="stat-spinner-display">
+              <div class="spinner-point">+{{ tempStatAlloc.statusPower }} P</div>
+              <div class="spinner-value">+{{ tempStatAlloc.statusPower * 4 }}</div>
+            </div>
+            <button 
+              class="btn btn-spinner"
+              @click="adjustStat('statusPower', 1)"
+              :disabled="isRunLocked || tempStatAlloc.statusPower >= statusPowerMax"
+              title="1ずつ増やす"
+            >
+              +
+            </button>
+            <button 
+              class="btn btn-spinner btn-spinner-small"
+              @click="adjustStat('statusPower', 10)"
+              :disabled="isRunLocked || tempStatAlloc.statusPower >= statusPowerMax"
+              title="10ずつ増やす"
+            >
+              +10
+            </button>
+          </div>
+          <div class="stat-slider-info">
+            <div class="stat-current">現在: <strong>{{ player.stats.statusPower }}</strong></div>
+            <div class="stat-after">→ <strong>{{ player.stats.statusPower + tempStatAlloc.statusPower * 4 }}</strong></div>
+          </div>
+          <div class="stat-allocated">割り振り済み: <strong>+{{ allocatedStats.statusPower }}P</strong></div>
+        </div>
 
         <div class="stat-slider-item">
           <div class="stat-slider-header">
@@ -386,6 +445,7 @@ interface TempAlloc {
   defense: number
   magicDefense: number
   speed: number
+  statusPower: number
 }
 
 type Emits = {
@@ -441,7 +501,8 @@ const handleReset = () => {
     magic: 0,
     defense: 0,
     magicDefense: 0,
-    speed: 0
+    speed: 0,
+    statusPower: 0,
   })
   // 実際のステータスリセット
   emit('reset')
@@ -453,4 +514,5 @@ const magicMax = computed(() => getMaxForStat('magic'))
 const defenseMax = computed(() => getMaxForStat('defense'))
 const magicDefenseMax = computed(() => getMaxForStat('magicDefense'))
 const speedMax = computed(() => getMaxForStat('speed'))
+const statusPowerMax = computed(() => getMaxForStat('statusPower'))
 </script>

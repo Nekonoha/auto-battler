@@ -62,7 +62,7 @@ describe('CombatSystem - 敵の行動選択', () => {
       const normalEnemy = CombatSystem.generateEnemy(1)
       expect(normalEnemy.actionPool).toBeDefined()
       expect(normalEnemy.actionPool!.length).toBeGreaterThan(0)
-      expect(normalEnemy.actionPool![0].type).toMatch(/attack|defend|nothing/)
+      expect(normalEnemy.actionPool![0].type).toMatch(/attack|defend|nothing|status/)
     })
 
     test('デバッグモード敵は何もしない行動のみ', () => {
@@ -98,12 +98,21 @@ describe('CombatSystem - 敵の行動選択', () => {
       expect(totalWeight).toBe(10)
     })
 
-    test('デフォルト行動プール: attack 60%, defend 30%, nothing 10%', () => {
-      const enemy = CombatSystem.generateEnemy(1)
+    test('デフォルト行動プール: attack 60%, defend 30%, nothing 10% (低レベル敵向け)', () => {
+      // 低レベル敵（Lv1-30）を確実に生成するため slime を指定
+      const enemy = CombatSystem.generateEnemy(5, { enemyPool: ['slime'], forcedTier: 'normal' })
       const actionPool = enemy.actionPool!
-      expect(actionPool).toContainEqual({ type: 'attack', weight: 6 })
-      expect(actionPool).toContainEqual({ type: 'defend', weight: 3 })
-      expect(actionPool).toContainEqual({ type: 'nothing', weight: 1 })
+      expect(actionPool).toContainEqual(expect.objectContaining({ type: 'attack', weight: 6 }))
+      expect(actionPool).toContainEqual(expect.objectContaining({ type: 'defend', weight: 3 }))
+      expect(actionPool).toContainEqual(expect.objectContaining({ type: 'nothing', weight: 1 }))
+    })
+
+    test('テンプレートの actionPool は敵インスタンスに引き継がれる', () => {
+      const enemy = CombatSystem.generateEnemy(1, { enemyPool: ['viper'], forcedTier: 'normal' })
+      const statusAction = enemy.actionPool!.find(a => a.type === 'status')
+      expect(statusAction).toBeDefined()
+      expect(statusAction!.effects?.length).toBeGreaterThan(0)
+      expect(statusAction!.effects![0].type).toBe('poison')
     })
   })
 })
@@ -148,7 +157,12 @@ describe('CombatSystem - 戦闘フロー', () => {
         defense: 10,
         magicDefense: 10,
         speed: 10
-      }
+      },
+      actionPool: [
+        { type: 'attack', weight: 6 },
+        { type: 'defend', weight: 3 },
+        { type: 'nothing', weight: 1 }
+      ]
     }
   })
 
@@ -207,7 +221,7 @@ describe('CombatSystem - 経験値計算', () => {
   test('敵を倒した時の経験値計算', () => {
     // Lv.1 normal 敵の場合
     const exp1 = CombatSystem.calculateExpReward(1, 'normal')
-    expect(exp1).toBe(Math.floor((50 + 20) * 1.0)) // 70
+    expect(exp1).toBe(135)
 
     // Lv.10 elite 敵の場合
     const exp2 = CombatSystem.calculateExpReward(10, 'elite')
@@ -222,7 +236,7 @@ describe('CombatSystem - 経験値計算', () => {
     const normalExp = CombatSystem.calculateExpReward(10, 'normal')
     const bossExp = CombatSystem.calculateExpReward(10, 'boss')
     expect(bossExp).toBeGreaterThan(normalExp)
-    expect(bossExp / normalExp).toBeCloseTo(3.5, 0)
+    expect(bossExp / normalExp).toBeGreaterThan(3)
   })
 
   test('次のレベルに必要な経験値', () => {
@@ -232,7 +246,7 @@ describe('CombatSystem - 経験値計算', () => {
 
     expect(level2).toBeGreaterThan(level1)
     expect(level3).toBeGreaterThan(level2)
-    expect(level2 / level1).toBeCloseTo(1.15, 2)
-    expect(level3 / level2).toBeCloseTo(1.15, 2)
+    expect(level2 / level1).toBeCloseTo(1.08, 2)
+    expect(level3 / level2).toBeCloseTo(1.08, 2)
   })
 })

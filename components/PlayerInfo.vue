@@ -1,7 +1,22 @@
 <template>
   <div class="player-info">
     <div class="player-header">
-      <h2>🧙 {{ player.name }}</h2>
+      <div class="player-name-section">
+        <h2 v-if="!isEditingName" @click="startEditName" class="player-name-display">
+          🧙 {{ player.name }}
+        </h2>
+        <div v-else class="player-name-edit">
+          <input 
+            v-model="editingName" 
+            @keyup.enter="finishEditName"
+            @keyup.escape="cancelEditName"
+            @blur="finishEditName"
+            class="player-name-input"
+            maxlength="20"
+            placeholder="プレイヤー名"
+          />
+        </div>
+      </div>
       <div class="player-resources">
         <div class="resource-item">💰 {{ player.gold }}G</div>
         <div class="resource-item">✨ {{ player.statPoints }}SP</div>
@@ -149,6 +164,19 @@
             </div>
           </Tooltip>
         </div>
+        <div class="stat-item">
+          <Tooltip :title="'🧿 状態異常威力'" :content="getStatTooltipContent('statusPower')">
+            <div class="stat-display">
+              <span class="stat-label">🧿</span>
+              <span class="stat-value">
+                {{ getEffectiveStat('statusPower').value }}
+                <span class="stat-detail">({{ getEffectiveStat('statusPower').base }})</span>
+                <span v-if="getEffectiveStat('statusPower').buff > 0" class="stat-buff">(+{{ getEffectiveStat('statusPower').buff }})</span>
+                <span v-if="getEffectiveStat('statusPower').debuff > 0" class="stat-debuff">(-{{ getEffectiveStat('statusPower').debuff }})</span>
+              </span>
+            </div>
+          </Tooltip>
+        </div>
       </div>
       </div>
     </div>
@@ -157,24 +185,39 @@
     <div class="section-with-action">
       <div class="section-header">
         <h3>⚔️ 装備武器</h3>
-        <button class="btn btn-secondary btn-compact" @click="$emit('openWeaponManager')" :disabled="isRunLocked">
-          🛡️ 武器管理
-        </button>
-      </div>
-      <div class="weapons-section">
-      <div v-if="player.weapons.length === 0" class="no-weapons">
-        武器が装備されていません
-      </div>
-      <div v-else class="weapons-list">
-        <div 
-          v-for="weapon in sortedWeapons" 
-          :key="weapon.id"
-          class="weapon-mini"
-          :style="{ borderColor: getRarityColor(weapon.rarity) }"
-        >
-          <WeaponDetails :weapon="weapon" />
+        <div class="slot-actions">
+          <span class="slot-count">枠 {{ player.weapons.length }} / {{ player.weaponSlots }}</span>
+          <button
+            class="btn btn-primary btn-compact"
+            @click="$emit('purchaseSlot')"
+            :disabled="!nextSlotCost || !canPurchaseSlot || isRunLocked"
+          >
+            🔓 スロット拡張 <span v-if="nextSlotCost">({{ nextSlotCost }}G)</span>
+          </button>
+          <button class="btn btn-secondary btn-compact" @click="$emit('openWeaponManager')" :disabled="isRunLocked">
+            🛡️ 武器管理
+          </button>
         </div>
       </div>
+      <div class="weapons-section">
+        <div class="weapons-grid">
+          <div
+            v-for="(weapon, index) in slotEntries"
+            :key="weapon?.id || `slot-${index}`"
+            class="weapon-slot"
+            :class="{ empty: !weapon }"
+            :style="weapon ? { borderColor: getRarityColor(weapon.rarity) } : {}"
+          >
+            <WeaponDetails v-if="weapon" :weapon="weapon" compact />
+            <div v-else class="empty-slot">
+              <div class="empty-slot-icon">➕</div>
+              <div class="empty-slot-text">空きスロット</div>
+              <button class="btn btn-secondary btn-compact" @click="$emit('openWeaponManager')" :disabled="isRunLocked">
+                装備する
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -193,8 +236,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import type { Player } from '~/types'
+import { computed, ref } from 'vue'
+import type { Player, Weapon } from '~/types'
 import { StatusEffectSystem } from '~/systems/StatusEffectSystem'
 import { WeaponSystem } from '~/systems/WeaponSystem'
 import { calculateActiveSynergies, getTotalSynergyBonus } from '~/data/synergies'
@@ -205,15 +248,39 @@ import Tooltip from './Tooltip.vue'
 const props = defineProps<{
   player: Player
   isRunLocked?: boolean
+  nextSlotCost?: number
+  canPurchaseSlot?: boolean
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   openWeaponManager: []
   openStatManager: []
+  updatePlayerName: [name: string]
+  purchaseSlot: []
 }>()
 
+const isEditingName = ref(false)
+const editingName = ref(props.player.name)
+
+const startEditName = () => {
+  isEditingName.value = true
+  editingName.value = props.player.name
+}
+
+const finishEditName = () => {
+  if (editingName.value.trim().length > 0) {
+    emit('updatePlayerName', editingName.value.trim())
+  }
+  isEditingName.value = false
+}
+
+const cancelEditName = () => {
+  isEditingName.value = false
+}
+
 const hpPercentage = computed(() => {
-  return (props.player.currentHp / props.player.maxHp) * 100
+  const pct = (props.player.currentHp / props.player.maxHp) * 100
+  return Math.min(100, Math.max(0, pct))
 })
 
 const expPercentage = computed(() => {
@@ -234,6 +301,13 @@ const sortedWeapons = computed(() => {
   })
 })
 
+const slotEntries = computed<Array<Weapon | null>>(() => {
+  const limit = Math.max(2, props.player.weaponSlots || 0)
+  const slots: Array<Weapon | null> = [...sortedWeapons.value]
+  while (slots.length < limit) slots.push(null)
+  return slots.slice(0, limit)
+})
+
 const activeSynergies = computed(() => {
   const weaponTags = props.player.weapons.map(w => w.tags)
   return calculateActiveSynergies(weaponTags)
@@ -243,7 +317,7 @@ const synergyBonuses = computed(() => {
   return getTotalSynergyBonus(activeSynergies.value)
 })
 
-type StatKey = 'attack' | 'magic' | 'defense' | 'magicDefense' | 'speed'
+type StatKey = 'attack' | 'magic' | 'defense' | 'magicDefense' | 'speed' | 'statusPower'
 
 const statModifiers = computed(() => StatusEffectSystem.getStatModifiers(props.player))
 
@@ -254,10 +328,11 @@ const effectiveStats = computed(() => {
     magic: { value: 0, base: 0, synergy: 0, buff: 0, debuff: 0, modifierPct: 0 },
     defense: { value: 0, base: 0, synergy: 0, buff: 0, debuff: 0, modifierPct: 0 },
     magicDefense: { value: 0, base: 0, synergy: 0, buff: 0, debuff: 0, modifierPct: 0 },
-    speed: { value: 0, base: 0, synergy: 0, buff: 0, debuff: 0, modifierPct: 0 }
+    speed: { value: 0, base: 0, synergy: 0, buff: 0, debuff: 0, modifierPct: 0 },
+    statusPower: { value: 0, base: 0, synergy: 0, buff: 0, debuff: 0, modifierPct: 0 }
   }
 
-  ;(['attack', 'magic', 'defense', 'magicDefense', 'speed'] as StatKey[]).forEach(stat => {
+  ;(['attack', 'magic', 'defense', 'magicDefense', 'speed', 'statusPower'] as StatKey[]).forEach(stat => {
     const base = props.player.stats[stat] || 0
     const synergy = getSynergyBonus(stat)
     const raw = base + synergy
@@ -336,6 +411,12 @@ const getStatTooltipContent = (stat: StatKey): string => {
 
   if (statInfo.synergy > 0) {
     parts.push(`<span class="tooltip-positive">シナジー: +${statInfo.synergy}</span>`)
+  }
+
+  if (stat === 'statusPower') {
+    parts.push(`適用倍率: ${(statInfo.modifierPct).toFixed(1)}%`)
+    parts.push(`実数値: ${statInfo.value}`)
+    return parts.join('<br>')
   }
 
   if (statInfo.buff > 0) {
@@ -849,6 +930,47 @@ h3 {
   text-transform: capitalize;
 }
 
+.player-name-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.player-name-display {
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.player-name-display:hover {
+  background: rgba(255, 255, 255, 0.1);
+  text-shadow: 0 0 8px rgba(107, 157, 255, 0.3);
+}
+
+.player-name-edit {
+  flex: 1;
+  max-width: 250px;
+}
+
+.player-name-input {
+  width: 100%;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid #4a9eff;
+  border-radius: 4px;
+  color: #e8eaed;
+  font-size: 16px;
+  font-weight: bold;
+  font-family: inherit;
+}
+
+.player-name-input:focus {
+  outline: none;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 8px rgba(74, 158, 255, 0.5);
+}
+
 .section-with-action {
   margin-top: 15px;
 }
@@ -864,5 +986,59 @@ h3 {
   margin: 0;
   color: #e0e0e0;
   font-size: 16px;
+}
+
+.slot-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.slot-count {
+  font-size: 13px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.weapons-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.weapon-slot {
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 8px;
+  min-height: 160px;
+  display: flex;
+}
+
+.weapon-slot.empty {
+  border-style: dashed;
+  align-items: center;
+  justify-content: center;
+}
+
+.empty-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  color: #9aa5b1;
+}
+
+.empty-slot-icon {
+  font-size: 26px;
+}
+
+.empty-slot-text {
+  font-size: 13px;
 }
 </style>

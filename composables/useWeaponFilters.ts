@@ -1,5 +1,6 @@
 import { computed, ref } from 'vue'
 import type { Weapon } from '~/types'
+import { WeaponSystem } from '~/systems/WeaponSystem'
 
 export function useWeaponFilters(availableWeapons: { value: Weapon[] }) {
   const rarityFilter = ref<string>('all')
@@ -26,6 +27,8 @@ export function useWeaponFilters(availableWeapons: { value: Weapon[] }) {
 
   const filteredWeapons = computed(() => {
     let filtered = availableWeapons.value
+    const indexMap = new Map<string, number>()
+    availableWeapons.value.forEach((w, idx) => indexMap.set(w.id, idx))
 
     if (rarityFilter.value !== 'all') {
       filtered = filtered.filter(w => w.rarity === rarityFilter.value)
@@ -59,6 +62,20 @@ export function useWeaponFilters(availableWeapons: { value: Weapon[] }) {
       filtered.sort((a, b) => b.stats.magic - a.stats.magic)
     } else if (sortBy.value === 'speed') {
       filtered.sort((a, b) => b.stats.speed - a.stats.speed)
+    } else if (sortBy.value === 'defense') {
+      filtered.sort((a, b) => b.stats.defense - a.stats.defense)
+    } else if (sortBy.value === 'magicDefense') {
+      filtered.sort((a, b) => b.stats.magicDefense - a.stats.magicDefense)
+    } else if (sortBy.value === 'critChance') {
+      filtered.sort((a, b) => b.stats.critChance - a.stats.critChance)
+    } else if (sortBy.value === 'critDamage') {
+      filtered.sort((a, b) => b.stats.critDamage - a.stats.critDamage)
+    } else if (sortBy.value === 'statusPower') {
+      filtered.sort((a, b) => b.stats.statusPower - a.stats.statusPower)
+    } else if (sortBy.value === 'rating') {
+      filtered.sort((a, b) => WeaponSystem.evaluateWeapon(b) - WeaponSystem.evaluateWeapon(a))
+    } else if (sortBy.value === 'acquired') {
+      filtered.sort((a, b) => (indexMap.get(b.id) ?? 0) - (indexMap.get(a.id) ?? 0))
     }
 
     return filtered

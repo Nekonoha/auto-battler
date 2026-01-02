@@ -7,8 +7,8 @@
     <div class="top-actions">
       <div class="top-actions-left">
         <button class="btn btn-primary" @click="showSaveMenu = true">💾 セーブ / ロード</button>
-        <button class="btn btn-secondary" @click="grantDebugWeapon">🐞 デバッグ武器</button>
-        <button class="btn btn-special" @click="startDebugSpar">🐞 デバッグ敵</button>
+        <button class="btn btn-secondary" @click="showDebugWeaponModal = true">🐞 デバッグ武器</button>
+        <button class="btn btn-special" @click="showDebugEnemyModal = true">🐞 デバッグ敵</button>
       </div>
       <div class="top-actions-right">
         <button class="btn btn-settings" @click="showSettings = true">⚙️ 設定</button>
@@ -49,9 +49,13 @@
         <PlayerInfo 
           :player="player" 
           :isRunLocked="isRunLocked"
+          :nextSlotCost="nextSlotCost"
+          :canPurchaseSlot="canPurchaseSlot"
           @openWeaponManager="showWeaponSelection = true"
           @openStatManager="showStatManager = true"
           @openSellMenu="showSellMenu = true"
+          @purchase-slot="purchaseWeaponSlot"
+          @updatePlayerName="updatePlayerName"
         />
 
         <div>
@@ -126,6 +130,21 @@
       @export-dungeon="exportDungeonLog"
     />
 
+    <DebugWeaponModal
+      :show="showDebugWeaponModal"
+      :presets="presetWeapons"
+      @close="showDebugWeaponModal = false"
+      @select="handleSelectDebugWeapon"
+      @custom="handleCustomDebugWeapon"
+    />
+
+    <DebugEnemyModal
+      :show="showDebugEnemyModal"
+      :enemies="debugEnemyPresets"
+      @close="showDebugEnemyModal = false"
+      @select="handleSelectDebugEnemy"
+    />
+
     <SaveLoadModal
       :show="showSaveMenu"
       :saveEntries="saveEntries"
@@ -156,6 +175,7 @@
       :show="showEquipSelection"
       :selectedWeapon="selectedWeapon"
       :playerWeapons="player.weapons"
+      :maxSlots="player.weaponSlots"
       @close="showEquipSelection = false"
       @replace-weapon="replaceWeapon"
       @add-to-empty-slot="addWeaponToEmptySlot"
@@ -197,6 +217,7 @@ import { useSaveSystem } from '~/composables/useSaveSystem'
 import { useSaveLoadHandlers } from '~/composables/useSaveLoadHandlers'
 import { useLogExport } from '~/composables/useLogExport'
 import { useUIState } from '~/composables/useUIState'
+import { getNextWeaponSlotCost } from '~/utils/weaponSlots'
 
 // Components
 import PlayerInfo from '~/components/PlayerInfo.vue'
@@ -211,6 +232,8 @@ import SaveLoadModal from '~/components/SaveLoadModal.vue'
 import SettingsModal from '~/components/SettingsModal.vue'
 import ChestModal from '~/components/ChestModal.vue'
 import WeaponReplaceModal from '~/components/WeaponReplaceModal.vue'
+import DebugWeaponModal from '~/components/DebugWeaponModal.vue'
+import DebugEnemyModal from '~/components/DebugEnemyModal.vue'
 
 // 初期データ
 const initialWeapon = createInitialWeapon()
@@ -218,7 +241,7 @@ const player = reactive<Player>(createInitialPlayer())
 const availableWeapons = ref<Weapon[]>([])
 
 // UI状態管理
-const { showWeaponSelection, showStatManager, showToast } = useUIState()
+const { showWeaponSelection, showStatManager, showDebugWeaponModal, showDebugEnemyModal, showToast } = useUIState()
 const debugTagOptions = computed(() => Object.keys(TAG_DEFINITIONS))
 
 // ゲーム状態管理
@@ -307,9 +330,43 @@ const {
 
 // デバッグツール
 const {
+  presetWeapons,
+  debugEnemyPresets,
   grantDebugWeapon,
+  grantCustomDebugWeapon,
   startDebugSpar
 } = useDebugTools(player, debugTagOptions, startDebugBattle, showToast)
+
+const handleSelectDebugWeapon = (presetId: string) => {
+  grantDebugWeapon(presetId)
+  showDebugWeaponModal.value = false
+}
+
+const handleCustomDebugWeapon = () => {
+  grantCustomDebugWeapon()
+  showDebugWeaponModal.value = false
+}
+
+const handleSelectDebugEnemy = (templateId?: string) => {
+  startDebugSpar(templateId)
+  showDebugEnemyModal.value = false
+}
+
+const nextSlotCost = computed(() => getNextWeaponSlotCost(player.weaponSlots))
+const canPurchaseSlot = computed(() => player.gold >= nextSlotCost.value)
+
+const purchaseWeaponSlot = () => {
+  const cost = nextSlotCost.value
+  if (!cost || isRunLocked.value) return
+  if (player.gold < cost) {
+    showToast('ゴールドが足りません', 'error')
+    return
+  }
+
+  player.gold -= cost
+  player.weaponSlots += 1
+  showToast(`武器スロットを解放しました (${player.weaponSlots}枠目)`, 'info')
+}
 
 // ゲームハンドラー
 const {
@@ -439,6 +496,10 @@ function replaceWeapon(oldIndex: number) {
 
 function addWeaponToEmptySlot() {
   addWeaponToEmptySlotFromComposable(showToast)
+}
+
+function updatePlayerName(newName: string) {
+  player.name = newName
 }
 
 onMounted(() => {

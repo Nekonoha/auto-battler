@@ -70,6 +70,12 @@ export interface StatusEffectDefinition {
    */
   effectStackCaps?: Partial<Record<StatusEffectEffectKey, number>>
   /**
+   * cannotAct（行動不能）の発動確率（%/スタック）
+   * 例：20 の場合、1スタックで20%、2スタックで40%の確率で行動不能
+   * 未指定または undefined の場合は cannotAct: true なら確定スタン
+   */
+  cannotActProbability?: number
+  /**
    * 複合効果として別の状態異常を同時付与する場合の子エフェクト
    */
   compositeEffects?: { type: StatusEffectType }[]
@@ -634,6 +640,134 @@ export const STATUS_EFFECTS_DB: Record<StatusEffectType, StatusEffectDefinition>
     },
     stackable: true,
     maxStack: 6,
+    maxDuration: 4,
+    refreshRule: 'add'
+  },
+
+  // ===== Debuffs: Composite & Additional Modifiers =====
+  electrification: {
+    id: 'electrification',
+    type: 'Debuff',
+    category: 'Control',
+    name: '感電（複合）',
+    tag: 'Electrification',
+    icon: '⚡',
+    color: '#f1c40f',
+    description: '電撃が走り、体が痺れ身動きが鈍る。5スタック以上で行動不能になる。付与時に「感電（ダメージ）」「感電（速度低下）」「感電（麻痺）」を同時に与える。',
+    effects: {},
+    stackable: true,
+    maxStack: 6,
+    maxDuration: 2,
+    refreshRule: 'add',
+    compositeEffects: [
+      { type: 'electrificationDot' },
+      { type: 'electrificationSlow' },
+      { type: 'electrificationParalysis' }
+    ]
+  },
+
+  electrificationDot: {
+    id: 'electrificationDot',
+    type: 'Debuff',
+    category: 'Damage',
+    name: '感電（ダメージ）',
+    tag: 'Electrification (DoT)',
+    icon: '⚡',
+    color: '#f1c40f',
+    description: '電撃で体を焼かれ続ける',
+    numbers: '毎ターン 1ダメージ/スタック',
+    effects: {
+      damageOverTime: {
+        enabled: true,
+        damagePerStack: 1
+      }
+    },
+    stackable: true,
+    maxStack: 999,
+    maxDuration: 2,
+    refreshRule: 'add',
+    allowDirectApply: false
+  },
+
+  electrificationSlow: {
+    id: 'electrificationSlow',
+    type: 'Debuff',
+    category: 'Modifier',
+    name: '感電（速度低下）',
+    tag: 'Electrification (Slow)',
+    icon: '⚡',
+    color: '#f1c40f',
+    description: '電撃で身体が痺れ、動きが鈍る',
+    numbers: '速度 -10%/スタック (最大6スタック)',
+    effects: {
+      speedModifier: -10
+    },
+    stackable: true,
+    maxStack: 6,
+    maxDuration: 2,
+    refreshRule: 'add',
+    allowDirectApply: false
+  },
+
+  electrificationParalysis: {
+    id: 'electrificationParalysis',
+    type: 'Debuff',
+    category: 'Control',
+    name: '感電（麻痺）',
+    tag: 'Electrification (Paralysis)',
+    icon: '⚡',
+    color: '#f1c40f',
+    description: '電撃による麻痺で身動きが取れない',
+    numbers: '行動不能 スタック*20%の確率 (最大6スタック→120%＝確定)',
+    effects: {
+      cannotAct: true
+    },
+    stackable: true,
+    maxStack: 6,
+    maxDuration: 2,
+    refreshRule: 'add',
+    allowDirectApply: false,
+    cannotActProbability: 20
+  },
+
+  mist: {
+    id: 'mist',
+    type: 'Debuff',
+    category: 'Modifier',
+    name: '霧',
+    tag: 'Mist',
+    icon: '🌫️',
+    color: '#95a5a6',
+    description: '視界を奪う霧が立ち込め、魔法防御が低下する',
+    numbers: '魔法防御 -8%/スタック (最大5スタック)',
+    effects: {
+      magicDefenseModifier: -8
+    },
+    stackable: true,
+    maxStack: 5,
+    maxDuration: 3,
+    refreshRule: 'add'
+  },
+
+  corrosion: {
+    id: 'corrosion',
+    type: 'Debuff',
+    category: 'Damage',
+    name: '腐食',
+    tag: 'Corrosion',
+    icon: '⚙️',
+    color: '#16a085',
+    description: '腐食が進み、防御を蝕む。継続ダメージと防御低下の複合効果。',
+    numbers: '毎ターン 1ダメージ/スタック\n物理防御 -4%/スタック\n(最大5スタック)',
+    effects: {
+      damageOverTime: {
+        enabled: true,
+        damagePerStack: 1
+      },
+      defenseModifier: -4
+    },
+    stackable: true,
+    maxStack: 5,
     maxDuration: 4,
     refreshRule: 'add'
   }

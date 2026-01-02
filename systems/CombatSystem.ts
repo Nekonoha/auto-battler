@@ -1,4 +1,4 @@
-import type { Player, Enemy, CombatLogEntry, Weapon, EnemyTier } from '../types'
+import type { Player, Enemy, CombatLogEntry, Weapon, EnemyTier, EnemyAction } from '../types'
 import { WeaponSystem } from './WeaponSystem'
 import { StatusEffectSystem } from './StatusEffectSystem'
 import { getStatusEffectDefinition } from '../data/statusEffects'
@@ -18,6 +18,7 @@ export class CombatSystem {
   private combatLog: CombatLogEntry[]
   private isFinished: boolean
   private synergyBonus: ReturnType<typeof getTotalSynergyBonus> | null = null
+  private lastDefeatInsights: string[] = []
 
   constructor(player: Player, enemy: Enemy) {
     this.player = player
@@ -58,6 +59,10 @@ export class CombatSystem {
    */
   getCombatLog(): CombatLogEntry[] {
     return this.combatLog
+  }
+
+  getLastDefeatInsights(): string[] {
+    return []
   }
 
   /**
@@ -131,7 +136,7 @@ export class CombatSystem {
         const removed = ['stun', 'sleep', 'frozen', 'petrification'].includes(type)
         if (removed) {
           const statusName = StatusEffectSystem.getStatusName(type as any)
-          this.addLog(`プレイヤーは${statusName}から回復した！`, 'status')
+          this.addLog(`${this.player.name}は${statusName}から回復した！`, 'status', 'player', 'defend')
         }
       }
     })
@@ -174,12 +179,12 @@ export class CombatSystem {
     // 行動不能状態チェック
     const cannotAct = StatusEffectSystem.cannotAct(this.player)
     if (cannotAct) {
-      this.addLog('プレイヤーは行動できない！', 'status')
+      this.addLog(`${this.player.name}は行動できない！`, 'status', 'player', 'defend')
       return
     }
 
     if (this.player.weapons.length === 0) {
-      this.addLog('プレイヤーは武器を装備していない！', 'info')
+      this.addLog(`${this.player.name}は武器を装備していない！`, 'info', 'player', 'attack')
       return
     }
 
@@ -204,7 +209,7 @@ export class CombatSystem {
           continue
         }
 
-        let message = `プレイヤーは ${weapon.name} (${i}/${swings}) で攻撃！ ${result.damage}ダメージ`
+        let message = `${this.player.name}は ${weapon.name} (${i}/${swings}) で攻撃！ ${result.damage}ダメージ`
         
         // 耐性適用のログ
         if (result.resistanceApplied && result.resistanceApplied > 0) {
@@ -219,9 +224,9 @@ export class CombatSystem {
         
         if (result.isCritical) {
           message += ' クリティカル！'
-          this.addLog(message, 'critical')
+          this.addLog(message, 'critical', 'player', 'attack')
         } else {
-          this.addLog(message, 'damage')
+          this.addLog(message, 'damage', 'player', 'attack')
         }
 
         // 反射ダメージ処理（敵が棘の鎧などを持つ場合）
@@ -249,8 +254,14 @@ export class CombatSystem {
   /**
    * 敵の行動を選択（重み付けランダム）
    */
-  private chooseEnemyAction(): 'attack' | 'defend' | 'buff' | 'nothing' {
-    const actionPool = this.enemy.actionPool || [{ type: 'attack' as const, weight: 1 }]
+  private chooseEnemyAction(): EnemyAction {
+    const actionPool = this.enemy.actionPool || []
+    
+    // actionPool が空の場合はエラー（テンプレートに必ずactionPoolを設定すること）
+    if (actionPool.length === 0) {
+      console.warn(`Enemy ${this.enemy.name} has no actionPool defined, defaulting to attack`)
+      return { type: 'attack' as const, weight: 1 }
+    }
     
     // 重みの合計を計算
     const totalWeight = actionPool.reduce((sum, action) => sum + action.weight, 0)
@@ -260,11 +271,11 @@ export class CombatSystem {
     for (const action of actionPool) {
       random -= action.weight
       if (random <= 0) {
-        return action.type as any
+        return action as EnemyAction
       }
     }
     
-    return 'attack'
+    return actionPool[0] as EnemyAction
   }
 
   private enemyAttackPhase(): void {
@@ -280,49 +291,35 @@ export class CombatSystem {
     // 敵の速度に応じた攻撃回数（最低1回、最大3回）
     const numAttacks = Math.min(3, Math.max(1, Math.floor(this.enemy.stats.speed / 25)))
     
-    // 1. 敵の状態異常付与（敵のtraitsから）を先に実行（バフは自分、デバフはプレイヤー）
-    if (this.enemy.traits?.inflictsStatus) {
-      this.enemy.traits.inflictsStatus.forEach(effect => {
-        if (Math.random() * 100 < effect.chance) {
-          const def = getStatusEffectDefinition(effect.type as any)
-          const recipient = def?.type === 'Buff' ? this.enemy : this.player
-          const result = StatusEffectSystem.applyStatusEffect(recipient, effect.type, effect.stacks, effect.duration, { appliedBy: 'enemy' })
-          const icon = StatusEffectSystem.getStatusIcon(effect.type)
-          const targetName = recipient === this.enemy ? this.enemy.name : 'プレイヤー'
-          if (result.applied) {
-            const resistNote = result.resistance ? ` (耐性${result.resistance}%で軽減)` : ''
-            this.addLog(`${targetName}に${icon}${this.getStatusName(effect.type)}を付与した！${resistNote}`, 'status')
-          } else {
-            this.addLog(this.formatStatusResistedLog(targetName, result), 'status')
-          }
-        }
-      })
-    }
-    
-    // 2. 敵の行動フェーズを実行
+    // 1. 敵の行動フェーズを実行
     for (let i = 1; i <= numAttacks; i++) {
       if (this.player.currentHp <= 0) break
 
       const action = this.chooseEnemyAction()
       
-      switch (action) {
+      const prefix = action.type === 'status' || action.logStyle === 'special' ? '【特殊行動】' : ''
+      const actionName = action.name || (action.type === 'attack' ? '攻撃' : action.type === 'defend' ? '防御' : action.type === 'nothing' ? '様子見' : '行動')
+      const emphasizedType: CombatLogEntry['type'] = action.logStyle === 'special' ? 'critical' : (action.type === 'status' ? 'status' : 'damage')
+
+      switch (action.type) {
         case 'attack': {
-          // 敵の基本攻撃（物理防御を考慮）
-          let baseDamage = this.enemy.stats.attack
+          // 敵の基本攻撃（物理/魔法属性を考慮）
+          const isPhysical = action.attackType !== 'magic'  // デフォルトは物理
+          const baseDamage = isPhysical ? this.enemy.stats.attack : this.enemy.stats.magic
           
           // weak/fearによるダメージ減少
-          baseDamage = StatusEffectSystem.applyDamageModifiers(this.enemy, baseDamage)
+          let finalBaseDamage = StatusEffectSystem.applyDamageModifiers(this.enemy, baseDamage)
           
           const variance = 0.8 + Math.random() * 0.4 // 80%～120%のランダム性
-          const attackDamage = baseDamage * variance
-          let finalDamage = DamageSystem.calculateDamage(attackDamage, this.player, false)
+          const attackDamage = finalBaseDamage * variance
+          let finalDamage = DamageSystem.calculateDamage(attackDamage, this.player, !isPhysical)
           finalDamage = StatusEffectSystem.applyVulnerabilityModifier(this.player, finalDamage)
 
           this.player.currentHp = Math.max(0, this.player.currentHp - finalDamage)
 
           let message = numAttacks > 1 
-            ? `${this.enemy.name}の攻撃 (${i}/${numAttacks})！ ${finalDamage}ダメージ`
-            : `${this.enemy.name}の攻撃！ ${finalDamage}ダメージ`
+            ? `${this.enemy.name}の${actionName} (${i}/${numAttacks})！ ${finalDamage}ダメージ`
+            : `${this.enemy.name}の${actionName}！ ${finalDamage}ダメージ`
 
           const damageTakenModifier = StatusEffectSystem.getDamageTakenModifier(this.player)
           const damageTakenLog = this.formatDamageTakenLog(this.player)
@@ -330,7 +327,7 @@ export class CombatSystem {
             message += ` ${damageTakenLog}`
           }
 
-          this.addLog(message, 'damage')
+          this.addLog(message, 'damage', 'enemy', 'attack')
 
           // 反射ダメージ処理（プレイヤーが棘の鎧などを持つ場合）
           this.applyReflection(this.player, this.enemy, finalDamage)
@@ -347,9 +344,12 @@ export class CombatSystem {
           break
         }
         case 'defend': {
-          this.addLog(`${this.enemy.name}は防御の構えをとった！`, 'status')
+          this.addLog(`${this.enemy.name}は${actionName}の構えをとった！`, 'status')
           // 敵に防御バフを付与（次のターン分として）
-          StatusEffectSystem.applyStatusEffect(this.enemy, 'armor', 2, 1)
+          const statusPowerMultiplier = this.getStatusPowerMultiplier(this.enemy)
+          const stacks = this.scaleStatusValue(2, statusPowerMultiplier)
+          const duration = this.scaleStatusValue(1, statusPowerMultiplier)
+          StatusEffectSystem.applyStatusEffect(this.enemy, 'armor', stacks, duration, { appliedBy: 'enemy', powerScale: statusPowerMultiplier })
           break
         }
         case 'buff': {
@@ -361,7 +361,16 @@ export class CombatSystem {
             { type: 'fleet', stacks: 1, duration: 2 }
           ]
           const selectedBuff = buffOptions[Math.floor(Math.random() * buffOptions.length)]
-          const result = StatusEffectSystem.applyStatusEffect(this.enemy, selectedBuff.type, selectedBuff.stacks, selectedBuff.duration, { appliedBy: 'enemy' })
+          const statusPowerMultiplier = this.getStatusPowerMultiplier(this.enemy)
+          const scaledStacks = this.scaleStatusValue(selectedBuff.stacks, statusPowerMultiplier)
+          const scaledDuration = this.scaleStatusValue(selectedBuff.duration, statusPowerMultiplier)
+          const result = StatusEffectSystem.applyStatusEffect(
+            this.enemy,
+            selectedBuff.type,
+            scaledStacks,
+            scaledDuration,
+            { appliedBy: 'enemy', powerScale: statusPowerMultiplier }
+          )
           const icon = StatusEffectSystem.getStatusIcon(selectedBuff.type)
           const statusName = this.getStatusName(selectedBuff.type)
           
@@ -374,7 +383,73 @@ export class CombatSystem {
           break
         }
         case 'nothing': {
-          this.addLog(`${this.enemy.name}は何もしなかった。`, 'status')
+          this.addLog(`${this.enemy.name}は${actionName}を選択した。`, 'status')
+          break
+        }
+        case 'status': {
+          if (!action.effects?.length) break
+
+          // 行動開始ログ（強調）
+          this.addLog(`${prefix}${this.enemy.name}は${actionName}を発動！`, emphasizedType)
+
+          const statusPowerMultiplier = this.getStatusPowerMultiplier(this.enemy)
+
+          // 付随ダメージがあれば計算
+          if (action.damage) {
+            const baseStat = action.damage.stat === 'magic' ? this.enemy.stats.magic : this.enemy.stats.attack
+            const mult = action.damage.multiplier ?? 1
+            const flat = action.damage.flat ?? 0
+            const variance = Math.max(0, action.damage.variance ?? 0.2)
+            const varFactor = (1 - variance) + Math.random() * (variance * 2)
+            const raw = (baseStat * mult + flat) * varFactor
+            let finalDamage = DamageSystem.calculateDamage(raw, this.player, action.damage.stat === 'magic')
+            finalDamage = StatusEffectSystem.applyVulnerabilityModifier(this.player, finalDamage)
+            this.player.currentHp = Math.max(0, this.player.currentHp - finalDamage)
+
+            let dmgMsg = `${prefix}${actionName}が命中！ ${finalDamage}ダメージ`
+            const damageTakenLog = this.formatDamageTakenLog(this.player)
+            if (damageTakenLog) dmgMsg += ` ${damageTakenLog}`
+            this.addLog(dmgMsg, emphasizedType === 'critical' ? 'critical' : 'damage')
+
+            this.applyReflection(this.player, this.enemy, finalDamage)
+            const beforeCount = this.player.statusEffects.length
+            this.player.statusEffects = this.player.statusEffects.filter(e => {
+              const def = getStatusEffectDefinition(e.type as any)
+              return !def?.effects.breakOnDamage
+            })
+            if (this.player.statusEffects.length < beforeCount) {
+              this.addLog('プレイヤーは眠りから目覚めた！', 'status')
+            }
+          }
+
+          // 状態異常付与処理
+          action.effects.forEach(effect => {
+            const def = getStatusEffectDefinition(effect.type as any)
+            const target = effect.target ?? (def?.type === 'Buff' ? 'self' : 'enemy')
+            const recipient = target === 'self' ? this.enemy : this.player
+            const chance = Math.min(100, (effect.chance ?? 100) * statusPowerMultiplier)
+            if (Math.random() * 100 >= chance) return
+
+            const stacks = this.scaleStatusValue(effect.stacks, statusPowerMultiplier)
+            const duration = this.scaleStatusValue(effect.duration, statusPowerMultiplier)
+            const result = StatusEffectSystem.applyStatusEffect(
+              recipient,
+              effect.type,
+              stacks,
+              duration,
+              { appliedBy: 'enemy', powerScale: statusPowerMultiplier }
+            )
+            const icon = StatusEffectSystem.getStatusIcon(effect.type)
+            const targetName = recipient === this.enemy ? this.enemy.name : 'プレイヤー'
+
+            if (result.applied) {
+              const resistNote = result.resistance ? ` (耐性${result.resistance}%で軽減)` : ''
+              const label = actionName ? `${actionName}で` : ''
+              this.addLog(`${prefix}${label}${targetName}に${icon}${this.getStatusName(effect.type)}を付与した！${resistNote}`.trim(), 'status')
+            } else {
+              this.addLog(this.formatStatusResistedLog(targetName, result), 'status')
+            }
+          })
           break
         }
       }
@@ -383,10 +458,11 @@ export class CombatSystem {
 
   private applyResultEffects(effects: Weapon['effects'], attacker: Player | Enemy, target: Player | Enemy, appliedBy: 'player' | 'enemy') {
     effects.forEach(effect => {
+      const powerScale = (effect as any).powerScale ?? 1
       const def = getStatusEffectDefinition(effect.type as any)
       const defaultRecipient = def?.type === 'Buff' ? attacker : target
       const recipient = effect.target === 'self' ? attacker : effect.target === 'enemy' ? target : defaultRecipient
-      const result = StatusEffectSystem.applyStatusEffect(recipient, effect.type, effect.stacks, effect.duration, { appliedBy })
+      const result = StatusEffectSystem.applyStatusEffect(recipient, effect.type, effect.stacks, effect.duration, { appliedBy, powerScale })
       const icon = StatusEffectSystem.getStatusIcon(effect.type)
       const targetName = recipient === attacker ? (appliedBy === 'player' ? 'プレイヤー' : this.enemy.name) : (appliedBy === 'player' ? this.enemy.name : 'プレイヤー')
       if (result.applied) {
@@ -432,13 +508,28 @@ export class CombatSystem {
     this.addLog(`${defenderName}の反射で${attackerName}は${reflected}ダメージを受けた`, 'damage')
   }
 
+  private getStatusPowerMultiplier(unit: Player | Enemy): number {
+    const raw = (unit as any)?.stats?.statusPower ?? 0
+    return Math.max(0, 1 + raw / 100)
+  }
+
+  private scaleStatusValue(value: number, multiplier: number): number {
+    return Math.max(1, Math.floor(value * multiplier))
+  }
+
+  // 敗北時の簡易分析を返す（スコア順で上位を返却）
+  private getDefeatInsights(): string[] {
+    return []
+  }
+
   /**
    * 戦闘終了判定
    */
   private checkBattleEnd(): boolean {
     if (this.player.currentHp <= 0) {
       this.isFinished = true
-      this.addLog('プレイヤーは倒れた...', 'info')
+      this.lastDefeatInsights = []
+      this.addLog(`${this.player.name}は倒れた...`, 'info', 'player', 'defend')
       return true
     }
 
@@ -452,13 +543,20 @@ export class CombatSystem {
   }
 
   /**
-   * ログに追加
+   * ログに追加（拡張版：actor と actionCategory を指定可能）
    */
-  private addLog(message: string, type: CombatLogEntry['type']): void {
+  private addLog(
+    message: string,
+    type: CombatLogEntry['type'],
+    actor?: 'player' | 'enemy',
+    actionCategory?: 'attack' | 'defend' | 'skill' | 'special'
+  ): void {
     this.combatLog.push({
       turn: this.turnCount,
       message,
-      type
+      type,
+      actor,
+      actionCategory
     })
   }
 
@@ -495,27 +593,109 @@ export class CombatSystem {
     enemyPool?: string[]
     bossId?: string
     debugMode?: boolean
+    debugTemplateId?: string
   }): Enemy {
     if (opts?.debugMode) {
-      const hp = 5_000_000
+      if (!opts.debugTemplateId) {
+        const hp = 5_000_000
+        return {
+          name: '【DEBUG】無害なスパーリング相手',
+          level,
+          maxHp: hp,
+          currentHp: hp,
+          statusEffects: [],
+          tier: 'boss',
+          stats: {
+            attack: 9999,
+            magic: 9999,
+            defense: 9999,
+            magicDefense: 9999,
+            speed: 10,
+            statusPower: 0
+          },
+          actionPool: [
+            { type: 'nothing', weight: 1 }
+          ]
+        }
+      }
+
+      const template = opts.debugTemplateId ? getEnemyTemplateByNameOrId(opts.debugTemplateId) : null
+      if (!template) {
+        const hp = 5_000_000
+        return {
+          name: '【DEBUG】無害なスパーリング相手',
+          level,
+          maxHp: hp,
+          currentHp: hp,
+          statusEffects: [],
+          tier: 'boss',
+          stats: {
+            attack: 9999,
+            magic: 9999,
+            defense: 9999,
+            magicDefense: 9999,
+            speed: 10,
+            statusPower: 0
+          },
+          actionPool: [
+            { type: 'nothing', weight: 1 }
+          ]
+        }
+      }
+
+      // デバッグ用テンプレートをそのまま生成（ボス相当の耐久）
+      const templateLevel = Math.max(1, Math.min(1000, level))
+      const tier: Enemy['tier'] = 'boss'
+      const tierStatMultiplier: Record<EnemyTier, number> = { normal: 1, elite: 1.18, named: 1.35, boss: 1.55 }
+      const tierHpMultiplier: Record<EnemyTier, number> = { normal: 1, elite: 1.25, named: 1.5, boss: 1.8 }
+      const levelStatGrowth = 1 + (templateLevel - 1) * 0.08
+      const levelHpGrowth = 1 + (templateLevel - 1) * 0.12
+      const statMult = tierStatMultiplier[tier]
+      const hpMult = tierHpMultiplier[tier]
+      const scale = (base: number) => Math.max(1, Math.round(base * levelStatGrowth * statMult))
+      const statusPowerBase = template.baseStats.statusPower ?? 0
+      const scaledStats = {
+        attack: scale(template.baseStats.attack),
+        magic: scale(template.baseStats.magic),
+        defense: scale(template.baseStats.defense),
+        magicDefense: scale(template.baseStats.magicDefense),
+        speed: Math.max(1, Math.round(template.baseStats.speed * (1 + (templateLevel - 1) * 0.04) * statMult)),
+        statusPower: Math.max(0, Math.round(statusPowerBase * levelStatGrowth * statMult))
+      }
+      const baseHp = 70 * template.baseStats.hpMultiplier
+      const hp = Math.max(30, Math.floor(baseHp * levelHpGrowth * hpMult))
+
+      const actionPool = (() => {
+        const basePool: EnemyAction[] = [
+          { type: 'attack', weight: 4, name: '通常攻撃' },
+          { type: 'defend', weight: 2, name: '防御' },
+          { type: 'nothing', weight: 1, name: '様子を見る' }
+        ]
+        const actions = (template.actionPool ?? []).map(action => {
+          const cloned: EnemyAction = {
+            ...action,
+            weight: Math.max(1, action.weight ?? 1),
+            effects: action.effects?.map(e => ({ ...e }))
+          }
+          if (cloned.type === 'status') {
+            cloned.weight = Math.max(1, cloned.weight * 5) // ボス相当の付与頻度
+          }
+          return cloned
+        })
+        return actions.length ? [...basePool, ...actions] : basePool
+      })()
+
       return {
-        name: '【DEBUG】無害なスパーリング相手',
-        level,
+        name: `【DEBUG】${template.baseName}`,
+        level: templateLevel,
         maxHp: hp,
         currentHp: hp,
         statusEffects: [],
-        tier: 'boss',
-        stats: {
-          attack: 9999,
-          magic: 9999,
-          defense: 9999,
-          magicDefense: 9999,
-          speed: 10
-        },
-        // 「何もしない」行動のみを選択
-        actionPool: [
-          { type: 'nothing', weight: 1 }
-        ]
+        tier,
+        type: template.type,
+        traits: template.traits,
+        stats: scaledStats,
+        actionPool
       }
     }
     // プレイヤーレベルを考慮した敵レベルの計算
@@ -552,6 +732,19 @@ export class CombatSystem {
       }
     }
 
+    // レアメタル枠：強制ボス/プール/デバッグがない通常抽選のみ
+    let template: EnemyTemplate | null = null
+    if (!opts?.debugMode && !opts?.bossId && !opts?.enemyPool && !opts?.forcedTier) {
+      const metalChance = 0.03
+      if (Math.random() < metalChance) {
+        const metal = getEnemyTemplateByNameOrId('metal_slime')
+        if (metal) {
+          template = metal
+          tier = 'named'
+        }
+      }
+    }
+
     const tierNamePrefix = tier === 'boss' ? '【ボス】' : tier === 'named' ? '【ネームド】' : tier === 'elite' ? 'エリート' : ''
 
     // テンプレート選択
@@ -559,14 +752,16 @@ export class CombatSystem {
       ? [opts.bossId]
       : (opts?.enemyPool && opts.enemyPool.length ? opts.enemyPool : undefined)
 
-    const template = (() => {
-      if (pool) {
-        const pick = pool[Math.floor(Math.random() * pool.length)]
-        const found = getEnemyTemplateByNameOrId(pick)
-        if (found) return found
-      }
-      return getRandomEnemyTemplate()
-    })()
+    if (!template) {
+      template = (() => {
+        if (pool) {
+          const pick = pool[Math.floor(Math.random() * pool.length)]
+          const found = getEnemyTemplateByNameOrId(pick)
+          if (found) return found
+        }
+        return getRandomEnemyTemplate()
+      })()
+    }
 
     const tierStatMultiplier: Record<EnemyTier, number> = {
       normal: 1.0,
@@ -589,12 +784,14 @@ export class CombatSystem {
 
     const scale = (base: number) => Math.max(1, Math.round(base * levelStatGrowth * statMult))
 
+    const statusPowerBase = template.baseStats.statusPower ?? 0
     const scaledStats = {
       attack: scale(template.baseStats.attack),
       magic: scale(template.baseStats.magic),
       defense: scale(template.baseStats.defense),
       magicDefense: scale(template.baseStats.magicDefense),
-      speed: Math.max(1, Math.round(template.baseStats.speed * (1 + (actualLevel - 1) * 0.04) * statMult))
+      speed: Math.max(1, Math.round(template.baseStats.speed * (1 + (actualLevel - 1) * 0.04) * statMult)),
+      statusPower: Math.max(0, Math.round(statusPowerBase * levelStatGrowth * statMult * levelScale))
     }
 
     const baseHp = 70 * template.baseStats.hpMultiplier
@@ -631,6 +828,27 @@ export class CombatSystem {
       ...(Object.keys(statusResistances).length ? { statusResistances } : {})
     }
 
+    const baseActionPool: EnemyAction[] = []
+
+    const tierStatusWeightScale: Record<EnemyTier, number> = {
+      normal: 1,
+      elite: 2,
+      named: 3,
+      boss: 5
+    }
+
+    const templateActions: EnemyAction[] = (template.actionPool ?? []).map(action => {
+      const baseWeight = Math.max(1, action.weight ?? 1)
+      const scaledWeight = action.type === 'status' ? Math.max(1, baseWeight * tierStatusWeightScale[tier]) : baseWeight
+      return {
+        ...action,
+        weight: scaledWeight,
+        effects: action.effects?.map(e => ({ ...e }))
+      }
+    })
+
+    const actionPool: EnemyAction[] = [...baseActionPool, ...templateActions]
+
     return {
       name: `${opts?.dungeonName ? `[${opts.dungeonName}] ` : ''}${tierNamePrefix}${template.baseName} Lv.${actualLevel}`.trim(),
       level: actualLevel,
@@ -641,12 +859,8 @@ export class CombatSystem {
       type: template.type,
       traits,
       stats: scaledStats,
-      // デフォルトの行動プール（攻撃・防御・何もしないのランダム）
-      actionPool: [
-        { type: 'attack', weight: 6 },    // 60%の確率で攻撃
-        { type: 'defend', weight: 3 },    // 30%の確率で防御
-        { type: 'nothing', weight: 1 }    // 10%の確率で何もしない
-      ]
+      // 行動プール（デフォルト＋状態異常行動）
+      actionPool
     }
   }
 
@@ -661,19 +875,19 @@ export class CombatSystem {
   /**
    * 敵を倒したときに獲得する経験値を計算
    */
-  static calculateExpReward(enemyLevel: number, enemyTier: string): number {
-    const baseExp = 50
-    const levelBonus = enemyLevel * 20
-    const tierMultiplier = enemyTier === 'boss' ? 3.5 : enemyTier === 'named' ? 2.5 : enemyTier === 'elite' ? 1.8 : 1.0
-    
-    return Math.floor((baseExp + levelBonus) * tierMultiplier)
+  static calculateExpReward(enemyLevel: number, enemyTier: string, expMultiplier: number = 1): number {
+    const baseExp = 100 + enemyLevel * 35
+    const levelScale = Math.pow(1.055, Math.max(0, enemyLevel - 1))
+    const tierMultiplier = enemyTier === 'boss' ? 3.2 : enemyTier === 'named' ? 2.4 : enemyTier === 'elite' ? 1.6 : 1
+
+    return Math.floor(baseExp * levelScale * tierMultiplier * Math.max(0.1, expMultiplier))
   }
 
   /**
    * 次のレベルに必要な経験値を計算
    */
   static calculateNextLevelExp(level: number): number {
-    const baseExp = 100
-    return Math.round(baseExp * Math.pow(1.15, level - 1))
+    const baseExp = 80
+    return Math.round(baseExp * Math.pow(1.08, level - 1))
   }
 }

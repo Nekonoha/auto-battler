@@ -17,7 +17,7 @@ export function createInitialPlayer(): Player {
     name: 'プレイヤー',
     level: 1,
     exp: 0,
-    nextLevelExp: 100,
+    nextLevelExp: 80,
     maxHp: 100,
     currentHp: 100,
     statPoints: 0,
@@ -27,10 +27,12 @@ export function createInitialPlayer(): Player {
       magic: 0,
       defense: 0,
       magicDefense: 0,
-      speed: 0
+      speed: 0,
+      statusPower: 0
     },
     unlockedDungeons: ['tutorial-field'],
     gold: 100,
+    weaponSlots: 2,
     weapons: [createInitialWeapon()],
     statusEffects: [],
     stats: {
@@ -38,7 +40,8 @@ export function createInitialPlayer(): Player {
       magic: 5,
       defense: 5,
       magicDefense: 5,
-      speed: 10
+      speed: 10,
+      statusPower: 0
     }
   }
 }
@@ -52,5 +55,6 @@ export const BASE_STATS = {
   magic: 5,
   defense: 5,
   magicDefense: 5,
-  speed: 10
+  speed: 10,
+  statusPower: 0
 } as const

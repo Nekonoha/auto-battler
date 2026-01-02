@@ -6,7 +6,7 @@ import { CombatSystem } from '~/systems/CombatSystem'
  */
 export function useExperience(player: Player) {
   const grantExpForEnemy = (enemy: Enemy) => {
-    const expGained = CombatSystem.calculateExpReward(enemy.level, enemy.tier)
+    const expGained = CombatSystem.calculateExpReward(enemy.level, enemy.tier, enemy.traits?.expMultiplier ?? 1)
     player.exp += expGained
 
     let levelUps = 0

@@ -51,6 +51,10 @@ export function useGameOrchestrator(
     player.unlockedDungeons = ['tutorial-field']
   }
 
+  if (typeof player.weaponSlots !== 'number') {
+    player.weaponSlots = Math.max(2, player.weapons?.length ?? 0)
+  }
+
   const infoMessages = ref<string[]>([])
   const battleSpeed = ref<BattleSpeed>(1)
   const isAutoRunning = ref(false)
@@ -183,9 +187,10 @@ export function useGameOrchestrator(
   const clearInfos = () => { infoMessages.value = [] }
 
   const calculateGoldReward = (foe: { level: number; tier: string }) => {
-    const base = 20 + foe.level * 5
-    const tierMultiplier = foe.tier === 'boss' ? 3 : foe.tier === 'named' ? 2 : foe.tier === 'elite' ? 1.5 : 1
-    return Math.floor(base * tierMultiplier)
+    const base = 12 + foe.level * 6
+    const levelScale = Math.pow(1.04, Math.max(0, foe.level - 1))
+    const tierMultiplier = foe.tier === 'boss' ? 3 : foe.tier === 'named' ? 2.1 : foe.tier === 'elite' ? 1.4 : 1
+    return Math.floor(base * tierMultiplier * levelScale)
   }
 
   const clearAllMessages = () => {
@@ -279,14 +284,14 @@ export function useGameOrchestrator(
     startAuto()
   }
 
-  const startDebugBattle = () => {
+  const startDebugBattle = (debugTemplateId?: string) => {
     isDebugMode.value = true
     stopAuto()
     resetPlayerState()
     combatLogs.value = []
     explorationCombatLogs.value = []
     dungeonLogs.value = []
-    enemy.value = CombatSystem.generateEnemy(player.level, { debugMode: true })
+    enemy.value = CombatSystem.generateEnemy(player.level, { debugMode: true, debugTemplateId })
     combat.value = enemy.value ? new CombatSystem(player, enemy.value) : null
     if (combat.value) {
       startAuto()

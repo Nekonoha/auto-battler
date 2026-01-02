@@ -17,13 +17,29 @@ const TAG_STATUS_EFFECT_MAP: Partial<Record<WeaponTag, WeaponEffect>> = {
  * ベース武器にエンチャントを適用して新しい武器インスタンスを生成
  */
 
+const BASE_RARITY_ORDER: WeaponRarity[] = ['common', 'rare', 'epic', 'legendary', 'mythic']
+
+const getRarityRank = (rarity: WeaponRarity): number => {
+  const baseIndex = BASE_RARITY_ORDER.indexOf(rarity as WeaponRarity)
+  if (baseIndex >= 0) return baseIndex
+  const plusMatch = /^mythic(\+*)$/.exec(rarity)
+  if (plusMatch) {
+    return BASE_RARITY_ORDER.indexOf('mythic') + (plusMatch[1]?.length || 0)
+  }
+  return BASE_RARITY_ORDER.length
+}
+
 /**
- * レアリティを1段階上げる
+ * レアリティを1段階上げる（mythic 以降は + を増やす）
  */
 function upgradeRarity(rarity: WeaponRarity): WeaponRarity {
-  const rarityOrder: WeaponRarity[] = ['common', 'rare', 'epic', 'legendary']
-  const index = rarityOrder.indexOf(rarity)
-  return index < rarityOrder.length - 1 ? rarityOrder[index + 1] : rarity
+  if (rarity.startsWith('mythic')) {
+    return (`mythic${rarity.slice('mythic'.length)}+` as WeaponRarity)
+  }
+  const index = BASE_RARITY_ORDER.indexOf(rarity)
+  return index >= 0 && index < BASE_RARITY_ORDER.length - 1
+    ? BASE_RARITY_ORDER[index + 1]
+    : rarity
 }
 
 /**
@@ -44,13 +60,18 @@ function applyStatModifiers(baseStats: WeaponStats, modifiers: any): WeaponStats
  * 売却価格を計算
  */
 function calculateSellValue(rarity: WeaponRarity, enchantmentCount: number): number {
-  const baseValues: Record<WeaponRarity, number> = {
+  const baseValues: Record<string, number> = {
     common: 10,
     rare: 30,
     epic: 80,
-    legendary: 200
+    legendary: 200,
+    mythic: 500
   }
-  return baseValues[rarity] + (enchantmentCount * 15)
+  const base = baseValues[rarity] ?? 500
+  const rank = getRarityRank(rarity)
+  const mythicRank = getRarityRank('mythic')
+  const bonus = Math.max(0, rank - mythicRank) * 200
+  return base + bonus + (enchantmentCount * 15)
 }
 
 /**
@@ -58,23 +79,42 @@ function calculateSellValue(rarity: WeaponRarity, enchantmentCount: number): num
  * @param baseWeapon - ベース武器
  * @param enchantmentChance - エンチャント発生確率 (0-100)
  * @param multiEnchantChance - 複数エンチャント確率 (0-100)
+ * @param maxEnchants - 最大エンチャント数（デフォルト: レア度に依存）
  */
 export function generateEnchantedWeapon(
   baseWeapon: Weapon,
   enchantmentChance: number = 40,
-  multiEnchantChance: number = 15
+  multiEnchantChance: number = 15,
+  maxEnchants?: number,
+  opts?: { targetRarity?: WeaponRarity; maxEnchantsOverride?: number }
 ): EnchantedWeapon {
   const enchantmentIds: string[] = []
   let finalRarity = baseWeapon.rarity
   let finalStats = { ...baseWeapon.stats }
   let finalTags = [...baseWeapon.tags]
-  let finalEffects = [...baseWeapon.effects]
+  // ベース武器のエフェクトを破壊的にいじらないようディープコピー
+  let finalEffects = baseWeapon.effects.map(effect => ({ ...effect }))
   const enchantmentAddedTags: Set<WeaponTag> = new Set()
   let namePrefix = ''
   let nameSuffix = ''
 
+  // 最大エンチャント数を決定
+  const maxEnchantsByRarity: Record<string, number> = {
+    common: 1,
+    rare: 2,
+    epic: 3,
+    legendary: 5,
+    mythic: 5
+  }
+  const rarityRank = getRarityRank(baseWeapon.rarity)
+  const mythicRank = getRarityRank('mythic')
+  const extraFromPlus = Math.max(0, rarityRank - mythicRank)
+  const effectiveMaxEnchants = opts?.maxEnchantsOverride
+    ?? maxEnchants
+    ?? (maxEnchantsByRarity[baseWeapon.rarity] ?? 5) + extraFromPlus
+
   // エンチャント判定
-  if (Math.random() * 100 < enchantmentChance) {
+  if (Math.random() * 100 < enchantmentChance && enchantmentIds.length < effectiveMaxEnchants) {
     // 接頭辞
     const prefix = getRandomEnchantment('prefix')
     if (prefix) {
@@ -97,16 +137,24 @@ export function generateEnchantedWeapon(
       }
       
       if (prefix.addEffects) {
-        finalEffects = [...finalEffects, ...prefix.addEffects]
+        finalEffects = [...finalEffects, ...prefix.addEffects.map(effect => ({ ...effect }))]
       }
     }
 
     // 複数エンチャント判定（接尾辞）
-    if (Math.random() * 100 < multiEnchantChance) {
+    // 確率を指数関数的に低くする（2個目以降）
+    let remainingChance = multiEnchantChance
+    let enchantIndex = 1
+    
+    while (enchantmentIds.length < effectiveMaxEnchants && Math.random() * 100 < remainingChance) {
       const suffix = getRandomEnchantment('suffix')
       if (suffix) {
         enchantmentIds.push(suffix.id)
-        nameSuffix = suffix.name
+        if (enchantIndex === 1) {
+          nameSuffix = suffix.name
+        } else {
+          nameSuffix += `・${suffix.name}`
+        }
         
         if (suffix.rarityBonus > 0) {
           for (let i = 0; i < suffix.rarityBonus; i++) {
@@ -124,13 +172,20 @@ export function generateEnchantedWeapon(
         }
         
         if (suffix.addEffects) {
-          finalEffects = [...finalEffects, ...suffix.addEffects]
+          finalEffects = [...finalEffects, ...suffix.addEffects.map(effect => ({ ...effect }))]
         }
+
+        enchantIndex++
+        // 次のエンチャント確率は指数関数的に低下
+        remainingChance = remainingChance * 0.6
+      } else {
+        break
       }
     }
   }
 
   finalEffects = appendTagBasedEffects(finalEffects, enchantmentAddedTags)
+  finalEffects = mergeWeaponEffects(finalEffects)
 
   // 最終的な武器名を構築
   let finalName = baseWeapon.name
@@ -145,18 +200,20 @@ export function generateEnchantedWeapon(
   // ユニークIDを生成
   const uniqueId = `${baseWeapon.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 
+  const targetRarity = opts?.targetRarity ?? finalRarity
+
   return {
     id: uniqueId,
     name: finalName,
     type: baseWeapon.type,
-    rarity: finalRarity,
+    rarity: targetRarity,
     stats: finalStats,
     tags: finalTags as WeaponTag[],
     effects: finalEffects,
     description: baseWeapon.description,
     baseWeaponId: baseWeapon.id,
     enchantments: enchantmentIds,
-    sellValue: calculateSellValue(finalRarity, enchantmentIds.length)
+    sellValue: calculateSellValue(targetRarity, enchantmentIds.length)
   }
 }
 
@@ -196,6 +253,28 @@ function appendTagBasedEffects(effects: WeaponEffect[], tags: Set<WeaponTag>): W
   return [...effects, ...additions]
 }
 
+// 同じ状態異常エフェクトが重複した場合に合成する（stacks合算・duration最大・chanceは上限100で最大値）
+function mergeWeaponEffects(effects: WeaponEffect[]): WeaponEffect[] {
+  const merged: WeaponEffect[] = []
+
+  effects.forEach(effect => {
+    const targetKey = effect.target ?? 'default'
+    const existing = merged.find(e => e.type === effect.type && (e.target ?? 'default') === targetKey)
+
+    if (existing) {
+      existing.stacks = (existing.stacks ?? 0) + (effect.stacks ?? 0)
+      existing.duration = Math.max(existing.duration ?? 0, effect.duration ?? 0)
+      const currentChance = existing.chance ?? 0
+      const nextChance = effect.chance ?? 0
+      existing.chance = Math.min(100, Math.max(currentChance, nextChance))
+    } else {
+      merged.push({ ...effect })
+    }
+  })
+
+  return merged
+}
+
 /**
  * レアリティに応じたエンチャント確率を取得
  */
@@ -212,5 +291,7 @@ export function getEnchantmentChanceByRarity(targetRarity: WeaponRarity): {
       return { enchantmentChance: 80, multiEnchantChance: 35 }
     case 'legendary':
       return { enchantmentChance: 100, multiEnchantChance: 60 }
+    case 'mythic':
+      return { enchantmentChance: 100, multiEnchantChance: 80 }
   }
 }

@@ -63,12 +63,18 @@ export class StatusEffectSystem {
     return aliases ? aliases.some(a => immunities.includes(a)) : false
   }
 
+  private static mergePowerScale(existing?: number, incoming?: number): number {
+    if (incoming === undefined) return existing ?? 1
+    return Math.max(existing ?? 1, incoming)
+  }
+
   private static applyCompositeEffects(
     target: CombatUnit,
     def: ReturnType<typeof getStatusEffectDefinition>,
     stacks: number,
     duration: number,
-    appliedBy?: 'player' | 'enemy'
+    appliedBy?: 'player' | 'enemy',
+    powerScale?: number
   ): ApplyStatusResult[] {
     const results: ApplyStatusResult[] = []
     if (!def?.compositeEffects) return results
@@ -76,12 +82,15 @@ export class StatusEffectSystem {
     // 親効果の耐性を先に判定（全子に統一適用）
     const parentResistance = this.getStatusResistance(target, def)
 
+    // 複合親のスタックをそのまま子に適用（上位で既に耐性やmaxDurationは処理済み）
+    const childStacks = Math.max(1, stacks)
+
     for (const child of def.compositeEffects) {
       if (this.isImmune(target, child.type)) {
         results.push({ type: child.type, applied: false, finalStacks: 0, finalDuration: 0, immunity: true, reason: 'immune' })
         continue
       }
-      results.push(this.applyStatusEffect(target, child.type, stacks, duration, { allowComposite: false, appliedBy, parentResistance, fromComposite: true }))
+      results.push(this.applyStatusEffect(target, child.type, childStacks, duration, { allowComposite: false, appliedBy, parentResistance, fromComposite: true, powerScale }))
     }
     return results
   }
@@ -94,10 +103,12 @@ export class StatusEffectSystem {
     type: StatusEffectType,
     stacks: number,
     duration: number,
-    opts: { allowComposite?: boolean; appliedBy?: 'player' | 'enemy'; parentResistance?: number; fromComposite?: boolean } = {}
+    opts: { allowComposite?: boolean; appliedBy?: 'player' | 'enemy'; parentResistance?: number; fromComposite?: boolean; powerScale?: number } = {}
   ): ApplyStatusResult {
     const def = getStatusEffectDefinition(type)
     if (!def) return { type, applied: false, finalStacks: 0, finalDuration: 0, reason: 'resisted' }
+
+    const powerScale = opts.powerScale ?? 1
 
     if (def.allowDirectApply === false && !opts.fromComposite) {
       return { type, applied: false, finalStacks: 0, finalDuration: 0, reason: 'resisted' }
@@ -110,7 +121,7 @@ export class StatusEffectSystem {
     const rawDuration = def.maxDuration ? Math.min(duration, def.maxDuration) : duration
 
     if (opts.allowComposite !== false && def.compositeEffects?.length) {
-      const childResults = this.applyCompositeEffects(target, def, stacks, rawDuration, opts.appliedBy)
+      const childResults = this.applyCompositeEffects(target, def, stacks, rawDuration, opts.appliedBy, powerScale)
       const appliedAny = childResults.some(r => r.applied)
       const resistance = childResults.find(r => r.resistance !== undefined)?.resistance
       const immunity = childResults.every(r => r.immunity)
@@ -139,6 +150,7 @@ export class StatusEffectSystem {
     const existing = target.statusEffects.find(e => e.type === type)
 
     if (existing) {
+      existing.powerScale = this.mergePowerScale(existing.powerScale, powerScale)
       if (!def.stackable) {
         if (def.refreshRule === 'refresh') {
           existing.duration = Math.max(existing.duration, effectiveDuration)
@@ -160,9 +172,8 @@ export class StatusEffectSystem {
           return { type, applied: true, finalStacks: existing.stacks, finalDuration: existing.duration, resistance, reason: 'applied' }
       }
     }
-
     const initialStacks = def.stackable ? reducedStacks : 1
-    target.statusEffects.push({ type, stacks: initialStacks, duration: effectiveDuration, appliedBy: opts.appliedBy })
+    target.statusEffects.push({ type, stacks: initialStacks, duration: effectiveDuration, appliedBy: opts.appliedBy, powerScale })
     return { type, applied: true, finalStacks: initialStacks, finalDuration: effectiveDuration, resistance, reason: 'applied' }
   }
 
@@ -205,7 +216,9 @@ export class StatusEffectSystem {
     if (dot?.enabled) {
       const stacks = this.getEffectiveStacks(effect, def, 'damageOverTime')
       const damagePerStack = dot.damagePerStack ?? 0
-      const damage = stacks * damagePerStack
+      const powerScale = effect.powerScale ?? 1
+      const dotPowerScale = 1 + (powerScale - 1) * 0.6
+      const damage = Math.round(stacks * damagePerStack * dotPowerScale)
       if (damage > 0) {
         unit.currentHp = Math.max(0, unit.currentHp - damage)
         const healPercent = def.effects.lifeStealPercent ?? 0
@@ -234,6 +247,7 @@ export class StatusEffectSystem {
     speed: number
     damageTaken: number
     critChance: number
+    statusPower?: number
   } {
     const totals = {
       attack: 0,
@@ -242,46 +256,49 @@ export class StatusEffectSystem {
       magicDefense: 0,
       speed: 0,
       damageTaken: 0,
-      critChance: 0
+      critChance: 0,
+      statusPower: 0
     }
 
     for (const effect of unit.statusEffects) {
       const def = getStatusEffectDefinition(effect.type)
       if (!def) continue
 
+      const powerScale = effect.powerScale ?? 1
+
       const stacksForAttack = this.getEffectiveStacks(effect, def, 'attackModifier')
       if (def.effects.attackModifier !== undefined) {
-        totals.attack += def.effects.attackModifier * stacksForAttack
+        totals.attack += def.effects.attackModifier * stacksForAttack * powerScale
       }
 
       const stacksForMagic = this.getEffectiveStacks(effect, def, 'magicModifier')
       if (def.effects.magicModifier !== undefined) {
-        totals.magic += def.effects.magicModifier * stacksForMagic
+        totals.magic += def.effects.magicModifier * stacksForMagic * powerScale
       }
 
       const stacksForDefense = this.getEffectiveStacks(effect, def, 'defenseModifier')
       if (def.effects.defenseModifier !== undefined) {
-        totals.defense += def.effects.defenseModifier * stacksForDefense
+        totals.defense += def.effects.defenseModifier * stacksForDefense * powerScale
       }
 
       const stacksForMagicDefense = this.getEffectiveStacks(effect, def, 'magicDefenseModifier')
       if (def.effects.magicDefenseModifier !== undefined) {
-        totals.magicDefense += def.effects.magicDefenseModifier * stacksForMagicDefense
+        totals.magicDefense += def.effects.magicDefenseModifier * stacksForMagicDefense * powerScale
       }
 
       const stacksForSpeed = this.getEffectiveStacks(effect, def, 'speedModifier')
       if (def.effects.speedModifier !== undefined) {
-        totals.speed += def.effects.speedModifier * stacksForSpeed
+        totals.speed += def.effects.speedModifier * stacksForSpeed * powerScale
       }
 
       const stacksForDamageTaken = this.getEffectiveStacks(effect, def, 'damageTakenModifier')
       if (def.effects.damageTakenModifier !== undefined) {
-        totals.damageTaken += def.effects.damageTakenModifier * stacksForDamageTaken
+        totals.damageTaken += def.effects.damageTakenModifier * stacksForDamageTaken * powerScale
       }
 
       const stacksForCritChance = this.getEffectiveStacks(effect, def, 'critChanceModifier')
       if (def.effects.critChanceModifier !== undefined) {
-        totals.critChance += def.effects.critChanceModifier * stacksForCritChance
+        totals.critChance += def.effects.critChanceModifier * stacksForCritChance * powerScale
       }
     }
 
@@ -336,7 +353,8 @@ export class StatusEffectSystem {
       if (modifier === undefined) continue
 
       const stacks = this.getEffectiveStacks(effect, def, 'damageTakenModifier')
-      const total = modifier * stacks
+      const scale = effect.powerScale ?? 1
+      const total = modifier * stacks * scale
       if (total === 0) continue
 
       breakdown.push({
@@ -359,7 +377,8 @@ export class StatusEffectSystem {
       const def = getStatusEffectDefinition(effect.type)
       if (!def?.effects.reflectPercent) continue
       const stacks = this.getEffectiveStacks(effect, def, 'reflectPercent')
-      total += def.effects.reflectPercent * stacks
+      const scale = effect.powerScale ?? 1
+      total += def.effects.reflectPercent * stacks * scale
     }
     return total
   }
@@ -374,6 +393,7 @@ export class StatusEffectSystem {
     defense: number
     magicDefense: number
     speed: number
+    statusPower: number
   } {
     const totals = this.aggregateModifiers(unit)
     return {
@@ -381,7 +401,8 @@ export class StatusEffectSystem {
       magic: totals.magic,
       defense: totals.defense,
       magicDefense: totals.magicDefense,
-      speed: totals.speed
+      speed: totals.speed,
+      statusPower: totals.statusPower ?? 0
     }
   }
 
@@ -390,8 +411,10 @@ export class StatusEffectSystem {
    */
   static getStatModifierEntries(
     unit: CombatUnit,
-    stat: 'attack' | 'magic' | 'defense' | 'magicDefense' | 'speed'
+    stat: 'attack' | 'magic' | 'defense' | 'magicDefense' | 'speed' | 'statusPower'
   ): Array<{ type: StatusEffectType; percent: number; stacks: number; stacksUsed: number }> {
+    if (stat === 'statusPower') return []
+
     const effectKeyMap: Record<'attack' | 'magic' | 'defense' | 'magicDefense' | 'speed', StatusEffectEffectKey> = {
       attack: 'attackModifier',
       magic: 'magicModifier',
@@ -412,9 +435,11 @@ export class StatusEffectSystem {
       const stacksUsed = this.getEffectiveStacks(effect, def, effectKey)
       if (stacksUsed === 0) continue
 
+      const powerScale = effect.powerScale ?? 1
+
       entries.push({
         type: effect.type,
-        percent: (modifier as number) * stacksUsed,
+        percent: (modifier as number) * stacksUsed * powerScale,
         stacks: effect.stacks,
         stacksUsed
       })
@@ -521,12 +546,26 @@ export class StatusEffectSystem {
   }
 
   /**
-   * 行動不能状態かチェック（stun, frozen, sleep, petrification）
+   * 行動不能状態かチェック（stun, frozen, sleep, petrification, electrificationParalysis）
+   * cannotActProbability が設定されている場合は確率判定を行う
    */
   static cannotAct(unit: CombatUnit): boolean {
     return unit.statusEffects.some(effect => {
       const def = getStatusEffectDefinition(effect.type)
-      return def?.effects.cannotAct && this.getEffectiveStacks(effect, def) > 0
+      if (!def?.effects.cannotAct) return false
+      
+      const stacks = this.getEffectiveStacks(effect, def)
+      if (stacks === 0) return false
+      
+      // cannotActProbability が設定されている場合は確率判定
+      if (def.cannotActProbability !== undefined) {
+        const probability = Math.min(stacks * def.cannotActProbability, 100)
+        const roll = Math.random() * 100
+        return roll < probability
+      }
+      
+      // デフォルト：確定スタン
+      return true
     })
   }
 

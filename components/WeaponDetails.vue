@@ -20,37 +20,37 @@
     <div class="weapon-stats">
       <Tooltip v-if="weapon.stats.attack > 0" title="⚔️ 攻撃力" content="物理ダメージに影響">
         <span class="stat" :class="statClass('attack')">
-          ⚔️ {{ weapon.stats.attack }}
+          ⚔️ {{ formatStatValue(weapon.stats.attack) }}
           <span v-if="hasDiff('attack')" class="stat-diff">{{ formatDiff('attack') }}</span>
         </span>
       </Tooltip>
       <Tooltip v-if="weapon.stats.magic > 0" title="✨ 魔法力" content="魔法ダメージに影響">
         <span class="stat" :class="statClass('magic')">
-          ✨ {{ weapon.stats.magic }}
+          ✨ {{ formatStatValue(weapon.stats.magic) }}
           <span v-if="hasDiff('magic')" class="stat-diff">{{ formatDiff('magic') }}</span>
         </span>
       </Tooltip>
       <Tooltip v-if="weapon.stats.speed > 0" title="⚡ 速度" content="攻撃順序と頻度に影響">
         <span class="stat" :class="statClass('speed')">
-          ⚡ {{ weapon.stats.speed }}
+          ⚡ {{ formatStatValue(weapon.stats.speed) }}
           <span v-if="hasDiff('speed')" class="stat-diff">{{ formatDiff('speed') }}</span>
         </span>
       </Tooltip>
       <Tooltip v-if="weapon.stats.critChance > 0" title="🎯 クリティカル率" content="クリティカルヒットの発生確率">
         <span class="stat" :class="statClass('critChance')">
-          🎯 {{ weapon.stats.critChance }}%
+          🎯 {{ formatStatValue(weapon.stats.critChance) }}%
           <span v-if="hasDiff('critChance')" class="stat-diff">{{ formatDiff('critChance') }}%</span>
         </span>
       </Tooltip>
       <Tooltip v-if="weapon.stats.critDamage > 1" title="💥 クリティカルダメージ" content="クリティカル時のダメージ倍率">
         <span class="stat" :class="statClass('critDamage')">
-          💥 {{ weapon.stats.critDamage }}x
+          💥 {{ formatStatValue(weapon.stats.critDamage) }}x
           <span v-if="hasDiff('critDamage')" class="stat-diff">{{ formatDiff('critDamage') }}</span>
         </span>
       </Tooltip>
-      <Tooltip v-if="weapon.stats.statusPower > 0" title="🔮 状態異常威力" content="状態異常の効果を強化">
+      <Tooltip v-if="weapon.stats.statusPower > 0" title="🧿 状態異常威力" content="状態異常の効果を強化">
         <span class="stat" :class="statClass('statusPower')">
-          🔮 {{ weapon.stats.statusPower }}
+          🧿 {{ formatStatValue(weapon.stats.statusPower) }}
           <span v-if="hasDiff('statusPower')" class="stat-diff">{{ formatDiff('statusPower') }}</span>
         </span>
       </Tooltip>
@@ -107,11 +107,20 @@ const props = defineProps<{
 
 const showDesc = computed(() => props.showDescription ?? !props.compact)
 
+const formatNumber = (value: number, decimals = 2) => {
+  if (!Number.isFinite(value)) return '0'
+  if (Math.abs(value - Math.round(value)) < 1e-6) return Math.round(value).toString()
+  return value.toFixed(decimals).replace(/\.0+$/, '').replace(/(\.\d+?)0+$/, '$1')
+}
+
+const formatStatValue = (value: number) => formatNumber(value, 2)
+
 const hasDiff = (key: keyof Weapon['stats']) => props.compareTo !== undefined && statDiff(key) !== 0
 
 const statDiff = (key: keyof Weapon['stats']) => {
   if (!props.compareTo) return 0
-  return props.weapon.stats[key] - props.compareTo.stats[key]
+  const diff = props.weapon.stats[key] - props.compareTo.stats[key]
+  return Math.round(diff * 100) / 100
 }
 
 const statClass = (key: keyof Weapon['stats']) => {
@@ -123,7 +132,8 @@ const statClass = (key: keyof Weapon['stats']) => {
 const formatDiff = (key: keyof Weapon['stats']) => {
   const diff = statDiff(key)
   if (diff === 0) return ''
-  return diff > 0 ? `+${diff}` : `${diff}`
+  const formatted = formatNumber(Math.abs(diff), 2)
+  return diff > 0 ? `+${formatted}` : `-${formatted}`
 }
 
 const getEffectKind = (type: string) => STATUS_EFFECTS_DB[type as keyof typeof STATUS_EFFECTS_DB]?.type || 'Debuff'

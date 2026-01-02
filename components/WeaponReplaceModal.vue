@@ -6,7 +6,7 @@
         <button @click="$emit('close')" class="btn-close">×</button>
       </div>
       <p class="loot-subtitle">
-        {{ playerWeapons.length < 4 ? '空きスロットまたは' : '' }}置き換える装備をクリックしてください
+        {{ playerWeapons.length < maxSlots ? '空きスロットまたは' : '' }}置き換える装備をクリックしてください
       </p>
       <div class="replacement-comparison-grid">
         <!-- 既存の武器 -->
@@ -37,7 +37,7 @@
         
         <!-- 空きスロット -->
         <div 
-          v-if="playerWeapons.length < 4"
+          v-if="playerWeapons.length < maxSlots"
           class="replacement-comparison-card empty-slot-card"
           @click="$emit('add-to-empty-slot')"
         >
@@ -73,6 +73,7 @@ interface Props {
   show: boolean
   selectedWeapon: Weapon | null
   playerWeapons: Weapon[]
+  maxSlots: number
 }
 
 defineProps<Props>()

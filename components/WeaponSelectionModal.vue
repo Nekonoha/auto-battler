@@ -4,6 +4,7 @@
       <div class="modal-header">
         <h2>⚙️ 武器の付け替え</h2>
         <div class="gold-display">💰 {{ player.gold }}G</div>
+        <div class="rating-display">総合評価: {{ Math.round(equippedRatingTotal) }}</div>
         <div class="modal-header-buttons">
           <button class="btn btn-secondary btn-compact" @click="$emit('openSellMenu')" :disabled="isRunLocked">
             💰 売却
@@ -16,11 +17,11 @@
       </div>
 
       <div class="current-weapons">
-        <h3>装備中の武器 ({{ player.weapons.length }}/4)</h3>
+        <h3>装備中の武器 ({{ player.weapons.length }}/{{ player.weaponSlots }})</h3>
         <div v-if="player.weapons.length === 0" class="empty-slot">
           装備武器がありません
         </div>
-        <div v-else class="weapon-list">
+        <div v-else class="weapon-grid">
           <div
             v-for="weapon in player.weapons"
             :key="weapon.id"
@@ -63,6 +64,13 @@
               <option value="attack">攻撃力順</option>
               <option value="magic">魔法力順</option>
               <option value="speed">速度順</option>
+              <option value="defense">防御力順</option>
+              <option value="magicDefense">魔法防御順</option>
+              <option value="critChance">クリ率順</option>
+              <option value="critDamage">クリダメ順</option>
+              <option value="statusPower">状態異常威力順</option>
+              <option value="rating">武器評価順</option>
+              <option value="acquired">入手順</option>
             </select>
           </div>
 
@@ -90,14 +98,13 @@
         <div v-if="filteredWeapons.length === 0" class="empty-slot">
           条件に一致する武器がありません
         </div>
-        <div v-else class="weapon-list">
+        <div v-else class="weapon-grid">
           <div
             v-for="weapon in filteredWeapons"
             :key="weapon.id"
-            class="weapon-list-item"
+            class="weapon-list-item selectable"
             :style="{ borderColor: getWeaponRarityColor(weapon.rarity) }"
             @click.stop="$emit('select', weapon)"
-            style="cursor: pointer;"
           >
             <WeaponDetails :weapon="weapon" />
           </div>
@@ -112,6 +119,7 @@ import { computed } from 'vue'
 import WeaponDetails from './WeaponDetails.vue'
 import type { Player, Weapon } from '~/types'
 import { getWeaponRarityColor } from '~/utils/weaponPresentation'
+import { WeaponSystem } from '~/systems/WeaponSystem'
 
 type Emits = {
   (e: 'close'): void
@@ -166,4 +174,58 @@ const localSelectedEffects = computed({
   get: () => props.selectedEffects,
   set: value => emit('update:selectedEffects', value)
 })
+
+const equippedRatingTotal = computed(() =>
+  props.player.weapons.reduce((sum, w) => sum + WeaponSystem.evaluateWeapon(w), 0)
+)
 </script>
+
+<style scoped>
+.weapon-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+@media (min-width: 1100px) {
+  .weapon-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.weapon-list-item {
+  border: 2px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.weapon-list-item.selectable {
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.weapon-list-item.selectable:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.35);
+}
+
+.empty-slot {
+  text-align: center;
+  padding: 16px;
+  opacity: 0.7;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+}
+.rating-display {
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 13px;
+}
+</style>

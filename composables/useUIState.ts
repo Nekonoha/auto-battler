@@ -6,6 +6,8 @@ import { ref, computed, type Ref } from 'vue'
 export function useUIState() {
   const showWeaponSelection = ref(false)
   const showStatManager = ref(false)
+  const showDebugWeaponModal = ref(false)
+  const showDebugEnemyModal = ref(false)
   const toastMessage = ref('')
   const toastType = ref<'info' | 'error' | 'loot' | ''>('')
 
@@ -17,6 +19,8 @@ export function useUIState() {
   return {
     showWeaponSelection,
     showStatManager,
+    showDebugWeaponModal,
+    showDebugEnemyModal,
     toastMessage,
     toastType,
     showToast

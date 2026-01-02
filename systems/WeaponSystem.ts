@@ -8,6 +8,14 @@ import { getStatusEffectDefinition } from '../data/statusEffects'
  * 武器タイプ別のダメージ計算と攻撃処理を行う
  */
 export class WeaponSystem {
+  private static calculateStatusPowerMultiplier(statusPower: number): number {
+    if (statusPower <= 0) return 1
+    const blocks = statusPower / 100
+    const linearGain = blocks * 0.005 // 100ごとに0.5%の基礎増加
+    const diminishing = linearGain / (1 + blocks * 0.8) // ステが上がるほど伸びを緩やかに
+    return 1 + Math.max(0, diminishing)
+  }
+
   /**
    * 武器で攻撃を行う
    */
@@ -17,6 +25,8 @@ export class WeaponSystem {
     target: CombatUnit,
     synergyBonus?: { attackBonus?: number; magicBonus?: number; speedBonus?: number; critChanceBonus?: number; critDamageBonus?: number; statusPowerBonus?: number } | null
   ): DamageResult {
+    type AppliedEffect = WeaponEffect & { powerScale?: number }
+
     // シナジーボーナスを適用した武器ステータスを計算（元のステータスは変更しない）
     const effectiveStats = {
       attack: weapon.stats.attack * (1 + (synergyBonus?.attackBonus || 0) / 100),
@@ -26,9 +36,13 @@ export class WeaponSystem {
       critDamage: weapon.stats.critDamage + (synergyBonus?.critDamageBonus || 0) / 100,
       statusPower: weapon.stats.statusPower + (synergyBonus?.statusPowerBonus || 0)
     }
+
+    const attackerStatusPower = 'stats' in attacker ? ((attacker as any).stats?.statusPower ?? 0) : 0
+    const totalStatusPower = effectiveStats.statusPower + attackerStatusPower
+    const statusPowerMultiplier = this.calculateStatusPowerMultiplier(totalStatusPower)
     
     // 武器タイプに応じたダメージ計算
-    let baseDamage = this.calculateBaseDamageWithStats(weapon.type, effectiveStats)
+    let baseDamage = this.calculateBaseDamageWithStats(weapon.type, { ...effectiveStats, statusPower: totalStatusPower })
     
     // クリティカル判定
     const isCritical = Math.random() * 100 < effectiveStats.critChance
@@ -67,7 +81,7 @@ export class WeaponSystem {
     target.currentHp = Math.max(0, target.currentHp - finalDamage)
     
     // 状態異常を付与
-    const appliedEffects: Weapon['effects'] = []
+    const appliedEffects: AppliedEffect[] = []
 
     for (const effect of weapon.effects) {
       const def = getStatusEffectDefinition(effect.type as any)
@@ -82,12 +96,20 @@ export class WeaponSystem {
         }
       }
       
-      // 確率判定
-      if (Math.random() * 100 < effect.chance) {
-        // statusPowerでスタック数を補正
-        const stacks = Math.max(1, Math.floor(effect.stacks * (1 + effectiveStats.statusPower / 100)))
-        // 実際の付与は呼び出し元で行うため、付与先情報を保持して返す（元の定義を汚さない）
-        appliedEffects.push({ ...effect, stacks, target: recipient === attacker ? 'self' : 'enemy' } as any)
+      // 確率判定（statusPowerで上昇、最大100%）
+      const effectiveChance = Math.min(100, effect.chance * statusPowerMultiplier)
+      if (Math.random() * 100 < effectiveChance) {
+        // statusPowerでスタック数と持続時間を補正
+        const stacks = Math.max(1, Math.floor(effect.stacks * statusPowerMultiplier))
+        const duration = Math.max(1, Math.floor(effect.duration * statusPowerMultiplier))
+        // 付与時の威力倍率を保持
+        appliedEffects.push({
+          ...effect,
+          stacks,
+          duration,
+          powerScale: statusPowerMultiplier,
+          target: recipient === attacker ? 'self' : 'enemy'
+        })
       }
     }
     
@@ -122,7 +144,7 @@ export class WeaponSystem {
       
       case 'dot':
         // 状態異常特化: 直接ダメージは低いが状態異常が強力
-        return stats.attack * 0.5 + stats.statusPower * 0.8
+        return stats.attack * 0.5 + stats.statusPower * 0.4
       
       default:
         return stats.attack
@@ -160,13 +182,18 @@ export class WeaponSystem {
    * レアリティによる倍率
    */
   private static getRarityMultiplier(rarity: string): number {
-    const multipliers: Record<string, number> = {
+    const baseMultipliers: Record<string, number> = {
       common: 1.0,
       rare: 1.3,
       epic: 1.6,
-      legendary: 2.0
+      legendary: 2.0,
+      mythic: 2.4
     }
-    return multipliers[rarity] || 1.0
+    if (rarity.startsWith('mythic')) {
+      const plus = rarity.replace('mythic', '').length
+      return (baseMultipliers.mythic || 2.4) + plus * 0.2
+    }
+    return baseMultipliers[rarity] || 1.0
   }
 
   /**
@@ -190,8 +217,10 @@ export class WeaponSystem {
       common: '#95a5a6',
       rare: '#3498db',
       epic: '#9b59b6',
-      legendary: '#f39c12'
+      legendary: '#f39c12',
+      mythic: '#e91e63'
     }
+    if (rarity.startsWith('mythic')) return colors.mythic
     return colors[rarity] || '#95a5a6'
   }
 }

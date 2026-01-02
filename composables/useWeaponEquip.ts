@@ -10,19 +10,7 @@ export function useWeaponEquip(
   const selectedWeapon = ref<Weapon | null>(null)
   const showEquipSelection = ref(false)
 
-  const sortWeaponsByRarity = () => {
-    const rarityOrder: Record<string, number> = {
-      legendary: 0,
-      epic: 1,
-      rare: 2,
-      common: 3
-    }
-    player.weapons.sort((a, b) => {
-      const orderA = rarityOrder[a.rarity] ?? 999
-      const orderB = rarityOrder[b.rarity] ?? 999
-      return orderA - orderB
-    })
-  }
+  const maxSlots = () => Math.max(player.weaponSlots ?? 2, player.weapons.length, 2)
 
   const equipWeapon = (weapon: Weapon, removeWeaponFn: (weapon: Weapon) => void) => {
     if (isRunLocked.value) return
@@ -44,7 +32,6 @@ export function useWeaponEquip(
     
     const oldWeapon = player.weapons[oldIndex]
     player.weapons[oldIndex] = selectedWeapon.value
-    sortWeaponsByRarity()
     addToAvailableIfNeeded(oldWeapon)
     pruneAvailableWeapons()
     
@@ -56,8 +43,8 @@ export function useWeaponEquip(
   const addWeaponToEmptySlot = (showToastCallback?: (msg: string, type: 'info' | 'error' | 'loot') => void) => {
     if (!selectedWeapon.value) return
     
-    // 武器の上限チェック（4つまで）
-    if (player.weapons.length >= 4) {
+    // 武器の上限チェック
+    if (player.weapons.length >= maxSlots()) {
       showToastCallback?.('装備スロットがいっぱいです', 'error')
       selectedWeapon.value = null
       showEquipSelection.value = false
@@ -65,7 +52,6 @@ export function useWeaponEquip(
     }
     
     player.weapons.push(selectedWeapon.value)
-    sortWeaponsByRarity()
     pruneAvailableWeapons()
     
     showToastCallback?.(`${selectedWeapon.value.name}を装備しました`, 'info')

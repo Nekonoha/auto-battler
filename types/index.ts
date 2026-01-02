@@ -1,7 +1,8 @@
 /**
  * 武器のレアリティ
+ * mythic 以上は "mythic+" のように + で段階を表現する
  */
-export type WeaponRarity = 'common' | 'rare' | 'epic' | 'legendary'
+export type WeaponRarity = 'common' | 'rare' | 'epic' | 'legendary' | `mythic${string}`
 
 /**
  * 武器のタイプ（攻撃方法を決定）
@@ -72,11 +73,11 @@ export interface EnchantedWeapon extends Weapon {
  */
 export type StatusEffectType = 
   // DoT系
-  | 'poison' | 'burn' | 'burnDot' | 'burnWeaken' | 'bleed' | 'kissed' | 'epidemic'
+  | 'poison' | 'burn' | 'burnDot' | 'burnWeaken' | 'bleed' | 'kissed' | 'epidemic' | 'corrosion' | 'electrificationDot'
   // 行動阻害
-  | 'slow' | 'stun' | 'sleep' | 'sleepLock' | 'sleepVulnerable' | 'frozen' | 'frozenLock' | 'frozenGuard' | 'petrification' | 'petrificationLock' | 'petrificationGuard' | 'fear' | 'drunk'
+  | 'slow' | 'stun' | 'sleep' | 'sleepLock' | 'sleepVulnerable' | 'frozen' | 'frozenLock' | 'frozenGuard' | 'petrification' | 'petrificationLock' | 'petrificationGuard' | 'fear' | 'drunk' | 'electrification' | 'electrificationSlow' | 'electrificationParalysis'
   // 状態変化
-  | 'vulnerable' | 'weak'
+  | 'vulnerable' | 'weak' | 'mist'
   // バフ
   | 'fleet' | 'armor' | 'thorn' | 'power' | 'intellect' | 'precision'
 
@@ -116,6 +117,8 @@ export interface StatusEffect {
   stacks: number
   duration: number
   appliedBy?: 'player' | 'enemy'
+  /** 状態異常威力の乗算係数（付与元の statusPower から計算） */
+  powerScale?: number
 }
 
 /**
@@ -156,6 +159,7 @@ export interface PlayerStats {
   defense: number         // 物理防御力
   magicDefense: number    // 魔法防御力
   speed: number           // 攻撃速度
+  statusPower: number     // 状態異常威力（%加算換算）
 }
 
 export interface PlayerAllocatedStats {
@@ -165,16 +169,19 @@ export interface PlayerAllocatedStats {
   defense: number
   magicDefense: number
   speed: number
+  statusPower: number
 }
 
 /**
  * プレイヤーデータ
  */
 export interface Player extends CombatUnit {
+  name: string            // プレイヤー名
   level: number           // プレイヤーレベル
   exp: number             // 現在の経験値
   nextLevelExp: number    // 次レベルまでの経験値
   weapons: Weapon[]       // 装備中の武器リスト
+  weaponSlots: number     // 武器スロット数（購入で拡張）
   stats: PlayerStats      // ステータス
   statPoints: number      // 未割り振りステータスポイント
   allocatedStats?: PlayerAllocatedStats // 割り振り管理用
@@ -197,12 +204,7 @@ export interface EnemyTraits {
   /** 状態異常の軽減（%）。個別ID優先、なければカテゴリ(control/damage/modifier)、最後にall。 */
   statusResistances?: Partial<Record<StatusEffectType | 'control' | 'damage' | 'modifier' | 'all', number>>
   attackImmunities?: WeaponType[]        // 無効な攻撃タイプ
-  inflictsStatus?: {                     // 攻撃時に付与する状態異常
-    type: StatusEffectType
-    chance: number
-    stacks: number
-    duration: number
-  }[]
+  expMultiplier?: number                 // 経験値倍率（デフォルト1.0）
 }
 
 /**
@@ -223,13 +225,41 @@ export interface EnemyStats {
   defense: number
   magicDefense: number
   speed: number
+  statusPower: number
 }
 
-export type EnemyActionType = 'attack' | 'defend' | 'nothing'
+export type EnemyActionType = 'attack' | 'defend' | 'nothing' | 'status'
+
+export interface EnemyActionEffect {
+  type: StatusEffectType
+  stacks: number
+  duration: number
+  chance?: number
+  target?: 'self' | 'enemy'
+}
 
 export interface EnemyAction {
   type: EnemyActionType
   weight: number  // 選択確率の重み
+  effects?: EnemyActionEffect[] // type === 'status' 用の付与効果
+  name?: string                 // ログ表示用（行動名）
+  label?: string                // 追加の説明（ログ補足）
+  attackType?: 'physical' | 'magic'  // 攻撃種別（物理/魔法）- type === 'attack' 用
+  /**
+   * 特殊行動のログスタイル。
+   * 'special' を指定すると強調表示（critical ログ）を使う。
+   */
+  logStyle?: 'special' | 'status' | 'info'
+  /**
+   * 付随ダメージ設定。未指定ならダメージ無しの純粋なバフ/デバフ行動。
+   */
+  damage?: {
+    stat: 'attack' | 'magic'           // どのステータスを基準にするか
+    multiplier?: number                // 基準ステータスへの乗算（デフォルト1）
+    flat?: number                      // 追加固定値
+    variance?: number                  // 振れ幅。0.2なら ±20%（デフォルト0.2）
+    type?: DamageType                  // ダメージ種別（省略時 stat に応じて）
+  }
 }
 
 export interface Enemy extends CombatUnit {
@@ -252,8 +282,8 @@ export interface Dungeon {
   namedChance?: number
   enemyPool?: string[]  // 出現する敵テンプレートIDリスト（未指定時はランダム生成）
   bossId?: string       // ボス戦で使用するテンプレートID
-  lootWeights: Record<'common' | 'rare' | 'epic' | 'legendary', number>
-  chestLootWeights?: Record<'common' | 'rare' | 'epic' | 'legendary', number>
+  lootWeights: Record<string, number>
+  chestLootWeights?: Record<string, number>
   chestWeaponPool?: string[] // チェストで優先されるベース武器ID
   chestChance?: number
   characteristics?: {
@@ -285,7 +315,9 @@ export interface LootReward {
 export interface CombatLogEntry {
   turn: number
   message: string
-  type: 'damage' | 'status' | 'info' | 'critical' | 'loot'
+  type: 'damage' | 'status' | 'info' | 'critical' | 'loot' | 'buff' | 'debuff' | 'special'
+  actor?: 'player' | 'enemy'  // 行動者の区別
+  actionCategory?: 'attack' | 'defend' | 'skill' | 'special'  // 行動のカテゴリ
 }
 
 // ダンジョン内の戦闘ごとのログ（探索戦闘ログ）
@@ -329,7 +361,7 @@ export interface DungeonLogEntry {
 export interface DamageResult {
   damage: number
   isCritical: boolean
-  statusEffects: WeaponEffect[]
+  statusEffects: Array<WeaponEffect & { powerScale?: number }>
   resistanceApplied?: number
   blocked?: boolean
 }

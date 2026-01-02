@@ -6,10 +6,16 @@
         v-for="(entry, index) in logs" 
         :key="index"
         class="log-entry"
-        :class="`log-${entry.type}`"
+        :class="[
+          `log-${entry.type}`,
+          entry.actor && `log-actor-${entry.actor}`,
+          entry.actionCategory && `log-action-${entry.actionCategory}`
+        ]"
       >
-        <span class="log-turn">[{{ formatTurn(entry) }}]</span>
-        <span class="log-message">{{ entry.message }}</span>
+        <div class="log-content">
+          <span class="log-turn">[{{ formatTurn(entry) }}]</span>
+          <span class="log-message">{{ entry.message }}</span>
+        </div>
       </div>
       <div v-if="logs.length === 0" class="log-empty">
         戦闘を開始してください
@@ -94,9 +100,25 @@ h3 {
   padding: 6px 10px;
   border-radius: 4px;
   background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
   gap: 8px;
   animation: slideIn 0.2s ease;
+}
+
+/* 配置スタイル */
+.log-align-left {
+  justify-content: flex-start;
+}
+
+.log-align-right {
+  justify-content: flex-end;
+  flex-direction: row-reverse;
+}
+
+.log-align-center {
+  justify-content: center;
+  text-align: center;
 }
 
 @keyframes slideIn {
@@ -110,10 +132,36 @@ h3 {
   }
 }
 
+.log-content {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex: 1;
+}
+
+/* プレイヤー行動：青い枠 */
+.log-actor-player {
+  border-left: 3px solid #3498db;
+  background: rgba(52, 152, 219, 0.05);
+}
+
+/* 敵の行動：赤い枠 */
+.log-actor-enemy {
+  border-left: 3px solid #e74c3c;
+  background: rgba(231, 76, 60, 0.05);
+}
+
+/* システムメッセージ：グレー枠 */
+.log-entry:not([class*="log-actor"]) {
+  border-left: 3px solid #95a5a6;
+  background: rgba(149, 165, 166, 0.05);
+}
+
 .log-turn {
   color: #95a5a6;
   font-weight: bold;
   min-width: 40px;
+  flex-shrink: 0;
 }
 
 .log-message {
@@ -122,25 +170,35 @@ h3 {
 
 .log-damage {
   border-left: 3px solid #e74c3c;
+  border-color: rgba(231, 76, 60, 0.4);
+  background: rgba(231, 76, 60, 0.08);
 }
 
 .log-status {
   border-left: 3px solid #9b59b6;
+  border-color: rgba(155, 89, 182, 0.4);
+  background: rgba(155, 89, 182, 0.08);
 }
 
 .log-info {
   border-left: 3px solid #3498db;
+  border-color: rgba(52, 152, 219, 0.45);
+  background: rgba(52, 152, 219, 0.08);
 }
 
 .log-critical {
   border-left: 3px solid #f39c12;
-  background: rgba(243, 156, 18, 0.1);
+  border-color: rgba(243, 156, 18, 0.8);
+  background: linear-gradient(90deg, rgba(243, 156, 18, 0.18), rgba(243, 156, 18, 0.1));
+  box-shadow: 0 0 0 1px rgba(243, 156, 18, 0.35), 0 6px 18px rgba(243, 156, 18, 0.18);
   font-weight: bold;
 }
 
 .log-loot {
   border-left: 3px solid #2ecc71;
-  background: rgba(46, 204, 113, 0.15);
+  border-color: rgba(46, 204, 113, 0.65);
+  background: rgba(46, 204, 113, 0.18);
+  box-shadow: 0 0 0 1px rgba(46, 204, 113, 0.3);
   font-weight: bold;
   color: #2ecc71;
 }
