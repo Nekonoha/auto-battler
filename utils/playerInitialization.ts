@@ -18,8 +18,8 @@ export function createInitialPlayer(): Player {
     level: 1,
     exp: 0,
     nextLevelExp: 100,
-    maxHp: 200,
-    currentHp: 200,
+    maxHp: 100,
+    currentHp: 100,
     statPoints: 0,
     allocatedStats: {
       maxHp: 0,
@@ -34,10 +34,10 @@ export function createInitialPlayer(): Player {
     weapons: [createInitialWeapon()],
     statusEffects: [],
     stats: {
-      attack: 15,
-      magic: 10,
+      attack: 10,
+      magic: 5,
       defense: 5,
-      magicDefense: 4,
+      magicDefense: 5,
       speed: 10
     }
   }

@@ -110,8 +110,7 @@
       :isRunLocked="isRunLocked"
       @close="showStatManager = false"
       @apply="applyStatAllocation"
-      @reset-temp="resetTempAllocation"
-      @reset-stats="handleResetStats"
+      @reset="handleReset"
       @reset-single-stat="resetSingleStat"
       @update:tempStatAlloc="Object.assign(tempStatAlloc, $event)"
     />

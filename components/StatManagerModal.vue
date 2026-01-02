@@ -355,11 +355,8 @@
         <button class="btn btn-primary" :disabled="totalTempAlloc === 0 || isRunLocked" @click="$emit('apply')">
           適用 ({{ totalTempAlloc }}SP使用)
         </button>
-        <button class="btn btn-secondary" @click="$emit('reset-temp')">
-          一時リセット
-        </button>
-        <button class="btn btn-danger" :disabled="isRunLocked" @click="$emit('reset-stats')">
-          全リセット
+        <button class="btn btn-danger" :disabled="isRunLocked" @click="handleReset">
+          リセット
         </button>
       </div>
     </div>
@@ -382,8 +379,7 @@ interface TempAlloc {
 type Emits = {
   (e: 'close'): void
   (e: 'apply'): void
-  (e: 'reset-temp'): void
-  (e: 'reset-stats'): void
+  (e: 'reset'): void
   (e: 'reset-single-stat', stat: keyof TempAlloc): void
   (e: 'update:tempStatAlloc', value: TempAlloc): void
 }
@@ -423,6 +419,20 @@ const getMaxForStat = (stat: keyof TempAlloc) => {
     .reduce((sum, s) => sum + props.tempStatAlloc[s], 0)
   
   return Math.max(0, props.player.statPoints - otherStats)
+}
+
+const handleReset = () => {
+  // UI 上の一時割り振りをクリア
+  emit('update:tempStatAlloc', {
+    maxHp: 0,
+    attack: 0,
+    magic: 0,
+    defense: 0,
+    magicDefense: 0,
+    speed: 0
+  })
+  // 実際のステータスリセット
+  emit('reset')
 }
 
 const maxHpMax = computed(() => getMaxForStat('maxHp'))

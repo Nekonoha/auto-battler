@@ -98,7 +98,6 @@ export function useGameOrchestrator(
     if (stat === 'attack' || stat === 'magic' || stat === 'defense' || stat === 'magicDefense' || stat === 'speed') {
       player.stats[stat] += deltas[stat]
       allocations[stat] += 1
-      player.statPoints -= 1
       return { ok: true }
     }
 
@@ -111,14 +110,22 @@ export function useGameOrchestrator(
     player.maxHp += 25
     player.currentHp = Math.min(player.currentHp + 25, player.maxHp)
     allocations.maxHp += 1
-    player.statPoints -= 1
     return { ok: true }
   }
 
   const resetAllocatedStats = (cost: number) => {
     const allocations = ensureAllocations()
-    const totalAllocated = Object.values(allocations).reduce((s, v) => s + v, 0)
-    if (totalAllocated === 0) return { ok: false, reason: 'no-allocation' }
+    
+    // allocations オブジェクトにはすでにポイント数が保存されている
+    const totalPointsAllocated = 
+      allocations.maxHp +
+      allocations.attack +
+      allocations.magic +
+      allocations.defense +
+      allocations.magicDefense +
+      allocations.speed
+    
+    if (totalPointsAllocated === 0) return { ok: false, reason: 'no-allocation' }
     if (player.gold < cost) return { ok: false, reason: 'no-gold' }
 
     // デフォルト値に戻す
@@ -138,7 +145,6 @@ export function useGameOrchestrator(
     player.stats.magicDefense = BASE_STATS.magicDefense
     player.stats.speed = BASE_STATS.speed
 
-    player.statPoints += totalAllocated
     player.gold -= cost
 
     player.currentHp = Math.min(player.currentHp, player.maxHp)
@@ -149,6 +155,17 @@ export function useGameOrchestrator(
     allocations.defense = 0
     allocations.magicDefense = 0
     allocations.speed = 0
+    
+    // リセット後、statPoints を正確に再計算
+    const multipliers = { maxHp: 25, attack: 5, magic: 5, defense: 3, magicDefense: 3, speed: 2 }
+    const allocatedPoints = 
+      Math.floor((player.maxHp - BASE_STATS.maxHp) / multipliers.maxHp) +
+      Math.floor((player.stats.attack - BASE_STATS.attack) / multipliers.attack) +
+      Math.floor((player.stats.magic - BASE_STATS.magic) / multipliers.magic) +
+      Math.floor((player.stats.defense - BASE_STATS.defense) / multipliers.defense) +
+      Math.floor((player.stats.magicDefense - BASE_STATS.magicDefense) / multipliers.magicDefense) +
+      Math.floor((player.stats.speed - BASE_STATS.speed) / multipliers.speed)
+    player.statPoints = (player.level * 5) - allocatedPoints
 
     return { ok: true }
   }
@@ -400,6 +417,7 @@ export function useGameOrchestrator(
     changeSpeed,
     stopAuto,
     startAuto,
+    ensureAllocations,
     allocateStat,
     allocateMaxHp,
     resetAllocatedStats,
