@@ -33,7 +33,7 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'defend', weight: 3, name: '防御' },
       { type: 'nothing', weight: 1, name: '様子を見る' }
     ],
-    baseStats: { attack: 6, magic: 0, defense: 4, magicDefense: 2, speed: 8, hpMultiplier: 0.6 }
+    baseStats: { attack: 7, magic: 0, defense: 4, magicDefense: 3, speed: 8, hpMultiplier: 2.0 }
   },
   {
     id: 'giant_rat',
@@ -45,7 +45,7 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'defend', weight: 3, name: '防御' },
       { type: 'nothing', weight: 1, name: '様子を見る' }
     ],
-    baseStats: { attack: 8, magic: 0, defense: 4, magicDefense: 3, speed: 14, hpMultiplier: 0.65 }
+    baseStats: { attack: 9, magic: 0, defense: 4, magicDefense: 3, speed: 14, hpMultiplier: 2.1 }
   },
   {
     id: 'goblin',
@@ -57,7 +57,7 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'defend', weight: 3, name: '防御' },
       { type: 'nothing', weight: 1, name: '様子を見る' }
     ],
-    baseStats: { attack: 10, magic: 0, defense: 6, magicDefense: 4, speed: 12, hpMultiplier: 0.7 }
+    baseStats: { attack: 11, magic: 0, defense: 6, magicDefense: 4, speed: 12, hpMultiplier: 2.2 }
   },
 
   // レア枠：高経験値ボーナス（低HP・高防御）
@@ -75,7 +75,7 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'attack', weight: 6, name: '硬い体当たり' },
       { type: 'nothing', weight: 4, name: 'きらめく' }
     ],
-    baseStats: { attack: 4, magic: 4, defense: 14, magicDefense: 14, speed: 24, hpMultiplier: 0.22 }
+    baseStats: { attack: 5, magic: 5, defense: 14, magicDefense: 14, speed: 24, hpMultiplier: 0.8 }
   },
 
   // ========== 初級 (Lv5-15) - バランス型 ==========
@@ -89,7 +89,7 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'defend', weight: 3, name: '防御' },
       { type: 'nothing', weight: 1, name: '様子を見る' }
     ],
-    baseStats: { attack: 15, magic: 0, defense: 8, magicDefense: 5, speed: 18, hpMultiplier: 1.0 }
+    baseStats: { attack: 16, magic: 0, defense: 8, magicDefense: 5, speed: 18, hpMultiplier: 3.2 }
   },
   {
     id: 'viper',
@@ -102,7 +102,7 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'nothing', weight: 1, name: '様子を見る' },
       { type: 'status', weight: 1, effects: [{ type: 'poison', chance: 40, stacks: 2, duration: 4 }], name: '毒牙' }
     ],
-    baseStats: { attack: 12, magic: 0, defense: 5, magicDefense: 5, speed: 20, hpMultiplier: 0.8 }
+    baseStats: { attack: 13, magic: 0, defense: 5, magicDefense: 5, speed: 20, hpMultiplier: 2.8 }
   },
   {
     id: 'bandit',
@@ -115,7 +115,7 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'nothing', weight: 1, name: '様子を見る' },
       { type: 'status', weight: 1, effects: [{ type: 'bleed', chance: 35, stacks: 1, duration: 3 }], name: '流血剣' }
     ],
-    baseStats: { attack: 16, magic: 0, defense: 7, magicDefense: 5, speed: 16, hpMultiplier: 0.8 }
+    baseStats: { attack: 17, magic: 0, defense: 7, magicDefense: 5, speed: 16, hpMultiplier: 2.8 }
   },
   {
     id: 'skeleton',
@@ -130,7 +130,7 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'defend', weight: 3, name: '防御' },
       { type: 'nothing', weight: 1, name: '様子を見る' }
     ],
-    baseStats: { attack: 18, magic: 0, defense: 10, magicDefense: 5, speed: 12, hpMultiplier: 0.9 }
+    baseStats: { attack: 19, magic: 0, defense: 10, magicDefense: 5, speed: 12, hpMultiplier: 3.0 }
   },
 
   // ========== 中級 (Lv15-30) - 暗黒の森 ==========
@@ -145,7 +145,7 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'defend', weight: 3, name: '防御' },
       { type: 'nothing', weight: 1, name: '様子を見る' }
     ],
-    baseStats: { attack: 25, magic: 0, defense: 20, magicDefense: 8, speed: 8, hpMultiplier: 1.5 }
+    baseStats: { attack: 26, magic: 0, defense: 20, magicDefense: 8, speed: 8, hpMultiplier: 4.5 }
   },
   {
     id: 'goblin_warrior',
@@ -157,7 +157,7 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'defend', weight: 3, name: '防御' },
       { type: 'nothing', weight: 1, name: '様子を見る' }
     ],
-    baseStats: { attack: 16, magic: 0, defense: 10, magicDefense: 6, speed: 13, hpMultiplier: 0.9 }
+    baseStats: { attack: 17, magic: 0, defense: 10, magicDefense: 6, speed: 13, hpMultiplier: 3.2 }
   },
   {
     id: 'dark_elf',
@@ -169,7 +169,7 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'defend', weight: 3, name: '防御' },
       { type: 'nothing', weight: 1, name: '様子を見る' }
     ],
-    baseStats: { attack: 18, magic: 14, defense: 10, magicDefense: 12, speed: 16, hpMultiplier: 0.95 }
+    baseStats: { attack: 19, magic: 15, defense: 10, magicDefense: 12, speed: 16, hpMultiplier: 3.4 }
   },
   {
     id: 'treant',
@@ -181,7 +181,7 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'defend', weight: 3, name: '防御' },
       { type: 'nothing', weight: 1, name: '様子を見る' }
     ],
-    baseStats: { attack: 14, magic: 10, defense: 22, magicDefense: 14, speed: 6, hpMultiplier: 1.4 }
+    baseStats: { attack: 15, magic: 11, defense: 22, magicDefense: 14, speed: 6, hpMultiplier: 4.3 }
   },
   {
     id: 'wild_boar',
@@ -193,7 +193,7 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'defend', weight: 3, name: '防御' },
       { type: 'nothing', weight: 1, name: '様子を見る' }
     ],
-    baseStats: { attack: 20, magic: 0, defense: 14, magicDefense: 6, speed: 10, hpMultiplier: 1.2 }
+    baseStats: { attack: 21, magic: 0, defense: 14, magicDefense: 6, speed: 10, hpMultiplier: 3.8 }
   },
 
   // ========== 古代の遺跡 (Lv30-60) - アンデッド系が多い ==========
@@ -211,7 +211,7 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'nothing', weight: 1, name: '様子を見る' },
       { type: 'status', weight: 1, effects: [{ type: 'epidemic', chance: 25, stacks: 1, duration: 3 }], name: '伝染病' }
     ],
-    baseStats: { attack: 20, magic: 0, defense: 15, magicDefense: 3, speed: 5, hpMultiplier: 1.3 }
+    baseStats: { attack: 21, magic: 0, defense: 15, magicDefense: 3, speed: 5, hpMultiplier: 4.2 }
   },
   {
     id: 'ghost',
@@ -227,7 +227,7 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'defend', weight: 3, name: '防御' },
       { type: 'nothing', weight: 1, name: '様子を見る' }
     ],
-    baseStats: { attack: 8, magic: 20, defense: 3, magicDefense: 15, speed: 15, hpMultiplier: 0.7 }
+    baseStats: { attack: 9, magic: 21, defense: 3, magicDefense: 15, speed: 15, hpMultiplier: 2.6 }
   },
   {
     id: 'knight',
@@ -239,7 +239,7 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'defend', weight: 3, name: '防御' },
       { type: 'nothing', weight: 1, name: '様子を見る' }
     ],
-    baseStats: { attack: 24, magic: 0, defense: 22, magicDefense: 10, speed: 10, hpMultiplier: 1.3 }
+    baseStats: { attack: 25, magic: 0, defense: 22, magicDefense: 10, speed: 10, hpMultiplier: 4.2 }
   },
   {
     id: 'mage',
@@ -251,7 +251,7 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'defend', weight: 3, name: '防御' },
       { type: 'nothing', weight: 1, name: '様子を見る' }
     ],
-    baseStats: { attack: 8, magic: 26, defense: 8, magicDefense: 16, speed: 14, hpMultiplier: 0.85 }
+    baseStats: { attack: 9, magic: 27, defense: 8, magicDefense: 16, speed: 14, hpMultiplier: 3.0 }
   },
   {
     id: 'gargoyle',
@@ -263,7 +263,7 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'defend', weight: 3, name: '防御' },
       { type: 'nothing', weight: 1, name: '様子を見る' }
     ],
-    baseStats: { attack: 22, magic: 6, defense: 28, magicDefense: 12, speed: 8, hpMultiplier: 1.4 }
+    baseStats: { attack: 23, magic: 7, defense: 28, magicDefense: 12, speed: 8, hpMultiplier: 4.4 }
   },
   {
     id: 'lich',
@@ -281,7 +281,7 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'status', weight: 1, effects: [{ type: 'fear', chance: 40, stacks: 1, duration: 4 }], name: '恐怖' },
       { type: 'status', weight: 1, effects: [{ type: 'stun', chance: 20, stacks: 1, duration: 2 }], name: '気絶' }
     ],
-    baseStats: { attack: 12, magic: 28, defense: 12, magicDefense: 24, speed: 10, hpMultiplier: 1.2 }
+    baseStats: { attack: 13, magic: 29, defense: 12, magicDefense: 24, speed: 10, hpMultiplier: 4.0 }
   },
 
   // ========== 火山クレーター (Lv60-120) - 炎系・魔法系 ==========
@@ -295,7 +295,7 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'defend', weight: 3, name: '防御' },
       { type: 'status', weight: 1, effects: [{ type: 'burn', chance: 35, stacks: 1, duration: 3 }], name: '火の玉' }
     ],
-    baseStats: { attack: 18, magic: 16, defense: 8, magicDefense: 12, speed: 16, hpMultiplier: 0.95 }
+    baseStats: { attack: 18, magic: 16, defense: 8, magicDefense: 12, speed: 16, hpMultiplier: 3.0 }
   },
   {
     id: 'demon_warrior',
@@ -309,7 +309,7 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'defend', weight: 3, name: '防御' },
       { type: 'status', weight: 1, effects: [{ type: 'burn', chance: 45, stacks: 2, duration: 3 }], name: '灼熱斬り' }
     ],
-    baseStats: { attack: 28, magic: 10, defense: 18, magicDefense: 14, speed: 14, hpMultiplier: 1.3 }
+    baseStats: { attack: 30, magic: 10, defense: 18, magicDefense: 14, speed: 14, hpMultiplier: 4.0 }
   },
   {
     id: 'fire_elemental',
@@ -324,7 +324,7 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'defend', weight: 3, name: '防御' },
       { type: 'status', weight: 1, effects: [{ type: 'burn', chance: 50, stacks: 3, duration: 4 }], name: '燃え盛る抱擁' }
     ],
-    baseStats: { attack: 6, magic: 28, defense: 10, magicDefense: 20, speed: 14, hpMultiplier: 1.1 }
+    baseStats: { attack: 7, magic: 30, defense: 10, magicDefense: 20, speed: 14, hpMultiplier: 3.5 }
   },
   {
     id: 'lava_golem',
@@ -338,7 +338,7 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'attack', weight: 6, name: '通常攻撃' },
       { type: 'defend', weight: 3, name: '防御' },
     ],
-    baseStats: { attack: 26, magic: 8, defense: 32, magicDefense: 10, speed: 6, hpMultiplier: 1.8 }
+    baseStats: { attack: 28, magic: 8, defense: 32, magicDefense: 10, speed: 6, hpMultiplier: 5.5 }
   },
   {
     id: 'flame_drake',
@@ -353,7 +353,7 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'defend', weight: 3, name: '防御' },
       { type: 'status', weight: 1, effects: [{ type: 'burn', chance: 45, stacks: 3, duration: 4 }], name: '火炎ブレス' }
     ],
-    baseStats: { attack: 34, magic: 18, defense: 22, magicDefense: 16, speed: 14, hpMultiplier: 1.6 }
+    baseStats: { attack: 36, magic: 20, defense: 22, magicDefense: 16, speed: 14, hpMultiplier: 5.0 }
   },
   {
     id: 'salamander',
@@ -367,7 +367,7 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'defend', weight: 3, name: '防御' },
       { type: 'status', weight: 1, effects: [{ type: 'burn', chance: 50, stacks: 2, duration: 4 }], name: '炎尾' }
     ],
-    baseStats: { attack: 22, magic: 24, defense: 14, magicDefense: 18, speed: 16, hpMultiplier: 1.2 }
+    baseStats: { attack: 24, magic: 26, defense: 14, magicDefense: 18, speed: 16, hpMultiplier: 3.8 }
   },
 
   // ========== 凍てつく凍土 (Lv120-200) - 氷系・耐性系 ==========
@@ -384,7 +384,7 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'defend', weight: 3, name: '防御' },
       { type: 'status', weight: 1, effects: [{ type: 'frozen', chance: 50, stacks: 2, duration: 3 }], name: '氷結' }
     ],
-    baseStats: { attack: 6, magic: 28, defense: 10, magicDefense: 22, speed: 16, hpMultiplier: 1.1 }
+    baseStats: { attack: 7, magic: 30, defense: 10, magicDefense: 22, speed: 16, hpMultiplier: 3.5 }
   },
   {
     id: 'frost_giant',
@@ -398,7 +398,7 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'attack', weight: 6, name: '通常攻撃' },
       { type: 'defend', weight: 3, name: '防御' },
     ],
-    baseStats: { attack: 32, magic: 8, defense: 28, magicDefense: 18, speed: 8, hpMultiplier: 1.9 }
+    baseStats: { attack: 34, magic: 8, defense: 28, magicDefense: 18, speed: 8, hpMultiplier: 5.8 }
   },
   {
     id: 'yeti',
@@ -409,7 +409,7 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'attack', weight: 6, name: '通常攻撃' },
       { type: 'defend', weight: 3, name: '防御' },
     ],
-    baseStats: { attack: 26, magic: 6, defense: 24, magicDefense: 14, speed: 10, hpMultiplier: 1.6 }
+    baseStats: { attack: 28, magic: 6, defense: 24, magicDefense: 14, speed: 10, hpMultiplier: 5.0 }
   },
   {
     id: 'frozen_lich',
@@ -424,7 +424,7 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'defend', weight: 3, name: '防御' },
       { type: 'status', weight: 1, effects: [{ type: 'frozen', chance: 45, stacks: 2, duration: 3 }], name: '氷結の呪い' }
     ],
-    baseStats: { attack: 14, magic: 36, defense: 16, magicDefense: 28, speed: 10, hpMultiplier: 1.5 }
+    baseStats: { attack: 15, magic: 38, defense: 16, magicDefense: 28, speed: 10, hpMultiplier: 4.8 }
   },
   {
     id: 'ice_dragon',
@@ -439,7 +439,7 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'defend', weight: 3, name: '防御' },
       { type: 'status', weight: 1, effects: [{ type: 'frozen', chance: 50, stacks: 2, duration: 3 }], name: '氷霧ブレス' }
     ],
-    baseStats: { attack: 30, magic: 28, defense: 22, magicDefense: 22, speed: 12, hpMultiplier: 1.8 }
+    baseStats: { attack: 32, magic: 30, defense: 22, magicDefense: 22, speed: 12, hpMultiplier: 5.5 }
   },
 
   // ========== 呪われた大聖堂 (Lv200-350) - 状態異常・呪い系 ==========
@@ -455,7 +455,7 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'defend', weight: 3, name: '防御' },
       { type: 'status', weight: 1, effects: [{ type: 'bleed', chance: 60, stacks: 2, duration: 4 }], name: '吸血の爪' }
     ],
-    baseStats: { attack: 28, magic: 18, defense: 18, magicDefense: 16, speed: 18, hpMultiplier: 1.4 }
+    baseStats: { attack: 30, magic: 20, defense: 18, magicDefense: 16, speed: 18, hpMultiplier: 4.5 }
   },
   {
     id: 'death_knight',
@@ -471,7 +471,7 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'status', weight: 1, effects: [{ type: 'fear', chance: 40, stacks: 1, duration: 4 }], name: '恐怖の一撃' },
       { type: 'status', weight: 1, effects: [{ type: 'bleed', chance: 35, stacks: 1, duration: 3 }], name: '流血剣' }
     ],
-    baseStats: { attack: 34, magic: 12, defense: 30, magicDefense: 18, speed: 12, hpMultiplier: 1.7 }
+    baseStats: { attack: 36, magic: 12, defense: 30, magicDefense: 18, speed: 12, hpMultiplier: 5.2 }
   },
   {
     id: 'dark_priest',
@@ -486,7 +486,7 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'status', weight: 1, effects: [{ type: 'fear', chance: 50, stacks: 1, duration: 4 }], name: '闇の祝福' },
       { type: 'status', weight: 1, effects: [{ type: 'stun', chance: 25, stacks: 1, duration: 2 }], name: '呪縛' }
     ],
-    baseStats: { attack: 10, magic: 32, defense: 12, magicDefense: 24, speed: 12, hpMultiplier: 1.1 }
+    baseStats: { attack: 11, magic: 34, defense: 12, magicDefense: 24, speed: 12, hpMultiplier: 3.5 }
   },
   {
     id: 'banshee',
@@ -501,7 +501,7 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'status', weight: 1, effects: [{ type: 'stun', chance: 45, stacks: 1, duration: 2 }], name: '絶叫' },
       { type: 'status', weight: 1, effects: [{ type: 'fear', chance: 40, stacks: 1, duration: 3 }], name: '戦慄' }
     ],
-    baseStats: { attack: 12, magic: 26, defense: 14, magicDefense: 22, speed: 16, hpMultiplier: 1.25 }
+    baseStats: { attack: 13, magic: 28, defense: 14, magicDefense: 22, speed: 16, hpMultiplier: 4.0 }
   },
   {
     id: 'wraith',
@@ -517,7 +517,7 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'status', weight: 1, effects: [{ type: 'fear', chance: 55, stacks: 1, duration: 4 }], name: '怨念' },
       { type: 'status', weight: 1, effects: [{ type: 'stun', chance: 30, stacks: 1, duration: 2 }], name: '凍てつく触手' }
     ],
-    baseStats: { attack: 8, magic: 32, defense: 12, magicDefense: 26, speed: 14, hpMultiplier: 1.3 }
+    baseStats: { attack: 9, magic: 34, defense: 12, magicDefense: 26, speed: 14, hpMultiplier: 4.2 }
   },
 
   // ========== 深淵の奈落 (Lv350-550) - 複合耐性・多属性 ==========
@@ -532,7 +532,7 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'status', weight: 1, effects: [{ type: 'bleed', chance: 50, stacks: 2, duration: 4 }], name: '致命の一刺し' },
       { type: 'status', weight: 1, effects: [{ type: 'poison', chance: 40, stacks: 1, duration: 3 }], name: '毒液' }
     ],
-    baseStats: { attack: 32, magic: 10, defense: 14, magicDefense: 12, speed: 20, hpMultiplier: 0.9 }
+    baseStats: { attack: 34, magic: 10, defense: 14, magicDefense: 12, speed: 20, hpMultiplier: 3.0 }
   },
   {
     id: 'void_walker',
@@ -546,7 +546,7 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'attack', weight: 6, name: '通常攻撃', attackType: 'magic' },
       { type: 'defend', weight: 3, name: '防御' },
     ],
-    baseStats: { attack: 30, magic: 34, defense: 20, magicDefense: 28, speed: 18, hpMultiplier: 1.6 }
+    baseStats: { attack: 32, magic: 36, defense: 20, magicDefense: 28, speed: 18, hpMultiplier: 4.8 }
   },
   {
     id: 'storm_elemental',
@@ -562,7 +562,7 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'status', weight: 1, effects: [{ type: 'stun', chance: 40, stacks: 1, duration: 2 }], name: '雷撃' },
       { type: 'status', weight: 1, effects: [{ type: 'burn', chance: 30, stacks: 1, duration: 2 }], name: '閃電' }
     ],
-    baseStats: { attack: 8, magic: 32, defense: 12, magicDefense: 24, speed: 18, hpMultiplier: 1.2 }
+    baseStats: { attack: 9, magic: 34, defense: 12, magicDefense: 24, speed: 18, hpMultiplier: 3.6 }
   },
   {
     id: 'golem',
@@ -576,7 +576,7 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'attack', weight: 6, name: '通常攻撃' },
       { type: 'defend', weight: 3, name: '防御' },
     ],
-    baseStats: { attack: 28, magic: 6, defense: 36, magicDefense: 14, speed: 6, hpMultiplier: 2.0 }
+    baseStats: { attack: 30, magic: 7, defense: 36, magicDefense: 14, speed: 6, hpMultiplier: 6.0 }
   },
   {
     id: 'drake',
@@ -592,7 +592,7 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'status', weight: 1, effects: [{ type: 'burn', chance: 35, stacks: 1, duration: 3 }], name: '火炎ブレス' },
       { type: 'status', weight: 1, effects: [{ type: 'poison', chance: 30, stacks: 1, duration: 3 }], name: '毒液' }
     ],
-    baseStats: { attack: 32, magic: 20, defense: 20, magicDefense: 18, speed: 14, hpMultiplier: 1.5 }
+    baseStats: { attack: 34, magic: 22, defense: 20, magicDefense: 18, speed: 14, hpMultiplier: 4.5 }
   },
   {
     id: 'wyvern',
@@ -606,7 +606,7 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'defend', weight: 3, name: '防御' },
       { type: 'status', weight: 1, effects: [{ type: 'poison', chance: 45, stacks: 2, duration: 4 }], name: '毒牙' }
     ],
-    baseStats: { attack: 30, magic: 14, defense: 18, magicDefense: 16, speed: 16, hpMultiplier: 1.4 }
+    baseStats: { attack: 32, magic: 16, defense: 18, magicDefense: 16, speed: 16, hpMultiplier: 4.2 }
   },
   {
     id: 'eldritch_horror',
@@ -619,7 +619,7 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'attack', weight: 6, name: '通常攻撃', attackType: 'magic' },
       { type: 'defend', weight: 3, name: '防御' },
     ],
-    baseStats: { attack: 32, magic: 40, defense: 26, magicDefense: 32, speed: 12, hpMultiplier: 2.1 }
+    baseStats: { attack: 34, magic: 42, defense: 26, magicDefense: 32, speed: 12, hpMultiplier: 6.0 }
   },
 
   // ========== 竜の巣 (Lv550-800) - 竜族・複合防御 ==========
@@ -637,7 +637,7 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'status', weight: 1, effects: [{ type: 'burn', chance: 40, stacks: 2, duration: 3 }], name: '火炎の息吹', damage: { stat: 'attack', multiplier: 1.2, variance: 0.25 }, logStyle: 'special' },
       { type: 'status', weight: 1, effects: [{ type: 'bleed', chance: 30, stacks: 1, duration: 3 }], name: '鉤爪', damage: { stat: 'attack', multiplier: 1.0, variance: 0.2 }, logStyle: 'special' }
     ],
-    baseStats: { attack: 38, magic: 24, defense: 28, magicDefense: 24, speed: 14, hpMultiplier: 2.0 }
+    baseStats: { attack: 40, magic: 26, defense: 28, magicDefense: 24, speed: 14, hpMultiplier: 5.0 }
   },
   {
     id: 'dragon_knight',
@@ -647,8 +647,9 @@ export const enemyTemplates: EnemyTemplate[] = [
     actionPool: [
       { type: 'attack', weight: 6, name: '通常攻撃' },
       { type: 'defend', weight: 3, name: '防御' },
+      { type: 'status', weight: 2, effects: [], name: '吸血攻撃', damage: { stat: 'attack', multiplier: 1.0, variance: 0.2 }, lifeStealPercent: 30, logStyle: 'special' }
     ],
-    baseStats: { attack: 34, magic: 12, defense: 26, magicDefense: 18, speed: 14, hpMultiplier: 1.6 }
+    baseStats: { attack: 36, magic: 13, defense: 26, magicDefense: 18, speed: 14, hpMultiplier: 4.8, lifeSteal: 3 }
   },
   {
     id: 'dragon_shaman',
@@ -659,7 +660,7 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'attack', weight: 6, name: '通常攻撃', attackType: 'magic' },
       { type: 'defend', weight: 3, name: '防御' },
     ],
-    baseStats: { attack: 18, magic: 34, defense: 16, magicDefense: 24, speed: 14, hpMultiplier: 1.4 }
+    baseStats: { attack: 20, magic: 36, defense: 16, magicDefense: 24, speed: 14, hpMultiplier: 4.2 }
   },
   {
     id: 'chaos_apostle',
@@ -674,7 +675,7 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'status', weight: 1, effects: [{ type: 'fear', chance: 50, stacks: 1, duration: 4 }], name: '混沌の視線', damage: { stat: 'magic', multiplier: 1.1, variance: 0.25 }, logStyle: 'special' },
       { type: 'status', weight: 1, effects: [{ type: 'stun', chance: 35, stacks: 1, duration: 2 }], name: '精神崩落', damage: { stat: 'magic', multiplier: 1.0, variance: 0.25 }, logStyle: 'special' }
     ],
-    baseStats: { attack: 28, magic: 36, defense: 22, magicDefense: 30, speed: 16, hpMultiplier: 1.7 }
+    baseStats: { attack: 30, magic: 38, defense: 22, magicDefense: 30, speed: 16, hpMultiplier: 5.2 }
   },
   {
     id: 'ancient_dragon',
@@ -690,9 +691,10 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'defend', weight: 3, name: '防御' },
       { type: 'status', weight: 1, effects: [{ type: 'burn', chance: 50, stacks: 3, duration: 4 }], name: '紅蓮のブレス', damage: { stat: 'attack', multiplier: 1.3, variance: 0.3 }, logStyle: 'special' },
       { type: 'status', weight: 1, effects: [{ type: 'bleed', chance: 40, stacks: 2, duration: 4 }], name: '裂傷の尾撃', damage: { stat: 'attack', multiplier: 1.1, variance: 0.25 }, logStyle: 'special' },
-      { type: 'status', weight: 1, effects: [{ type: 'fear', chance: 30, stacks: 1, duration: 3 }], name: '威圧の咆哮', damage: { stat: 'attack', multiplier: 1.0, variance: 0.2 }, logStyle: 'special' }
+      { type: 'status', weight: 1, effects: [{ type: 'fear', chance: 30, stacks: 1, duration: 3 }], name: '威圧の咆哮', damage: { stat: 'attack', multiplier: 1.0, variance: 0.2 }, logStyle: 'special' },
+      { type: 'status', weight: 2, effects: [], name: '生命吸収', damage: { stat: 'attack', multiplier: 1.1, variance: 0.2 }, lifeStealPercent: 35, logStyle: 'special' }
     ],
-    baseStats: { attack: 46, magic: 32, defense: 34, magicDefense: 30, speed: 16, hpMultiplier: 2.4 }
+    baseStats: { attack: 48, magic: 34, defense: 34, magicDefense: 30, speed: 16, hpMultiplier: 5.8, lifeSteal: 4 }
   },
 
   // ========== 高次元帯 (Lv500-800) - 武器タイプ無効・複合耐性 ==========
@@ -709,9 +711,10 @@ export const enemyTemplates: EnemyTemplate[] = [
     actionPool: [
       { type: 'attack', weight: 6, name: '通常攻撃' },
       { type: 'defend', weight: 3, name: '防御' },
-      { type: 'status', weight: 1, effects: [{ type: 'burn', chance: 45, stacks: 2, duration: 3 }], name: '虚空のブレス', damage: { stat: 'attack', multiplier: 1.2, variance: 0.3 }, logStyle: 'special' }
+      { type: 'status', weight: 1, effects: [{ type: 'burn', chance: 45, stacks: 2, duration: 3 }], name: '虚空のブレス', damage: { stat: 'attack', multiplier: 1.2, variance: 0.3 }, logStyle: 'special' },
+      { type: 'status', weight: 2, effects: [], name: '虚無の吸収', damage: { stat: 'attack', multiplier: 1.0, variance: 0.2 }, lifeStealPercent: 30, logStyle: 'special' }
     ],
-    baseStats: { attack: 40, magic: 30, defense: 30, magicDefense: 28, speed: 16, hpMultiplier: 2.0 }
+    baseStats: { attack: 42, magic: 32, defense: 30, magicDefense: 28, speed: 16, hpMultiplier: 6.0, lifeSteal: 3 }
   },
   {
     id: 'phantom_mage',
@@ -727,7 +730,7 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'defend', weight: 3, name: '防御' },
       { type: 'status', weight: 1, effects: [{ type: 'stun', chance: 50, stacks: 1, duration: 2 }], name: '幽界の衝撃', damage: { stat: 'magic', multiplier: 1.1, variance: 0.25 }, logStyle: 'special' }
     ],
-    baseStats: { attack: 14, magic: 42, defense: 16, magicDefense: 36, speed: 16, hpMultiplier: 1.6 }
+    baseStats: { attack: 16, magic: 44, defense: 16, magicDefense: 36, speed: 16, hpMultiplier: 4.8 }
   },
   {
     id: 'crystalline_construct',
@@ -742,7 +745,7 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'attack', weight: 6, name: '通常攻撃' },
       { type: 'defend', weight: 3, name: '防御' },
     ],
-    baseStats: { attack: 38, magic: 10, defense: 40, magicDefense: 20, speed: 10, hpMultiplier: 2.3 }
+    baseStats: { attack: 40, magic: 12, defense: 40, magicDefense: 20, speed: 10, hpMultiplier: 5.5 }
   },
   {
     id: 'eternal_dragon',
@@ -758,9 +761,10 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'attack', weight: 6, name: '通常攻撃' },
       { type: 'defend', weight: 3, name: '防御' },
       { type: 'status', weight: 1, effects: [{ type: 'burn', chance: 50, stacks: 3, duration: 5 }], name: '永遠の炎', damage: { stat: 'attack', multiplier: 1.3, variance: 0.3 }, logStyle: 'special' },
-      { type: 'status', weight: 1, effects: [{ type: 'fear', chance: 40, stacks: 1, duration: 4 }], name: '尊厳の威圧', damage: { stat: 'attack', multiplier: 1.0, variance: 0.2 }, logStyle: 'special' }
+      { type: 'status', weight: 1, effects: [{ type: 'fear', chance: 40, stacks: 1, duration: 4 }], name: '尊厳の威圧', damage: { stat: 'attack', multiplier: 1.0, variance: 0.2 }, logStyle: 'special' },
+      { type: 'status', weight: 2, effects: [], name: '永遠の吸収', damage: { stat: 'attack', multiplier: 1.1, variance: 0.2 }, lifeStealPercent: 40, logStyle: 'special' }
     ],
-    baseStats: { attack: 44, magic: 32, defense: 34, magicDefense: 32, speed: 16, hpMultiplier: 2.4 }
+    baseStats: { attack: 46, magic: 34, defense: 34, magicDefense: 32, speed: 16, hpMultiplier: 5.8, lifeSteal: 4 }
   },
 
   // ========== 虚無の核心 (Lv800-1000) - 究極の敵 ==========
@@ -776,8 +780,9 @@ export const enemyTemplates: EnemyTemplate[] = [
     actionPool: [
       { type: 'attack', weight: 6, name: '通常攻撃' },
       { type: 'defend', weight: 3, name: '防御' },
+      { type: 'status', weight: 2, effects: [], name: '次元の吸収', damage: { stat: 'attack', multiplier: 1.0, variance: 0.2 }, lifeStealPercent: 25, logStyle: 'special' }
     ],
-    baseStats: { attack: 34, magic: 26, defense: 32, magicDefense: 32, speed: 12, hpMultiplier: 2.0 }
+    baseStats: { attack: 36, magic: 28, defense: 32, magicDefense: 32, speed: 12, hpMultiplier: 5.8, lifeSteal: 3 }
   },
   {
     id: 'void_ruler',
@@ -792,9 +797,10 @@ export const enemyTemplates: EnemyTemplate[] = [
       { type: 'attack', weight: 6, name: '通常攻撃', attackType: 'magic' },
       { type: 'defend', weight: 3, name: '防御' },
       { type: 'status', weight: 1, effects: [{ type: 'fear', chance: 60, stacks: 2, duration: 4 }], name: '絶望の視線', damage: { stat: 'magic', multiplier: 1.1, variance: 0.25 }, logStyle: 'special' },
-      { type: 'status', weight: 1, effects: [{ type: 'stun', chance: 40, stacks: 1, duration: 2 }], name: '虚無の拘束', damage: { stat: 'magic', multiplier: 1.0, variance: 0.2 }, logStyle: 'special' }
+      { type: 'status', weight: 1, effects: [{ type: 'stun', chance: 40, stacks: 1, duration: 2 }], name: '虚無の拘束', damage: { stat: 'magic', multiplier: 1.0, variance: 0.2 }, logStyle: 'special' },
+      { type: 'status', weight: 2, effects: [], name: '存在の吸収', damage: { stat: 'magic', multiplier: 1.1, variance: 0.2 }, lifeStealPercent: 35, logStyle: 'special' }
     ],
-    baseStats: { attack: 40, magic: 44, defense: 32, magicDefense: 34, speed: 16, hpMultiplier: 2.5 }
+    baseStats: { attack: 42, magic: 46, defense: 32, magicDefense: 34, speed: 16, hpMultiplier: 5.8, lifeSteal: 4 }
   },
   {
     id: 'infinite_avatar',
@@ -806,8 +812,9 @@ export const enemyTemplates: EnemyTemplate[] = [
     actionPool: [
       { type: 'attack', weight: 6, name: '通常攻撃', attackType: 'magic' },
       { type: 'defend', weight: 3, name: '防御' },
+      { type: 'status', weight: 2, effects: [], name: '無限の吸収', damage: { stat: 'magic', multiplier: 1.1, variance: 0.2 }, lifeStealPercent: 40, logStyle: 'special' }
     ],
-    baseStats: { attack: 42, magic: 42, defense: 30, magicDefense: 36, speed: 18, hpMultiplier: 2.3 }
+    baseStats: { attack: 44, magic: 44, defense: 30, magicDefense: 36, speed: 18, hpMultiplier: 5.5, lifeSteal: 4 }
   }
 ]
 

@@ -54,8 +54,20 @@ export function useWeaponFilters(availableWeapons: { value: Weapon[] }) {
     if (sortBy.value === 'name') {
       filtered.sort((a, b) => a.name.localeCompare(b.name, 'ja'))
     } else if (sortBy.value === 'rarity') {
-      const rarityOrder: Record<string, number> = { common: 1, rare: 2, epic: 3, legendary: 4 }
-      filtered.sort((a, b) => rarityOrder[b.rarity] - rarityOrder[a.rarity])
+      const getRarityValue = (rarity: string): number => {
+        if (rarity === 'common') return 1
+        if (rarity === 'rare') return 2
+        if (rarity === 'epic') return 3
+        if (rarity === 'legendary') return 4
+        // mythic, mythic+, mythic++, etc.
+        if (rarity.startsWith('mythic')) {
+          const suffix = rarity.slice(6) // 'mythic' の後の部分
+          const level = suffix ? suffix.split('+').length : 1
+          return 5 + level - 1 // mythic=5, mythic+=6, mythic++=7, ...
+        }
+        return 0 // 未知のレア度
+      }
+      filtered.sort((a, b) => getRarityValue(b.rarity) - getRarityValue(a.rarity))
     } else if (sortBy.value === 'attack') {
       filtered.sort((a, b) => b.stats.attack - a.stats.attack)
     } else if (sortBy.value === 'magic') {

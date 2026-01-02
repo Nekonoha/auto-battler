@@ -32,7 +32,7 @@
             @dragleave="handleDragLeave"
             @drop="handleDropOnEquipped(index, $event)"
           >
-            <WeaponDetails :weapon="weapon" />
+            <WeaponDetails :weapon="weapon" :showRarityBadge="true" />
             <button
               class="btn btn-danger btn-compact"
               @click.stop="$emit('remove', weapon)"
@@ -129,7 +129,7 @@
             @dragstart="handleDragStartAvailable(weapon, $event)"
             @click.stop="$emit('select', weapon)"
           >
-            <WeaponDetails :weapon="weapon" />
+            <WeaponDetails :weapon="weapon" :showRarityBadge="true" />
           </div>
         </div>
       </div>

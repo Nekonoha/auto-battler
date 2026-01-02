@@ -1,6 +1,6 @@
 import { ref, computed, type Ref, type ComputedRef } from 'vue'
 import type { Enemy, EnemyTier, Weapon, Dungeon, Player, WeaponRarity } from '~/types'
-import { BASE_WEAPONS, getBaseWeaponsByRarity, getRandomBaseWeapon } from '~/data/baseWeapons'
+import { BASE_WEAPONS, getBaseWeaponsByRarity } from '~/data/baseWeapons'
 import { generateEnchantedWeapon } from '~/systems/WeaponGenerationSystem'
 
 const DEFAULT_WEIGHTS: Record<string, number> = { common: 0.6, rare: 0.3, epic: 0.09, legendary: 0.01, mythic: 0.01 }

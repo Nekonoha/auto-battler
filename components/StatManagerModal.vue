@@ -1,481 +1,103 @@
 <template>
-  <div v-if="show" class="loot-modal">
-    <div class="loot-content stat-manager-content">
+  <div v-if="show" class="stat-modal">
+    <div class="stat-content stat-manager-content">
       <div class="modal-header">
         <h2>🧠 ステータス割り振り</h2>
         <button @click="$emit('close')" class="btn-close">×</button>
       </div>
-      <p class="loot-subtitle">残りSP: {{ player.statPoints }}</p>
+      <p class="stat-subtitle">残りSP: {{ player.statPoints }}</p>
       
       <div class="stat-sliders">
-        <div class="stat-slider-item">
-          <div class="stat-slider-header">
-            <span class="stat-icon">❤️</span>
-            <span class="stat-name">最大HP</span>
-            <button 
-              v-if="allocatedStats.maxHp > 0"
-              class="btn btn-mini btn-danger"
-              @click="resetStat('maxHp')"
-              :disabled="isRunLocked"
-              title="このステータスのみリセット"
-            >
-              ↺
-            </button>
-          </div>
-          <div class="stat-spinner">
-            <button 
-              class="btn btn-spinner btn-spinner-small"
-              @click="adjustStat('maxHp', -10)"
-              :disabled="isRunLocked || tempStatAlloc.maxHp <= 0"
-              title="10ずつ減らす"
-            >
-              -10
-            </button>
-            <button 
-              class="btn btn-spinner"
-              @click="adjustStat('maxHp', -1)"
-              :disabled="isRunLocked || tempStatAlloc.maxHp <= 0"
-              title="1ずつ減らす"
-            >
-              −
-            </button>
-            <div class="stat-spinner-display">
-              <div class="spinner-point">+{{ tempStatAlloc.maxHp }} P</div>
-              <div class="spinner-value">+{{ tempStatAlloc.maxHp * 25 }}</div>
-            </div>
-            <button 
-              class="btn btn-spinner"
-              @click="adjustStat('maxHp', 1)"
-              :disabled="isRunLocked || tempStatAlloc.maxHp >= maxHpMax"
-              title="1ずつ増やす"
-            >
-              +
-            </button>
-            <button 
-              class="btn btn-spinner btn-spinner-small"
-              @click="adjustStat('maxHp', 10)"
-              :disabled="isRunLocked || tempStatAlloc.maxHp >= maxHpMax"
-              title="10ずつ増やす"
-            >
-              +10
-            </button>
-            <button 
-              class="btn btn-spinner btn-spinner-small"
-              @click="adjustStat('maxHp', 100)"
-              :disabled="isRunLocked || tempStatAlloc.maxHp >= maxHpMax"
-              title="100ずつ増やす"
-            >
-              +100
-            </button>
-          </div>
-          <div class="stat-slider-info">
-            <div class="stat-current">現在: <strong>{{ player.maxHp }}</strong></div>
-            <div class="stat-after">→ <strong>{{ player.maxHp + tempStatAlloc.maxHp * 25 }}</strong></div>
-          </div>
-          <div class="stat-allocated">割り振り済み: <strong>+{{ allocatedStats.maxHp }}P</strong></div>
-        </div>
-        
-        <div class="stat-slider-item">
-          <div class="stat-slider-header">
-            <span class="stat-icon">🔮</span>
-            <span class="stat-name">状態異常威力</span>
-            <button 
-              v-if="allocatedStats.statusPower > 0"
-              class="btn btn-mini btn-danger"
-              @click="resetStat('statusPower')"
-              :disabled="isRunLocked"
-              title="このステータスのみリセット"
-            >
-              ↺
-            </button>
-          </div>
-          <div class="stat-spinner">
-            <button 
-              class="btn btn-spinner btn-spinner-small"
-              @click="adjustStat('statusPower', -10)"
-              :disabled="isRunLocked || tempStatAlloc.statusPower <= 0"
-              title="10ずつ減らす"
-            >
-              -10
-            </button>
-            <button 
-              class="btn btn-spinner"
-              @click="adjustStat('statusPower', -1)"
-              :disabled="isRunLocked || tempStatAlloc.statusPower <= 0"
-              title="1ずつ減らす"
-            >
-              −
-            </button>
-            <div class="stat-spinner-display">
-              <div class="spinner-point">+{{ tempStatAlloc.statusPower }} P</div>
-              <div class="spinner-value">+{{ tempStatAlloc.statusPower * 4 }}</div>
-            </div>
-            <button 
-              class="btn btn-spinner"
-              @click="adjustStat('statusPower', 1)"
-              :disabled="isRunLocked || tempStatAlloc.statusPower >= statusPowerMax"
-              title="1ずつ増やす"
-            >
-              +
-            </button>
-            <button 
-              class="btn btn-spinner btn-spinner-small"
-              @click="adjustStat('statusPower', 10)"
-              :disabled="isRunLocked || tempStatAlloc.statusPower >= statusPowerMax"
-              title="10ずつ増やす"
-            >
-              +10
-            </button>
-            <button 
-              class="btn btn-spinner btn-spinner-small"
-              @click="adjustStat('statusPower', 100)"
-              :disabled="isRunLocked || tempStatAlloc.statusPower >= statusPowerMax"
-              title="100ずつ増やす"
-            >
-              +100
-            </button>
-          </div>
-          <div class="stat-slider-info">
-            <div class="stat-current">現在: <strong>{{ player.stats.statusPower }}</strong></div>
-            <div class="stat-after">→ <strong>{{ player.stats.statusPower + tempStatAlloc.statusPower * 4 }}</strong></div>
-          </div>
-          <div class="stat-allocated">割り振り済み: <strong>+{{ allocatedStats.statusPower }}P</strong></div>
-        </div>
+        <StatSpinner
+          icon="❤️"
+          label="最大HP"
+          :current-value="tempStatAlloc.maxHp"
+          :max-value="maxHpMax"
+          :multiplier="25"
+          :allocated-value="allocatedStats.maxHp"
+          :current-stat="player.maxHp"
+          :is-run-locked="isRunLocked"
+          @adjust="(delta) => adjustStat('maxHp', delta)"
+          @reset="resetStat('maxHp')"
+        />
 
-        <div class="stat-slider-item">
-          <div class="stat-slider-header">
-            <span class="stat-icon">⚔️</span>
-            <span class="stat-name">攻撃力</span>
-            <button 
-              v-if="allocatedStats.attack > 0"
-              class="btn btn-mini btn-danger"
-              @click="resetStat('attack')"
-              :disabled="isRunLocked"
-              title="このステータスのみリセット"
-            >
-              ↺
-            </button>
-          </div>
-          <div class="stat-spinner">
-            <button 
-              class="btn btn-spinner btn-spinner-small"
-              @click="adjustStat('attack', -10)"
-              :disabled="isRunLocked || tempStatAlloc.attack <= 0"
-              title="10ずつ減らす"
-            >
-              -10
-            </button>
-            <button 
-              class="btn btn-spinner"
-              @click="adjustStat('attack', -1)"
-              :disabled="isRunLocked || tempStatAlloc.attack <= 0"
-              title="1ずつ減らす"
-            >
-              −
-            </button>
-            <div class="stat-spinner-display">
-              <div class="spinner-point">+{{ tempStatAlloc.attack }} P</div>
-              <div class="spinner-value">+{{ tempStatAlloc.attack * 5 }}</div>
-            </div>
-            <button 
-              class="btn btn-spinner"
-              @click="adjustStat('attack', 1)"
-              :disabled="isRunLocked || tempStatAlloc.attack >= attackMax"
-              title="1ずつ増やす"
-            >
-              +
-            </button>
-            <button 
-              class="btn btn-spinner btn-spinner-small"
-              @click="adjustStat('attack', 10)"
-              :disabled="isRunLocked || tempStatAlloc.attack >= attackMax"
-              title="10ずつ増やす"
-            >
-              +10
-            </button>
-            <button 
-              class="btn btn-spinner btn-spinner-small"
-              @click="adjustStat('attack', 100)"
-              :disabled="isRunLocked || tempStatAlloc.attack >= attackMax"
-              title="100ずつ増やす"
-            >
-              +100
-            </button>
-          </div>
-          <div class="stat-slider-info">
-            <div class="stat-current">現在: <strong>{{ player.stats.attack }}</strong></div>
-            <div class="stat-after">→ <strong>{{ player.stats.attack + tempStatAlloc.attack * 5 }}</strong></div>
-          </div>
-          <div class="stat-allocated">割り挫り済み: <strong>+{{ allocatedStats.attack }}P</strong></div>
-        </div>
+        <StatSpinner
+          icon="🔮"
+          label="状態異常威力"
+          :current-value="tempStatAlloc.statusPower"
+          :max-value="statusPowerMax"
+          :multiplier="4"
+          :allocated-value="allocatedStats.statusPower"
+          :current-stat="player.stats.statusPower"
+          :is-run-locked="isRunLocked"
+          @adjust="(delta) => adjustStat('statusPower', delta)"
+          @reset="resetStat('statusPower')"
+        />
 
-        <div class="stat-slider-item">
-          <div class="stat-slider-header">
-            <span class="stat-icon">🔮</span>
-            <span class="stat-name">魔法力</span>
-            <button 
-              v-if="allocatedStats.magic > 0"
-              class="btn btn-mini btn-danger"
-              @click="resetStat('magic')"
-              :disabled="isRunLocked"
-              title="このステータスのみリセット"
-            >
-              ↺
-            </button>
-          </div>
-          <div class="stat-spinner">
-            <button 
-              class="btn btn-spinner btn-spinner-small"
-              @click="adjustStat('magic', -10)"
-              :disabled="isRunLocked || tempStatAlloc.magic <= 0"
-              title="10ずつ減らす"
-            >
-              -10
-            </button>
-            <button 
-              class="btn btn-spinner"
-              @click="adjustStat('magic', -1)"
-              :disabled="isRunLocked || tempStatAlloc.magic <= 0"
-              title="1ずつ減らす"
-            >
-              −
-            </button>
-            <div class="stat-spinner-display">
-              <div class="spinner-point">+{{ tempStatAlloc.magic }} P</div>
-              <div class="spinner-value">+{{ tempStatAlloc.magic * 5 }}</div>
-            </div>
-            <button 
-              class="btn btn-spinner"
-              @click="adjustStat('magic', 1)"
-              :disabled="isRunLocked || tempStatAlloc.magic >= magicMax"
-              title="1ずつ増やす"
-            >
-              +
-            </button>
-            <button 
-              class="btn btn-spinner btn-spinner-small"
-              @click="adjustStat('magic', 10)"
-              :disabled="isRunLocked || tempStatAlloc.magic >= magicMax"
-              title="10ずつ増やす"
-            >
-              +10
-            </button>
-            <button 
-              class="btn btn-spinner btn-spinner-small"
-              @click="adjustStat('magic', 100)"
-              :disabled="isRunLocked || tempStatAlloc.magic >= magicMax"
-              title="100ずつ増やす"
-            >
-              +100
-            </button>
-          </div>
-          <div class="stat-slider-info">
-            <div class="stat-current">現在: <strong>{{ player.stats.magic }}</strong></div>
-            <div class="stat-after">→ <strong>{{ player.stats.magic + tempStatAlloc.magic * 5 }}</strong></div>
-          </div>
-          <div class="stat-allocated">割り挫り済み: <strong>+{{ allocatedStats.magic }}P</strong></div>
-        </div>
+        <StatSpinner
+          icon="⚔️"
+          label="攻撃力"
+          :current-value="tempStatAlloc.attack"
+          :max-value="attackMax"
+          :multiplier="5"
+          :allocated-value="allocatedStats.attack"
+          :current-stat="player.stats.attack"
+          :is-run-locked="isRunLocked"
+          @adjust="(delta) => adjustStat('attack', delta)"
+          @reset="resetStat('attack')"
+        />
 
-        <div class="stat-slider-item">
-          <div class="stat-slider-header">
-            <span class="stat-icon">🛡️</span>
-            <span class="stat-name">防御力</span>
-            <button 
-              v-if="allocatedStats.defense > 0"
-              class="btn btn-mini btn-danger"
-              @click="resetStat('defense')"
-              :disabled="isRunLocked"
-              title="このステータスのみリセット"
-            >
-              ↺
-            </button>
-          </div>
-          <div class="stat-spinner">
-            <button 
-              class="btn btn-spinner btn-spinner-small"
-              @click="adjustStat('defense', -10)"
-              :disabled="isRunLocked || tempStatAlloc.defense <= 0"
-              title="10ずつ減らす"
-            >
-              -10
-            </button>
-            <button 
-              class="btn btn-spinner"
-              @click="adjustStat('defense', -1)"
-              :disabled="isRunLocked || tempStatAlloc.defense <= 0"
-              title="1ずつ減らす"
-            >
-              −
-            </button>
-            <div class="stat-spinner-display">
-              <div class="spinner-point">+{{ tempStatAlloc.defense }} P</div>
-              <div class="spinner-value">+{{ tempStatAlloc.defense * 3 }}</div>
-            </div>
-            <button 
-              class="btn btn-spinner"
-              @click="adjustStat('defense', 1)"
-              :disabled="isRunLocked || tempStatAlloc.defense >= defenseMax"
-              title="1ずつ増やす"
-            >
-              +
-            </button>
-            <button 
-              class="btn btn-spinner btn-spinner-small"
-              @click="adjustStat('defense', 10)"
-              :disabled="isRunLocked || tempStatAlloc.defense >= defenseMax"
-              title="10ずつ増やす"
-            >
-              +10
-            </button>
-            <button 
-              class="btn btn-spinner btn-spinner-small"
-              @click="adjustStat('defense', 100)"
-              :disabled="isRunLocked || tempStatAlloc.defense >= defenseMax"
-              title="100ずつ増やす"
-            >
-              +100
-            </button>
-          </div>
-          <div class="stat-slider-info">
-            <div class="stat-current">現在: <strong>{{ player.stats.defense }}</strong></div>
-            <div class="stat-after">→ <strong>{{ player.stats.defense + tempStatAlloc.defense * 3 }}</strong></div>
-          </div>
-          <div class="stat-allocated">割り挫り済み: <strong>+{{ allocatedStats.defense }}P</strong></div>
-        </div>
+        <StatSpinner
+          icon="🔮"
+          label="魔法力"
+          :current-value="tempStatAlloc.magic"
+          :max-value="magicMax"
+          :multiplier="5"
+          :allocated-value="allocatedStats.magic"
+          :current-stat="player.stats.magic"
+          :is-run-locked="isRunLocked"
+          @adjust="(delta) => adjustStat('magic', delta)"
+          @reset="resetStat('magic')"
+        />
 
-        <div class="stat-slider-item">
-          <div class="stat-slider-header">
-            <span class="stat-icon">✨</span>
-            <span class="stat-name">魔法防御</span>
-            <button 
-              v-if="allocatedStats.magicDefense > 0"
-              class="btn btn-mini btn-danger"
-              @click="resetStat('magicDefense')"
-              :disabled="isRunLocked"
-              title="このステータスのみリセット"
-            >
-              ↺
-            </button>
-          </div>
-          <div class="stat-spinner">
-            <button 
-              class="btn btn-spinner btn-spinner-small"
-              @click="adjustStat('magicDefense', -10)"
-              :disabled="isRunLocked || tempStatAlloc.magicDefense <= 0"
-              title="10ずつ減らす"
-            >
-              -10
-            </button>
-            <button 
-              class="btn btn-spinner"
-              @click="adjustStat('magicDefense', -1)"
-              :disabled="isRunLocked || tempStatAlloc.magicDefense <= 0"
-              title="1ずつ減らす"
-            >
-              −
-            </button>
-            <div class="stat-spinner-display">
-              <div class="spinner-point">+{{ tempStatAlloc.magicDefense }} P</div>
-              <div class="spinner-value">+{{ tempStatAlloc.magicDefense * 3 }}</div>
-            </div>
-            <button 
-              class="btn btn-spinner"
-              @click="adjustStat('magicDefense', 1)"
-              :disabled="isRunLocked || tempStatAlloc.magicDefense >= magicDefenseMax"
-              title="1ずつ増やす"
-            >
-              +
-            </button>
-            <button 
-              class="btn btn-spinner btn-spinner-small"
-              @click="adjustStat('magicDefense', 10)"
-              :disabled="isRunLocked || tempStatAlloc.magicDefense >= magicDefenseMax"
-              title="10ずつ増やす"
-            >
-              +10
-            </button>
-            <button 
-              class="btn btn-spinner btn-spinner-small"
-              @click="adjustStat('magicDefense', 100)"
-              :disabled="isRunLocked || tempStatAlloc.magicDefense >= magicDefenseMax"
-              title="100ずつ増やす"
-            >
-              +100
-            </button>
-          </div>
-          <div class="stat-slider-info">
-            <div class="stat-current">現在: <strong>{{ player.stats.magicDefense }}</strong></div>
-            <div class="stat-after">→ <strong>{{ player.stats.magicDefense + tempStatAlloc.magicDefense * 3 }}</strong></div>
-          </div>
-          <div class="stat-allocated">割り挫り済み: <strong>+{{ allocatedStats.magicDefense }}P</strong></div>
-        </div>
+        <StatSpinner
+          icon="🛡️"
+          label="防御力"
+          :current-value="tempStatAlloc.defense"
+          :max-value="defenseMax"
+          :multiplier="3"
+          :allocated-value="allocatedStats.defense"
+          :current-stat="player.stats.defense"
+          :is-run-locked="isRunLocked"
+          @adjust="(delta) => adjustStat('defense', delta)"
+          @reset="resetStat('defense')"
+        />
 
-        <div class="stat-slider-item">
-          <div class="stat-slider-header">
-            <span class="stat-icon">⚡</span>
-            <span class="stat-name">速度</span>
-            <button 
-              v-if="allocatedStats.speed > 0"
-              class="btn btn-mini btn-danger"
-              @click="resetStat('speed')"
-              :disabled="isRunLocked"
-              title="このステータスのみリセット"
-            >
-              ↺
-            </button>
-          </div>
-          <div class="stat-spinner">
-            <button 
-              class="btn btn-spinner btn-spinner-small"
-              @click="adjustStat('speed', -10)"
-              :disabled="isRunLocked || tempStatAlloc.speed <= 0"
-              title="10ずつ減らす"
-            >
-              -10
-            </button>
-            <button 
-              class="btn btn-spinner"
-              @click="adjustStat('speed', -1)"
-              :disabled="isRunLocked || tempStatAlloc.speed <= 0"
-              title="1ずつ減らす"
-            >
-              −
-            </button>
-            <div class="stat-spinner-display">
-              <div class="spinner-point">+{{ tempStatAlloc.speed }} P</div>
-              <div class="spinner-value">+{{ tempStatAlloc.speed * 2 }}</div>
-            </div>
-            <button 
-              class="btn btn-spinner"
-              @click="adjustStat('speed', 1)"
-              :disabled="isRunLocked || tempStatAlloc.speed >= speedMax"
-              title="1ずつ増やす"
-            >
-              +
-            </button>
-            <button 
-              class="btn btn-spinner btn-spinner-small"
-              @click="adjustStat('speed', 10)"
-              :disabled="isRunLocked || tempStatAlloc.speed >= speedMax"
-              title="10ずつ増やす"
-            >
-              +10
-            </button>
-            <button 
-              class="btn btn-spinner btn-spinner-small"
-              @click="adjustStat('speed', 100)"
-              :disabled="isRunLocked || tempStatAlloc.speed >= speedMax"
-              title="100ずつ増やす"
-            >
-              +100
-            </button>
-          </div>
-          <div class="stat-slider-info">
-            <div class="stat-current">現在: <strong>{{ player.stats.speed }}</strong></div>
-            <div class="stat-after">→ <strong>{{ player.stats.speed + tempStatAlloc.speed * 2 }}</strong></div>
-          </div>
-          <div class="stat-allocated">割り挫り済み: <strong>+{{ allocatedStats.speed }}P</strong></div>
-        </div>
+        <StatSpinner
+          icon="✨"
+          label="魔法防御"
+          :current-value="tempStatAlloc.magicDefense"
+          :max-value="magicDefenseMax"
+          :multiplier="3"
+          :allocated-value="allocatedStats.magicDefense"
+          :current-stat="player.stats.magicDefense"
+          :is-run-locked="isRunLocked"
+          @adjust="(delta) => adjustStat('magicDefense', delta)"
+          @reset="resetStat('magicDefense')"
+        />
+
+        <StatSpinner
+          icon="⚡"
+          label="速度"
+          :current-value="tempStatAlloc.speed"
+          :max-value="speedMax"
+          :multiplier="2"
+          :allocated-value="allocatedStats.speed"
+          :current-stat="player.stats.speed"
+          :is-run-locked="isRunLocked"
+          @adjust="(delta) => adjustStat('speed', delta)"
+          @reset="resetStat('speed')"
+        />
       </div>
 
       <div class="stat-manager-actions">
@@ -493,6 +115,7 @@
 <script setup lang="ts">
 import type { Player } from '~/types'
 import { computed } from 'vue'
+import StatSpinner from './StatSpinner.vue'
 
 interface TempAlloc {
   maxHp: number
@@ -572,3 +195,119 @@ const magicDefenseMax = computed(() => getMaxForStat('magicDefense'))
 const speedMax = computed(() => getMaxForStat('speed'))
 const statusPowerMax = computed(() => getMaxForStat('statusPower'))
 </script>
+
+<style scoped>
+.stat-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.stat-content {
+  background: linear-gradient(135deg, rgba(30, 30, 40, 0.95), rgba(40, 35, 50, 0.95));
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding: 20px;
+  max-width: 900px;
+  width: 95%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.5em;
+  color: #fff;
+}
+
+.btn-close {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 1.5em;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.btn-close:hover {
+  opacity: 1;
+}
+
+.stat-subtitle {
+  margin: 0 0 16px 0;
+  color: #4ecdc4;
+  font-weight: 600;
+}
+
+.stat-sliders {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.stat-manager-actions {
+  display: flex;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex: 1;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #4ecdc4, #44a08d);
+  color: #fff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #5dd9d1, #50b89a);
+  transform: translateY(-2px);
+}
+
+.btn-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
+  color: #fff;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: linear-gradient(135deg, #ec7063, #d93e2f);
+  transform: translateY(-2px);
+}
+
+.btn-danger:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+</style>

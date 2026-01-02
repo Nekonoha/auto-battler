@@ -1,5 +1,14 @@
 import type { Enemy, Player } from '~/types';
 
+export interface DamageReductionInfo {
+    baseDamage: number;
+    finalDamage: number;
+    physicalResistanceApplied: number;
+    magicalResistanceApplied: number;
+    damageReductionApplied: number;
+    totalReduction: number;
+}
+
 export class DamageSystem {
     private static defenseMultiplier(defense: number): number {
         const def = Math.max(0, defense);
@@ -20,6 +29,7 @@ export class DamageSystem {
 
     /**
      * 敵の特性を考慮したダメージ計算
+     * 敵の耐性には上限がない（プレイヤーが無敵になれないという制限のため）
      * @param baseDamage 基本ダメージ
      * @param defender 防御側（敵）
      * @param isMagic 魔法攻撃かどうか
@@ -41,7 +51,7 @@ export class DamageSystem {
         const defense = isMagic ? defender.stats.magicDefense : defender.stats.defense;
         let finalDamage = baseDamage * this.defenseMultiplier(defense);
 
-        // 耐性適用
+        // 耐性適用（敵の耐性には上限がない）
         let resistancePercent = 0;
         if (isMagic && defender.traits?.magicalResistance) {
             resistancePercent = defender.traits.magicalResistance;
@@ -68,7 +78,7 @@ export class DamageSystem {
      * @param player プレイヤー
      * @param isMagic 魔法攻撃かどうか
      * @param weaponTraitsBonus 装備武器からのtraitsボーナス
-     * @returns 最終ダメージ
+     * @returns 最終ダメージと軽減情報
      */
     static calculatePlayerDamageWithTraits(
         baseDamage: number,
@@ -79,35 +89,69 @@ export class DamageSystem {
             magicalResistance: number
             damageReduction: number
         }
-    ): number {
+    ): { damage: number; reductionInfo: DamageReductionInfo } {
         // 通常の防御計算
         const defense = isMagic ? player.stats.magicDefense : player.stats.defense;
         let finalDamage = baseDamage * this.defenseMultiplier(defense);
 
+        let physicalResistance = 0;
+        let magicalResistance = 0;
+        let damageReduction = 0;
+        const MAX_RESISTANCE = 70; // 各耐性の上限
+
         if (!weaponTraitsBonus) {
-            return Math.round(finalDamage);
+            return {
+                damage: Math.round(finalDamage),
+                reductionInfo: {
+                    baseDamage,
+                    finalDamage: Math.round(finalDamage),
+                    physicalResistanceApplied: 0,
+                    magicalResistanceApplied: 0,
+                    damageReductionApplied: 0,
+                    totalReduction: 0
+                }
+            };
         }
 
-        // 耐性適用
-        let resistancePercent = 0;
+        // 耐性適用（各耐性は最大70%まで）
         if (isMagic && weaponTraitsBonus.magicalResistance) {
-            resistancePercent = weaponTraitsBonus.magicalResistance;
+            magicalResistance = Math.min(weaponTraitsBonus.magicalResistance, MAX_RESISTANCE);
+            const multiplier = 1 - (magicalResistance / 100);
+            finalDamage = finalDamage * multiplier;
         } else if (!isMagic && weaponTraitsBonus.physicalResistance) {
-            resistancePercent = weaponTraitsBonus.physicalResistance;
-        }
-
-        if (resistancePercent !== 0) {
-            const multiplier = 1 - (resistancePercent / 100);
+            physicalResistance = Math.min(weaponTraitsBonus.physicalResistance, MAX_RESISTANCE);
+            const multiplier = 1 - (physicalResistance / 100);
             finalDamage = finalDamage * multiplier;
         }
 
-        // ダメージ軽減適用
+        // ダメージ軽減適用（最大70%まで）
         if (weaponTraitsBonus.damageReduction > 0) {
-            const reductionMultiplier = 1 - (weaponTraitsBonus.damageReduction / 100);
+            damageReduction = Math.min(weaponTraitsBonus.damageReduction, MAX_RESISTANCE);
+            const reductionMultiplier = 1 - (damageReduction / 100);
             finalDamage = finalDamage * reductionMultiplier;
         }
 
-        return Math.max(0, Math.round(finalDamage));
+        // ダメージ軽減の上限を70%（最小30%のダメージは通す）
+        const maxDamageReductionRate = 0.7;
+        const minimumDamageMultiplier = 1 - maxDamageReductionRate;
+        if (finalDamage < baseDamage * minimumDamageMultiplier) {
+            finalDamage = baseDamage * minimumDamageMultiplier;
+        }
+
+        const actualFinalDamage = Math.max(0, Math.round(finalDamage));
+        const totalReduction = baseDamage - actualFinalDamage;
+
+        return {
+            damage: actualFinalDamage,
+            reductionInfo: {
+                baseDamage,
+                finalDamage: actualFinalDamage,
+                physicalResistanceApplied: physicalResistance,
+                magicalResistanceApplied: magicalResistance,
+                damageReductionApplied: damageReduction,
+                totalReduction
+            }
+        };
     }
 }
 

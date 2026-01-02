@@ -394,7 +394,8 @@ export function getEnchantmentChanceByRarity(targetRarity: WeaponRarity): {
       return { enchantmentChance: 80, multiEnchantChance: 35 }
     case 'legendary':
       return { enchantmentChance: 100, multiEnchantChance: 60 }
-    case 'mythic':
+    default:
+      // mythic または mythic+ の場合
       return { enchantmentChance: 100, multiEnchantChance: 80 }
   }
 }

@@ -39,19 +39,10 @@
           <div
             v-for="card in chestDropCards"
             :key="card.id"
-            class="weapon-list-item selectable loot-item"
-            :style="{ borderColor: getRarityColor(card.rarity) }"
+            class="weapon-card-wrapper"
+            :style="{ '--card-delay': card.delay + 'ms' }"
           >
-            <div class="loot-card-content">
-              <div class="loot-header">
-                <div class="loot-name">{{ card.name }}</div>
-                <span class="weapon-rarity" :style="{ backgroundColor: getRarityColor(card.rarity) }">
-                  {{ card.rarity.toUpperCase() }}
-                </span>
-              </div>
-              <div class="loot-status">{{ card.status }}</div>
-              <div class="loot-meta">Tier: {{ card.tier.toUpperCase() }} / Lv: {{ card.level }}</div>
-            </div>
+            <WeaponDetails :weapon="card.weapon" :showRarityBadge="true" :compact="true" />
           </div>
         </div>
       </div>
@@ -62,14 +53,12 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { WeaponSystem } from '~/systems/WeaponSystem'
+import WeaponDetails from './WeaponDetails.vue'
+import type { Weapon } from '~/types'
 
 interface ChestDropCard {
   id: string
-  name: string
-  rarity: string
-  status: string
-  level: number
-  tier: string
+  weapon: Weapon
   delay: number
 }
 
@@ -113,6 +102,32 @@ const getRarityColor = (rarity: string) => {
 </script>
 
 <style scoped>
+@keyframes chestBounce {
+  0% {
+    transform: translateY(20px) scale(0.95);
+    opacity: 0;
+  }
+  50% {
+    transform: translateY(-5px) scale(1.02);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes chestGlow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 20px 5px rgba(255, 215, 0, 0.2);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 215, 0, 0);
+  }
+}
+
 .weapon-selection-modal {
   position: fixed;
   top: 0;
@@ -124,6 +139,16 @@ const getRarityColor = (rarity: string) => {
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .modal-content {
@@ -136,6 +161,18 @@ const getRarityColor = (rarity: string) => {
   padding: 20px;
   color: #e0e0e0;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
+  animation: slideUp 0.4s ease;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 .modal-header {
@@ -148,6 +185,16 @@ const getRarityColor = (rarity: string) => {
 .modal-header h2 {
   margin: 0;
   font-size: 24px;
+  animation: bounce 0.6s ease;
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
 }
 
 .modal-header-buttons {
@@ -258,65 +305,9 @@ h3 {
   }
 }
 
-.weapon-list-item {
-  border: 2px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  padding: 10px;
-  background: rgba(0, 0, 0, 0.35);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  transition: all 0.2s ease;
-}
-
-.weapon-list-item.selectable {
-  cursor: pointer;
-}
-
-.weapon-list-item.selectable:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.35);
-}
-
-.loot-item {
-  padding: 12px;
-}
-
-.loot-card-content {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.loot-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-}
-
-.loot-name {
-  font-weight: bold;
-  font-size: 14px;
-  flex: 1;
-}
-
-.weapon-rarity {
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: bold;
-  white-space: nowrap;
-}
-
-.loot-status {
-  font-size: 12px;
-  opacity: 0.8;
-}
-
-.loot-meta {
-  font-size: 11px;
-  opacity: 0.6;
+.weapon-card-wrapper {
+  animation: chestBounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation-delay: var(--card-delay, 0ms);
 }
 
 .empty-slot {

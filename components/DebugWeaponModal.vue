@@ -8,20 +8,22 @@
 
       <p class="modal-note">プリセットをクリックして付与できます。カスタム入力も利用可能です。</p>
 
-      <div class="debug-list">
-        <div class="debug-card" v-for="preset in presets" :key="preset.id">
-          <div class="debug-card-title">{{ preset.label }}</div>
-          <div class="debug-card-sub">ID: {{ preset.id }}</div>
-          <div class="debug-card-actions">
-            <button class="btn btn-secondary" @click="$emit('select', preset.id)">付与</button>
+      <div class="debug-scrollable">
+        <div class="debug-list">
+          <div class="debug-card" v-for="preset in presets" :key="preset.id">
+            <div class="debug-card-title">{{ preset.label }}</div>
+            <div class="debug-card-sub">ID: {{ preset.id }}</div>
+            <div class="debug-card-actions">
+              <button class="btn btn-secondary" @click="$emit('select', preset.id)">付与</button>
+            </div>
           </div>
-        </div>
 
-        <div class="debug-card custom-card">
-          <div class="debug-card-title">カスタム入力</div>
-          <div class="debug-card-sub">自由にステータス・効果を指定</div>
-          <div class="debug-card-actions">
-            <button class="btn btn-primary" @click="$emit('custom')">カスタム武器を作成</button>
+          <div class="debug-card custom-card">
+            <div class="debug-card-title">カスタム入力</div>
+            <div class="debug-card-sub">自由にステータス・効果を指定</div>
+            <div class="debug-card-actions">
+              <button class="btn btn-primary" @click="$emit('custom')">カスタム武器を作成</button>
+            </div>
           </div>
         </div>
       </div>
@@ -49,6 +51,31 @@ defineEmits<{
   margin: 0.25rem 0 0.75rem;
   color: #ddd;
   font-size: 0.95rem;
+}
+
+.debug-scrollable {
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 8px;
+  margin-right: -8px;
+}
+
+.debug-scrollable::-webkit-scrollbar {
+  width: 8px;
+}
+
+.debug-scrollable::-webkit-scrollbar-track {
+  background: #0f1419;
+  border-radius: 4px;
+}
+
+.debug-scrollable::-webkit-scrollbar-thumb {
+  background: #4a5568;
+  border-radius: 4px;
+}
+
+.debug-scrollable::-webkit-scrollbar-thumb:hover {
+  background: #667085;
 }
 
 .debug-list {

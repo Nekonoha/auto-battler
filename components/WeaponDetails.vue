@@ -3,13 +3,13 @@
     <div class="weapon-header">
       <div class="weapon-title-row">
         <span class="weapon-name">{{ weapon.name }}</span>
-        <span
+        <div
           v-if="showRarityBadge"
-          class="weapon-rarity"
+          class="weapon-rarity-badge"
           :style="{ backgroundColor: getWeaponRarityColor(weapon.rarity) }"
         >
           {{ weapon.rarity.toUpperCase() }}
-        </span>
+        </div>
       </div>
       <div class="weapon-subtitle">
         <span class="weapon-type">{{ weapon.type }}</span>
@@ -90,17 +90,17 @@
     <div v-if="weapon.traits" class="weapon-traits">
       <div class="trait-title">🛡️ 特性</div>
       <div class="trait-list">
-        <Tooltip v-if="weapon.traits.physicalResistance" title="物理耐性" content="物理ダメージを軽減">
-          <span class="trait-item">🛡️ 物理耐性 {{ weapon.traits.physicalResistance }}%</span>
+        <Tooltip v-if="weapon.traits.physicalResistance" :title="getWeaponTraitName('physicalResistance')" :content="getWeaponTraitDescription('physicalResistance')">
+          <span class="trait-item">{{ getWeaponTraitIcon('physicalResistance') }} {{ getWeaponTraitName('physicalResistance') }} {{ weapon.traits.physicalResistance }}%</span>
         </Tooltip>
-        <Tooltip v-if="weapon.traits.magicalResistance" title="魔法耐性" content="魔法ダメージを軽減">
-          <span class="trait-item">🔮 魔法耐性 {{ weapon.traits.magicalResistance }}%</span>
+        <Tooltip v-if="weapon.traits.magicalResistance" :title="getWeaponTraitName('magicalResistance')" :content="getWeaponTraitDescription('magicalResistance')">
+          <span class="trait-item">{{ getWeaponTraitIcon('magicalResistance') }} {{ getWeaponTraitName('magicalResistance') }} {{ weapon.traits.magicalResistance }}%</span>
         </Tooltip>
-        <Tooltip v-if="weapon.traits.statusResistance" title="状態異常耐性" content="状態異常の効果を軽減">
-          <span class="trait-item">✨ 状態異常耐性 {{ weapon.traits.statusResistance }}%</span>
+        <Tooltip v-if="weapon.traits.statusResistance" :title="getWeaponTraitName('statusResistance')" :content="getWeaponTraitDescription('statusResistance')">
+          <span class="trait-item">{{ getWeaponTraitIcon('statusResistance') }} {{ getWeaponTraitName('statusResistance') }} {{ weapon.traits.statusResistance }}%</span>
         </Tooltip>
-        <Tooltip v-if="weapon.traits.damageReduction" title="ダメージ軽減" content="受けるダメージを軽減">
-          <span class="trait-item">💎 ダメージ軽減 {{ weapon.traits.damageReduction }}%</span>
+        <Tooltip v-if="weapon.traits.damageReduction" :title="getWeaponTraitName('damageReduction')" :content="getWeaponTraitDescription('damageReduction')">
+          <span class="trait-item">{{ getWeaponTraitIcon('damageReduction') }} {{ getWeaponTraitName('damageReduction') }} {{ weapon.traits.damageReduction }}%</span>
         </Tooltip>
       </div>
     </div>
@@ -114,6 +114,7 @@ import type { Weapon } from '~/types'
 import { getTagDescription, getStatusDescription, getWeaponRarityColor } from '~/utils/weaponPresentation'
 import { StatusEffectSystem } from '~/systems/StatusEffectSystem'
 import { STATUS_EFFECTS_DB } from '~/data/statusEffects'
+import { getWeaponTraitName, getWeaponTraitDescription, getWeaponTraitIcon } from '~/data/traits'
 
 const props = defineProps<{
   weapon: Weapon
@@ -214,6 +215,30 @@ const getStatusName = (type: string) => StatusEffectSystem.getStatusName(type as
   font-size: 11px;
   color: #fff;
   letter-spacing: 0.4px;
+}
+
+.weapon-rarity-badge {
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-weight: bold;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+.rarity-label {
+  font-size: 9px;
+  opacity: 0.85;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.rarity-value {
+  font-size: 12px;
+  font-weight: 900;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
 .weapon-subtitle {
@@ -344,13 +369,8 @@ const getStatusName = (type: string) => StatusEffectSystem.getStatusName(type as
 }
 
 .compact {
-  background: rgba(46, 204, 113, 0.16);
-  color: #8ee0b0;
-}
-
-.effect-badge.debuff {
-  background: rgba(231, 76, 60, 0.16);
-  color: #f29c9c;
+  background: rgba(0, 0, 0, 0.35);
+  color: #e0e0e0;
 }
 
 .compact .weapon-description {
@@ -359,5 +379,10 @@ const getStatusName = (type: string) => StatusEffectSystem.getStatusName(type as
 
 .compact .weapon-stats {
   gap: 4px;
+}
+
+.effect-badge.debuff {
+  background: rgba(244, 67, 54, 0.25);
+  border: 1px solid rgba(244, 67, 54, 0.5);
 }
 </style>

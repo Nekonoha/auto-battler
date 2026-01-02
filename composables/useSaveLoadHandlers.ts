@@ -211,7 +211,7 @@ export function useSaveLoadHandlers(
     }
   }
 
-  function formatTime(timestamp: number) {
+  function formatTime(timestamp?: number | null): string {
     if (!timestamp) return '---'
     const date = new Date(timestamp)
     return `${date.getMonth() + 1}/${date.getDate()} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`

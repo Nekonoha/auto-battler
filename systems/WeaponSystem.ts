@@ -1,4 +1,4 @@
-import type { Weapon, WeaponType, DamageResult, CombatUnit, Enemy } from '../types'
+import type { Weapon, WeaponType, DamageResult, CombatUnit, Enemy, WeaponEffect } from '../types'
 import { StatusEffectSystem } from './StatusEffectSystem'
 import { DamageSystem } from './DamageSystem'
 import { getStatusEffectDefinition } from '../data/statusEffects'
@@ -221,12 +221,14 @@ export class WeaponSystem {
       legendary: '#f39c12',
       mythic: '#e91e63'
     }
-    if (rarity.startsWith('mythic')) return colors.mythic
+    // mythic, mythic+, mythic++ などはすべてmythicと同じピンク色
+    if (rarity.startsWith('mythic')) return colors['mythic']
     return colors[rarity] || '#95a5a6'
   }
 
   /**
    * 装備武器からtraitsボーナスを集計（プレイヤー用）
+   * 各耐性の累積は最大70%までの上限がある
    */
   static getWeaponTraitsBonus(weapons: Weapon[]): {
     physicalResistance: number
@@ -240,6 +242,8 @@ export class WeaponSystem {
       statusResistance: 0,
       damageReduction: 0
     }
+    
+    const MAX_RESISTANCE = 70 // 最大耐性率
 
     for (const weapon of weapons) {
       if (!weapon.traits) continue
@@ -248,6 +252,12 @@ export class WeaponSystem {
       if (weapon.traits.statusResistance) bonus.statusResistance += weapon.traits.statusResistance
       if (weapon.traits.damageReduction) bonus.damageReduction += weapon.traits.damageReduction
     }
+
+    // 各耐性の上限を70%に制限
+    bonus.physicalResistance = Math.min(bonus.physicalResistance, MAX_RESISTANCE)
+    bonus.magicalResistance = Math.min(bonus.magicalResistance, MAX_RESISTANCE)
+    bonus.statusResistance = Math.min(bonus.statusResistance, MAX_RESISTANCE)
+    bonus.damageReduction = Math.min(bonus.damageReduction, MAX_RESISTANCE)
 
     return bonus
   }

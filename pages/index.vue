@@ -5,13 +5,9 @@
     </header>
 
     <div class="top-actions">
-      <div class="top-actions-left">
-        <button class="btn btn-primary" @click="showSaveMenu = true">💾 セーブ / ロード</button>
-        <button class="btn btn-secondary" @click="showDebugWeaponModal = true">🐞 デバッグ武器</button>
-        <button class="btn btn-special" @click="showDebugEnemyModal = true">🐞 デバッグ敵</button>
-      </div>
+      <div class="top-actions-left"></div>
       <div class="top-actions-right">
-        <button class="btn btn-settings" @click="showSettings = true">⚙️ 設定</button>
+        <button class="btn btn-settings" @click="showSettings = true">📋 メニュー</button>
       </div>
     </div>
 
@@ -127,9 +123,12 @@
       :explorationLogsLength="explorationCombatLogs?.length ?? 0"
       :dungeonLogsLength="dungeonLogs?.length ?? 0"
       @close="showSettings = false"
+      @open-save-load="showSaveMenu = true"
       @export-combat="exportCombatLog"
       @export-exploration="exportExplorationCombatLog"
       @export-dungeon="exportDungeonLog"
+      @open-debug-weapon="showDebugWeaponModal = true"
+      @open-debug-enemy="showDebugEnemyModal = true"
     />
 
     <DebugWeaponModal
@@ -315,7 +314,6 @@ const {
   tempStatAlloc,
   totalTempAlloc,
   allocatedStats,
-  resetTempAllocation,
   applyStatAllocation,
   handleReset: handleResetStats,
   resetSingleStat

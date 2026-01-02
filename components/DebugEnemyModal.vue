@@ -8,12 +8,14 @@
 
       <p class="modal-note">テンプレートを選んでスパーリングを開始します。</p>
 
-      <div class="debug-list">
-        <div class="debug-card" v-for="enemy in enemies" :key="enemy.id ?? 'none'">
-          <div class="debug-card-title">{{ enemy.label }}</div>
-          <div class="debug-card-sub">テンプレートID: {{ enemy.id ?? 'なし' }}</div>
-          <div class="debug-card-actions">
-            <button class="btn btn-special" @click="$emit('select', enemy.id)">開始</button>
+      <div class="debug-scrollable">
+        <div class="debug-list">
+          <div class="debug-card" v-for="enemy in enemies" :key="enemy.id ?? 'none'">
+            <div class="debug-card-title">{{ enemy.label }}</div>
+            <div class="debug-card-sub">テンプレートID: {{ enemy.id ?? 'なし' }}</div>
+            <div class="debug-card-actions">
+              <button class="btn btn-special" @click="$emit('select', enemy.id)">開始</button>
+            </div>
           </div>
         </div>
       </div>
@@ -38,6 +40,31 @@ defineEmits<{
   margin: 0.25rem 0 0.75rem;
   color: #ddd;
   font-size: 0.95rem;
+}
+
+.debug-scrollable {
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 8px;
+  margin-right: -8px;
+}
+
+.debug-scrollable::-webkit-scrollbar {
+  width: 8px;
+}
+
+.debug-scrollable::-webkit-scrollbar-track {
+  background: #0f1419;
+  border-radius: 4px;
+}
+
+.debug-scrollable::-webkit-scrollbar-thumb {
+  background: #4a5568;
+  border-radius: 4px;
+}
+
+.debug-scrollable::-webkit-scrollbar-thumb:hover {
+  background: #667085;
 }
 
 .debug-list {

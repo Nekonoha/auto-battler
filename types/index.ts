@@ -275,6 +275,10 @@ export interface EnemyAction {
     variance?: number                  // 振れ幅。0.2なら ±20%（デフォルト0.2）
     type?: DamageType                  // ダメージ種別（省略時 stat に応じて）
   }
+  /**
+   * ライフスティール効果（攻撃に加えて与えたダメージの％を吸収）
+   */
+  lifeStealPercent?: number
 }
 
 export interface Enemy extends CombatUnit {
@@ -381,6 +385,19 @@ export interface DamageResult {
   blocked?: boolean
   actualDamageInflicted?: number  // 実際に与えたダメージ（防御・耐性後）
 }
-  resistanceApplied?: number
-  blocked?: boolean
+
+/**
+ * ゲーム状態（セーブデータ）
+ * localStorage や API を通じて永続化される主要なゲーム状態
+ */
+export interface GameState {
+  version: string
+  timestamp: number
+  player: Player
+  availableWeapons: Weapon[]
+  selectedDungeonId: string
+  currentLevel: number
+  combatLogs: any[]
+  explorationCombatLogs: any[]
+  dungeonLogs: any[]
 }

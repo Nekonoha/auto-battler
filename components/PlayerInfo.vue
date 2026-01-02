@@ -182,12 +182,45 @@
             <div class="stat-display">
               <span class="stat-label">🩸</span>
               <span class="stat-value">
-                {{ (getEffectiveStat('lifeSteal')?.value ?? 0).toFixed(1) }}%
+                {{ getEffectiveStat('lifeSteal').value }}%
               </span>
             </div>
           </Tooltip>
         </div>
       </div>
+      </div>
+    </div>
+
+    <!-- 装備武器から得られるtraitボーナス -->
+    <div v-if="equipmentTraits.physicalResistance > 0 || equipmentTraits.magicalResistance > 0 || equipmentTraits.statusResistance > 0 || equipmentTraits.damageReduction > 0" class="section-with-action">
+      <div class="section-header">
+        <h3>🛡️ 装備特性</h3>
+      </div>
+      <div class="traits-display">
+        <div v-if="equipmentTraits.physicalResistance > 0" class="trait-item">
+          <Tooltip title="🏛️ 物理耐性" content="物理攻撃のダメージを軽減">
+            <span class="trait-label">🏛️ 物理耐性</span>
+            <span class="trait-value">{{ equipmentTraits.physicalResistance }}%</span>
+          </Tooltip>
+        </div>
+        <div v-if="equipmentTraits.magicalResistance > 0" class="trait-item">
+          <Tooltip title="🔮 魔法耐性" content="魔法攻撃のダメージを軽減">
+            <span class="trait-label">🔮 魔法耐性</span>
+            <span class="trait-value">{{ equipmentTraits.magicalResistance }}%</span>
+          </Tooltip>
+        </div>
+        <div v-if="equipmentTraits.statusResistance > 0" class="trait-item">
+          <Tooltip title="🧬 状態異常耐性" content="状態異常の効果を軽減">
+            <span class="trait-label">🧬 状態異常耐性</span>
+            <span class="trait-value">{{ equipmentTraits.statusResistance }}%</span>
+          </Tooltip>
+        </div>
+        <div v-if="equipmentTraits.damageReduction > 0" class="trait-item">
+          <Tooltip title="🛑 被ダメージ軽減" content="すべてのダメージを軽減">
+            <span class="trait-label">🛑 被ダメージ軽減</span>
+            <span class="trait-value">{{ equipmentTraits.damageReduction }}%</span>
+          </Tooltip>
+        </div>
       </div>
     </div>
 
@@ -218,7 +251,7 @@
             :class="{ empty: !weapon }"
             :style="weapon ? { borderColor: getRarityColor(weapon.rarity) } : {}"
           >
-            <WeaponDetails v-if="weapon" :weapon="weapon" compact />
+            <WeaponDetails v-if="weapon" :weapon="weapon" :showRarityBadge="true" compact />
             <div v-else class="empty-slot">
               <div class="empty-slot-icon">➕</div>
               <div class="empty-slot-text">空きスロット</div>
@@ -236,8 +269,9 @@
       <h3>✨ アクティブシナジー</h3>
       <div class="synergy-list">
         <div v-for="synergy in activeSynergies" :key="synergy.id" class="synergy-item">
-          <Tooltip :title="`🔥 ${synergy.name}`" :content="synergy.description">
+          <Tooltip :title="`🔥 ${synergy.name}`" :content="formatSynergyTooltip(synergy)">
             <span class="synergy-tag">{{ synergy.name }}</span>
+            <span v-if="synergy.stackable && getActiveSynergyCount(synergy.id) > 1" class="synergy-stack">×{{ getActiveSynergyCount(synergy.id) }}</span>
           </Tooltip>
         </div>
       </div>
@@ -252,6 +286,7 @@ import { StatusEffectSystem } from '~/systems/StatusEffectSystem'
 import { WeaponSystem } from '~/systems/WeaponSystem'
 import { calculateActiveSynergies, getTotalSynergyBonus } from '~/data/synergies'
 import { STATUS_EFFECTS_DB } from '~/data/statusEffects'
+import { usePlayerStatDisplay, getStatTooltipContent as getStatTooltip } from '~/composables/useStatDisplay'
 import WeaponDetails from './WeaponDetails.vue'
 import Tooltip from './Tooltip.vue'
 
@@ -336,44 +371,13 @@ const synergyBonuses = computed(() => {
 
 type StatKey = 'attack' | 'magic' | 'defense' | 'magicDefense' | 'speed' | 'statusPower'
 
-const statModifiers = computed(() => StatusEffectSystem.getStatModifiers(props.player))
-
-const effectiveStats = computed(() => {
-  const modifiers = statModifiers.value
-  const stats: Record<StatKey, { value: number; base: number; synergy: number; buff: number; debuff: number; modifierPct: number }> = {
-    attack: { value: 0, base: 0, synergy: 0, buff: 0, debuff: 0, modifierPct: 0 },
-    magic: { value: 0, base: 0, synergy: 0, buff: 0, debuff: 0, modifierPct: 0 },
-    defense: { value: 0, base: 0, synergy: 0, buff: 0, debuff: 0, modifierPct: 0 },
-    magicDefense: { value: 0, base: 0, synergy: 0, buff: 0, debuff: 0, modifierPct: 0 },
-    speed: { value: 0, base: 0, synergy: 0, buff: 0, debuff: 0, modifierPct: 0 },
-    statusPower: { value: 0, base: 0, synergy: 0, buff: 0, debuff: 0, modifierPct: 0 }
-  }
-
-  ;(['attack', 'magic', 'defense', 'magicDefense', 'speed', 'statusPower'] as StatKey[]).forEach(stat => {
-    const base = props.player.stats[stat] || 0
-    const synergy = getSynergyBonus(stat)
-    const raw = base + synergy
-    const modifierPct = modifiers[stat] || 0
-    const buffPct = Math.max(0, modifierPct)
-    const debuffPct = Math.min(0, modifierPct)
-    const buffValue = Math.round(raw * (buffPct / 100))
-    const debuffValue = Math.round(raw * Math.abs(debuffPct) / 100)
-    const value = Math.max(0, raw + buffValue - debuffValue)
-
-    stats[stat] = {
-      value,
-      base,
-      synergy,
-      buff: buffValue,
-      debuff: debuffValue,
-      modifierPct
-    }
-  })
-
-  return stats
+// 装備武器から得られるtraitボーナス
+const equipmentTraits = computed(() => {
+  return WeaponSystem.getWeaponTraitsBonus(props.player.weapons)
 })
 
-const getEffectiveStat = (stat: StatKey) => effectiveStats.value[stat]
+// useStatDisplay composable を使用
+const { playerStatDetails, getEffectiveStat } = usePlayerStatDisplay(computed(() => props.player))
 
 const getStatusIcon = (type: string) => {
   return StatusEffectSystem.getStatusIcon(type as any)
@@ -394,72 +398,36 @@ const getStatusName = (type: string) => {
 const buffStatusEffects = computed(() => props.player.statusEffects.filter(e => STATUS_EFFECTS_DB[e.type as keyof typeof STATUS_EFFECTS_DB]?.type === 'Buff'))
 const debuffStatusEffects = computed(() => props.player.statusEffects.filter(e => STATUS_EFFECTS_DB[e.type as keyof typeof STATUS_EFFECTS_DB]?.type === 'Debuff'))
 
-const getSynergyBonus = (stat: StatKey): number => {
-  switch (stat) {
-    case 'attack':
-      return synergyBonuses.value.attackBonus || 0
-    case 'magic':
-      return synergyBonuses.value.magicBonus || 0
-    case 'speed':
-      return synergyBonuses.value.speedBonus || 0
-    default:
-      return 0
-  }
-}
-
-const getStatusEntriesForStat = (stat: StatKey) => {
-  const raw = getEffectiveStat(stat).base + getEffectiveStat(stat).synergy
-  return StatusEffectSystem.getStatModifierEntries(props.player, stat).map(entry => {
-    const def = STATUS_EFFECTS_DB[entry.type as keyof typeof STATUS_EFFECTS_DB]
-    const percent = entry.percent
-    const value = Math.round(raw * Math.abs(percent) / 100)
-    return { name: def?.name ?? entry.type, type: def?.type ?? 'Debuff', percent, value }
-  })
-}
-
 const getStatTooltipContent = (stat: StatKey): string => {
-  const statInfo = getEffectiveStat(stat)
-  const raw = statInfo.base + statInfo.synergy
-  const entries = getStatusEntriesForStat(stat)
-  const buffEntries = entries.filter(e => e.percent > 0)
-  const debuffEntries = entries.filter(e => e.percent < 0)
-
-  const parts: string[] = [`基本値: ${statInfo.base}`]
-
-  if (statInfo.synergy > 0) {
-    parts.push(`<span class="tooltip-positive">シナジー: +${statInfo.synergy}</span>`)
-  }
-
-  const displayModifier = minDisplay(statInfo.modifierPct)
-
-  if (stat === 'statusPower') {
-    parts.push(`適用倍率: ${displayModifier.toFixed(1)}%`)
-    parts.push(`実数値: ${statInfo.value}`)
-    return parts.join('<br>')
-  }
-
-  if (statInfo.buff > 0) {
-    const detail = buffEntries.length > 0
-      ? buffEntries.map(e => `${e.name} +${e.value}`).join(', ')
-      : `+${statInfo.buff}`
-    parts.push(`<span class="tooltip-positive">バフ: ${detail}</span>`)
-  }
-
-  if (statInfo.debuff > 0) {
-    const detail = debuffEntries.length > 0
-      ? debuffEntries.map(e => `${e.name} -${e.value}`).join(', ')
-      : `-${statInfo.debuff}`
-    parts.push(`<span class="tooltip-negative">デバフ: ${detail}</span>`)
-  }
-
-  parts.push(`適用倍率: ${displayModifier.toFixed(1)}%`)
-  parts.push(`実数値: ${statInfo.value} (基準 ${raw})`)
-
-  return parts.join('<br>')
+  const statDetail = getEffectiveStat(stat)
+  return getStatTooltip(statDetail, stat, (type: string) => StatusEffectSystem.getStatusName(type as any))
 }
 
 const getRarityColor = (rarity: string) => {
   return WeaponSystem.getRarityColor(rarity)
+}
+
+// シナジーのアクティブ数をカウント
+const getActiveSynergyCount = (synergyId: string): number => {
+  return activeSynergies.value.filter(s => s.id === synergyId).length
+}
+
+// シナジーのボーナス情報をフォーマット
+const formatSynergyTooltip = (synergy: any): string => {
+  let tooltip = synergy.description + '\n\n効果：\n'
+  
+  const effects = synergy.effects || {}
+  const bonuses = []
+  
+  if (effects.attackBonus) bonuses.push(`⚔️ 攻撃力 +${effects.attackBonus}`)
+  if (effects.magicBonus) bonuses.push(`✨ 魔法 +${effects.magicBonus}`)
+  if (effects.speedBonus) bonuses.push(`⚡ 速度 +${effects.speedBonus}`)
+  if (effects.statusPowerBonus) bonuses.push(`🧿 状態異常威力 +${effects.statusPowerBonus}`)
+  if (effects.lifeStealBonus) bonuses.push(`🩸 ライフスティール +${effects.lifeStealBonus}%`)
+  if (effects.critChanceBonus) bonuses.push(`💥 クリティカル率 +${effects.critChanceBonus}%`)
+  if (effects.critDamageBonus) bonuses.push(`⚡ クリティカルダメージ x${effects.critDamageBonus.toFixed(2)}`)
+  
+  return tooltip + bonuses.join('\n')
 }
 </script>
 
@@ -1061,5 +1029,70 @@ h3 {
 
 .empty-slot-text {
   font-size: 13px;
+}
+
+.traits-display {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.trait-item {
+  padding: 12px;
+  background: rgba(255, 215, 0, 0.08);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  cursor: help;
+  transition: all 0.2s ease;
+}
+
+.trait-item:hover {
+  background: rgba(255, 215, 0, 0.12);
+  border-color: rgba(255, 215, 0, 0.5);
+  transform: translateY(-1px);
+}
+
+.trait-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #ffd700;
+  opacity: 0.9;
+}
+
+.trait-value {
+  font-size: 14px;
+  font-weight: bold;
+  color: #ffed4e;
+}
+
+.synergy-item {
+  position: relative;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border-left: 3px solid #3a86ff;
+  border-radius: 6px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.synergy-tag {
+  font-weight: bold;
+  font-size: 14px;
+  text-transform: capitalize;
+}
+
+.synergy-stack {
+  margin-left: auto;
+  padding: 2px 6px;
+  background: rgba(58, 134, 255, 0.3);
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: bold;
+  color: #6bb6ff;
 }
 </style>

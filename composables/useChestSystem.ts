@@ -1,12 +1,9 @@
 import { ref, watch, type Ref } from 'vue'
+import type { Weapon } from '~/types'
 
 export interface ChestDropCard {
   id: string
-  name: string
-  rarity: string
-  status: string
-  level: number
-  tier: string
+  weapon: Weapon
   delay: number
 }
 
@@ -59,11 +56,7 @@ export function useChestSystem(
       setTimeout(() => {
         chestDropCards.value.push({
           id,
-          name: res.weapon.name,
-          rarity: res.weapon.rarity,
-          status: statusLabel,
-          level: res.level,
-          tier: res.tier,
+          weapon: res.weapon,
           delay
         })
       }, delay)

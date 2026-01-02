@@ -74,9 +74,10 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import type { SaveSlotId } from '~/composables/useSaveSystem'
 
 type SaveEntry = {
-  id: string
+  id: SaveSlotId | 'autosave'
   label: string
   savedAt: number | null
   kind: 'auto' | 'manual'
