@@ -17,13 +17,18 @@ export function useExperience(player: Player) {
     if (levelDifference >= 10) {
       // 経験値なし
       expMultiplier = 0
+      console.debug(`EXP Penalty: Enemy is ${levelDifference} levels below player, exp = 0`)
     } else if (levelDifference >= 5) {
       // 5レベル低い：30%、6レベル：45%、7レベル：60%、8レベル：75%、9レベル：90%
       const scalingFactor = 0.3 + (levelDifference - 5) * 0.15
       expMultiplier *= scalingFactor
+      console.debug(`EXP Penalty: Enemy is ${levelDifference} levels below player, scaling factor = ${scalingFactor.toFixed(2)}`)
+    } else {
+      console.debug(`EXP Normal: Enemy is ${levelDifference} levels below player (or above)`)
     }
     
     const expGained = CombatSystem.calculateExpReward(enemy.level, enemy.tier, expMultiplier)
+    console.debug(`EXP Granted: ${expGained} to player level ${player.level}`)
     player.exp += expGained
 
     let levelUps = 0
@@ -31,6 +36,7 @@ export function useExperience(player: Player) {
       player.exp -= player.nextLevelExp
       player.level += 1
       levelUps += 1
+      console.debug(`Level Up! New level: ${player.level}`)
 
       // ステータスポイント付与（デフォルト値分は含めない）
       // 獲得上限：レベル × 5
