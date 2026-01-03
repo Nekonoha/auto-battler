@@ -79,7 +79,7 @@
             <button class="btn btn-secondary btn-compact" @click.stop="$emit('openStatManager')"
               :disabled="isRunLocked">
               🧠 ステ振り
-              <span>SP {{ player.sp ?? 0 }}</span>
+              <span>SP {{ player.statPoints ?? 0 }}</span>
             </button>
           </div>
         </div>

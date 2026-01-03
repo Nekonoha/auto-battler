@@ -71,8 +71,7 @@ const handleTouchEnd = () => {
     clearTimeout(longPressTimer)
     longPressTimer = null
   }
-  // スマホでは長押し後に手を離すまでツールチップを表示し続ける
-  // (自動的に隠すには、モーダルのような追加UI要素が必要)
+  showTooltip.value = false
 }
 
 const formattedContent = computed(() => {
