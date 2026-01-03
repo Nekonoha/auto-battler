@@ -920,4 +920,106 @@ h3 {
   border: 1px dashed rgba(255, 255, 255, 0.2);
   border-radius: 10px;
 }
+
+/* パック開封カード レスポンシブ対応 */
+@media (max-width: 768px) {
+  .pack-shop {
+    margin-bottom: 8px;
+    padding: 8px;
+  }
+
+  .pack-shop-header {
+    margin-bottom: 6px;
+    font-size: 14px;
+  }
+
+  .pack-gold {
+    font-size: 12px;
+  }
+
+  .pack-shop-grid {
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 4px;
+  }
+
+  .pack-button {
+    padding: 8px;
+    border-radius: 8px;
+  }
+
+  .pack-label {
+    font-size: 13px;
+    margin-bottom: 3px;
+  }
+
+  .pack-meta {
+    font-size: 11px;
+  }
+
+  .pack-odds {
+    font-size: 11px;
+    margin-top: 1px;
+  }
+
+  .pack-weights {
+    font-size: 10px;
+    max-height: 60px;
+    margin-top: 3px;
+  }
+}
+
+@media (max-width: 480px) {
+  .pack-shop {
+    margin-bottom: 6px;
+    padding: 6px;
+  }
+
+  .pack-shop-header {
+    margin-bottom: 4px;
+    font-size: 13px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .pack-gold {
+    font-size: 11px;
+  }
+
+  .pack-shop-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 3px;
+  }
+
+  .pack-button {
+    padding: 6px;
+    border-radius: 6px;
+  }
+
+  .pack-label {
+    font-size: 12px;
+    margin-bottom: 2px;
+  }
+
+  .pack-meta {
+    font-size: 10px;
+    line-height: 1.2;
+  }
+
+  .pack-odds {
+    font-size: 10px;
+    margin-top: 0px;
+  }
+
+  .pack-weights {
+    font-size: 9px;
+    max-height: 50px;
+    margin-top: 2px;
+    gap: 1px;
+  }
+
+  .mystery-mask {
+    font-size: 24px;
+  }
+}
 </style>

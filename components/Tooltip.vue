@@ -4,6 +4,8 @@
     class="tooltip-wrapper" 
     @mouseenter="handleMouseEnter" 
     @mouseleave="handleMouseLeave"
+    @touchstart="handleTouchStart"
+    @touchend="handleTouchEnd"
   >
     <slot></slot>
     <ClientOnly>
@@ -32,6 +34,8 @@ const props = defineProps<{
 const showTooltip = ref(false)
 const wrapperRef = ref<HTMLElement | null>(null)
 const tooltipPosition = ref({ x: 0, y: 0 })
+let longPressTimer: ReturnType<typeof setTimeout> | null = null
+const LONG_PRESS_DURATION = 500 // ミリ秒
 
 const handleMouseEnter = () => {
   if (wrapperRef.value) {
@@ -46,6 +50,29 @@ const handleMouseEnter = () => {
 
 const handleMouseLeave = () => {
   showTooltip.value = false
+}
+
+const handleTouchStart = () => {
+  if (longPressTimer) clearTimeout(longPressTimer)
+  longPressTimer = setTimeout(() => {
+    if (wrapperRef.value) {
+      const rect = wrapperRef.value.getBoundingClientRect()
+      tooltipPosition.value = {
+        x: rect.left + rect.width / 2,
+        y: rect.top
+      }
+    }
+    showTooltip.value = true
+  }, LONG_PRESS_DURATION)
+}
+
+const handleTouchEnd = () => {
+  if (longPressTimer) {
+    clearTimeout(longPressTimer)
+    longPressTimer = null
+  }
+  // スマホでは長押し後に手を離すまでツールチップを表示し続ける
+  // (自動的に隠すには、モーダルのような追加UI要素が必要)
 }
 
 const formattedContent = computed(() => {
