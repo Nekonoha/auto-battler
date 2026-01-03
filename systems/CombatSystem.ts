@@ -908,7 +908,7 @@ export class CombatSystem {
     const levelScale = Math.pow(1.04, Math.max(0, enemyLevel - 1))
     const tierMultiplier = enemyTier === 'boss' ? 3.2 : enemyTier === 'named' ? 2.4 : enemyTier === 'elite' ? 1.6 : 1
 
-    return Math.floor(baseExp * levelScale * tierMultiplier * Math.max(0.1, expMultiplier))
+    return Math.floor(baseExp * levelScale * tierMultiplier * Math.max(0, expMultiplier))
   }
 
   /**

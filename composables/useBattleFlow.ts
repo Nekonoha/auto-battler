@@ -1,6 +1,7 @@
 import { ref, type Ref, type ComputedRef } from 'vue'
 import type { Player, Enemy, Dungeon, CombatLogEntry, DungeonLogEntry, EnemyTier, ExplorationCombatLogEntry } from '~/types'
 import { CombatSystem } from '~/systems/CombatSystem'
+import { useExperience } from '~/composables/useExperience'
 
 /**
  * 戦闘開始・進行・終了処理を担うコンポーザブル
@@ -56,6 +57,9 @@ export function useBattleFlow(
     combatLogs.value = combat.value.getCombatLog()
 
     if (combat.value.isGameOver() && combat.value.isPlayerVictory() && enemy.value) {
+      // 統一: 勝利時に必ず経験値付与
+      const { grantExpForEnemy } = useExperience(player)
+      grantExpForEnemy(enemy.value)
       onPlayerVictory?.(enemy.value)
     }
   }
