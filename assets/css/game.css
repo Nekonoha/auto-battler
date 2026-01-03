@@ -271,6 +271,20 @@
   margin-bottom: 12px;
 }
 
+@media (max-width: 768px) {
+  .dungeon-picker {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .dungeon-picker {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+}
+
 .dungeon-info label {
   display: block;
   color: #ecf0f1;
@@ -287,6 +301,13 @@
   color: #fff;
 }
 
+@media (max-width: 480px) {
+  .dungeon-info select {
+    padding: 8px;
+    font-size: 14px;
+  }
+}
+
 .dungeon-desc {
   background: rgba(0, 0, 0, 0.4);
   padding: 12px 14px;
@@ -294,6 +315,13 @@
   color: #d0d0d0;
   line-height: 1.5;
   border: 1px solid rgba(79, 172, 254, 0.15);
+}
+
+@media (max-width: 480px) {
+  .dungeon-desc {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
 }
 
 .dungeon-name {
@@ -304,6 +332,12 @@
 .dungeon-meta {
   font-size: 13px;
   opacity: 0.8;
+}
+
+@media (max-width: 480px) {
+  .dungeon-meta {
+    font-size: 12px;
+  }
 }
 
 .battle-controls {
@@ -627,8 +661,8 @@
 }
 
 .btn {
-  padding: 10px 18px;
-  font-size: 14px;
+  padding: 8px 14px;
+  font-size: 13px;
   font-weight: 600;
   border-radius: 8px;
   cursor: pointer;
@@ -738,6 +772,27 @@
   gap: 16px;
 }
 
+@media (max-width: 1200px) {
+  .battle-area {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
+@media (max-width: 768px) {
+  .battle-area {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .battle-area {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+}
+
 .control-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
@@ -759,6 +814,20 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(75, 216, 255, 0.08);
 }
 
+@media (max-width: 768px) {
+  .panel {
+    padding: 14px;
+    border-radius: 6px;
+  }
+}
+
+@media (max-width: 480px) {
+  .panel {
+    padding: 10px;
+    border-radius: 6px;
+  }
+}
+
 .panel-header {
   display: flex;
   justify-content: space-between;
@@ -767,6 +836,27 @@
   margin-bottom: 16px;
   padding-bottom: 12px;
   border-bottom: 1px solid var(--color-border);
+}
+
+@media (max-width: 768px) {
+  .panel-header {
+    flex-direction: column;
+    align-items: flex-start;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    gap: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .panel-header {
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+  }
+
+  .panel-header h2 {
+    font-size: 16px;
+  }
 }
 
 .panel-header h2 {
@@ -780,6 +870,17 @@
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
+}
+
+@media (max-width: 480px) {
+  .chips {
+    gap: 4px;
+  }
+
+  .chip {
+    font-size: 11px;
+    padding: 4px 8px;
+  }
 }
 
 .chip {
@@ -805,6 +906,33 @@
   margin: 12px 0;
 }
 
+@media (max-width: 768px) {
+  .button-row {
+    gap: 8px;
+  }
+
+  .button-row .btn {
+    flex: 1;
+    min-width: 100px;
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 480px) {
+  .button-row {
+    gap: 6px;
+    margin: 8px 0;
+  }
+
+  .button-row .btn {
+    flex: 1;
+    min-width: 80px;
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+}
+
 .auto-row {
   display: flex;
   align-items: center;
@@ -812,19 +940,97 @@
   flex-wrap: wrap;
 }
 
+@media (max-width: 768px) {
+  .auto-row {
+    gap: 8px;
+    margin: 8px 0;
+  }
+
+  .auto-row .speed-buttons {
+    gap: 6px;
+  }
+
+  .auto-row .btn-compact {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .auto-row {
+    gap: 6px;
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .auto-row .speed-label {
+    font-size: 13px;
+    min-width: auto;
+  }
+
+  .auto-row .btn-compact {
+    padding: 5px 8px;
+    font-size: 11px;
+  }
+
+  .auto-row .speed-buttons {
+    gap: 4px;
+  }
+
+  .auto-row .speed-buttons .btn-compact {
+    padding: 4px 6px;
+    min-width: 32px;
+  }
+}
+
 .chest-action {
   margin: 12px 0;
+}
+
+@media (max-width: 768px) {
+  .chest-action {
+    margin: 8px 0;
+  }
+
+  .chest-action .btn-special {
+    width: auto;
+    display: inline-block;
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .chest-action {
+    margin: 6px 0;
+  }
+
+  .chest-action .btn-special {
+    padding: 5px 10px;
+    font-size: 11px;
+    display: block;
+    width: 100%;
+  }
 }
 
 .btn-special {
   background: var(--color-highlight);
   color: var(--color-bg);
   font-weight: 600;
+  padding: 6px 12px;
+  font-size: 12px;
 }
 
 .btn-special:hover:not(:disabled) {
   background: rgba(75, 216, 255, 0.8);
   transform: translateY(-1px);
+}
+
+@media (max-width: 480px) {
+  .btn-special {
+    padding: 5px 10px;
+    font-size: 11px;
+  }
 }
 
 .section {
@@ -2235,4 +2441,54 @@
   flex: 1 1 auto;
   margin-left: auto;
   justify-content: flex-end;
+}
+
+/* WeaponSelectionModal フィルターのレスポンシブ対応 */
+@media (max-width: 768px) {
+  .filter-select {
+    font-size: 12px;
+    padding: 5px 8px;
+    width: 100%;
+  }
+
+  .tag-filters,
+  .effect-filters {
+    gap: 4px;
+  }
+
+  .tag-chip,
+  .effect-chip {
+    font-size: 10px;
+    padding: 3px 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .filter-select {
+    font-size: 11px;
+    padding: 4px 6px;
+    width: 100%;
+  }
+
+  .filter-section {
+    padding: 6px;
+    margin-top: 8px;
+  }
+
+  .filter-section-title {
+    font-size: 11px;
+    margin-bottom: 6px;
+  }
+
+  .tag-filters,
+  .effect-filters {
+    gap: 2px;
+  }
+
+  .tag-chip,
+  .effect-chip {
+    font-size: 9px;
+    padding: 2px 6px;
+    gap: 2px;
+  }
 }
