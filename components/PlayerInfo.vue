@@ -928,30 +928,36 @@ h3 {
 }
 
 .effect-badge {
-  padding: 2px 6px;
-  background: rgba(255, 183, 94, 0.3);
-  border: 1px solid rgba(255, 183, 94, 0.6);
-  border-radius: 4px;
+  padding: 3px 8px;
+  background: linear-gradient(135deg, rgba(18, 31, 63, 0.7), rgba(10, 14, 30, 0.9));
+  border: 1px solid rgba(120, 207, 255, 0.7);
+  border-radius: 2px;
   font-size: 10px;
-  color: #ffb75a;
+  color: #cfe7ff;
   cursor: help;
-  transition: all 0.2s;
+  letter-spacing: 0.2px;
+  box-shadow: 0 0 0 1px rgba(5, 10, 25, 0.8), 0 4px 10px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  text-transform: uppercase;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.15s ease;
 }
 
 .buff-badge {
-  background: rgba(39, 174, 96, 0.2);
-  border-color: rgba(39, 174, 96, 0.5);
-  color: #b5f5d1;
+  background: linear-gradient(135deg, rgba(20, 120, 70, 0.85), rgba(16, 200, 140, 0.45));
+  border-color: rgba(50, 255, 190, 0.75);
+  color: #d9fff2;
+  box-shadow: 0 0 0 1px rgba(0, 255, 170, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .debuff-badge {
-  background: rgba(231, 76, 60, 0.2);
-  border-color: rgba(231, 76, 60, 0.5);
-  color: #ffd6cf;
+  background: linear-gradient(135deg, rgba(140, 32, 32, 0.9), rgba(255, 78, 78, 0.4));
+  border-color: rgba(255, 120, 120, 0.75);
+  color: #ffe9e6;
+  box-shadow: 0 0 0 1px rgba(255, 90, 90, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.07);
 }
 
 .effect-badge:hover {
-  background: rgba(255, 183, 94, 0.5);
+  transform: translateY(-1px);
+  box-shadow: 0 0 0 1px rgba(5, 10, 25, 0.8), 0 6px 14px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .tag {

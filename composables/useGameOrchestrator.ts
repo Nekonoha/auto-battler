@@ -46,9 +46,11 @@ export function useGameOrchestrator(
     openPendingChest,
     openChests,
     chestLootHistory,
+    packShopOptions,
     addToAvailableIfNeeded,
     pruneAvailableWeapons,
-    spawnChest
+    spawnChest,
+    enqueuePack
   } = useLootSystem(player, availableWeapons, selectedDungeon)
 
   const {
@@ -126,7 +128,7 @@ export function useGameOrchestrator(
       infoMessages.value.push(`${loot.weapon.name} を獲得！`)
     }
     if (loot.type === 'chest') {
-      infoMessages.value.push(loot.source === 'named' ? '豪華な宝箱が出現！' : '宝箱が出現！')
+      infoMessages.value.push(loot.source === 'named' ? '豪華なカードパックが出現！' : 'カードパックが出現！')
     }
   }
 
@@ -244,6 +246,7 @@ export function useGameOrchestrator(
     hasPendingChest,
     chestCount,
     chestLootHistory,
+    packShopOptions,
 
     // AutoRun state
     isAutoRunning,
@@ -259,6 +262,7 @@ export function useGameOrchestrator(
     startAuto,
     openPendingChest,
     openChests,
+    enqueuePack,
     abandonDungeon: abandonDungeonFlow,
     addToAvailableIfNeeded,
     pruneAvailableWeapons,

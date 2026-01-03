@@ -5,8 +5,8 @@
       <div class="chips">
         <span class="chip">ステージ {{ currentStage }}/{{ totalStages }}</span>
         <span class="chip">状態 {{ currentEventLabel }}</span>
-        <span class="chip">宝箱 {{ chestCount }}</span>
-        <span v-if="hasPendingChest" class="chip warning">宝箱保留中</span>
+        <span class="chip">未開封カード {{ chestCount }}</span>
+        <span v-if="hasPendingChest" class="chip warning">パック保留中</span>
         <span v-if="isDebugMode" class="chip debug">DEBUG</span>
       </div>
     </div>
@@ -29,7 +29,7 @@
         <div class="dungeon-name">{{ selectedDungeon.name }}</div>
         <div class="dungeon-text">{{ selectedDungeon.description }}</div>
         <div class="dungeon-meta">
-          敵レベル: {{ selectedDungeon.levelRange[0] }}-{{ selectedDungeon.levelRange[1] }} / 宝箱確率: {{ Math.round((selectedDungeon.chestChance ?? 0.1) * 100) }}%<br />
+          敵レベル: {{ selectedDungeon.levelRange[0] }}-{{ selectedDungeon.levelRange[1] }} / パック出現率: {{ Math.round((selectedDungeon.chestChance ?? 0.1) * 100) }}%<br />
           レアリティ傾向: {{ rarityDisplay }}
         </div>
       </div>
@@ -53,7 +53,7 @@
 
     <div class="chest-action">
       <button class="btn btn-special" @click="$emit('open-chest')">
-        🎁 宝箱を開く ({{ chestCount }}個保留中)
+        🎁 パックを開封 ({{ chestCount }}枚保留中)
       </button>
     </div>
 

@@ -202,6 +202,9 @@ const getStatusName = (type: string) => StatusEffectSystem.getStatusName(type as
   border-radius: 12px;
   border: 2px solid rgba(255, 255, 255, 0.15);
   background: linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+  height: 100%;
+  min-height: 220px;
+  box-sizing: border-box;
 }
 
 .weapon-header {

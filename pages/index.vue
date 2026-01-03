@@ -129,6 +129,7 @@
       @export-dungeon="exportDungeonLog"
       @open-debug-weapon="showDebugWeaponModal = true"
       @open-debug-enemy="showDebugEnemyModal = true"
+      @grant-debug-gold="handleGrantDebugGold"
     />
 
     <DebugWeaponModal
@@ -191,9 +192,12 @@
       :lastLootSourceLabel="lastLootSourceLabel"
       :chestLootHistory="chestLootHistory"
       :chestDropCards="chestDropCards"
+      :packOptions="packShopOptions"
+      :playerGold="player.gold"
       :formatTime="formatTime"
-      @close="showChestModal = false"
+      @close="handleClosePackModal"
       @open-chests="handleOpenChestsWrapper"
+      @buy-pack="handleBuyPack"
     />
   </div>
 </template>
@@ -270,12 +274,14 @@ const {
   currentEvent,
   infoMessages,
   chestLootHistory,
+  packShopOptions,
   battleSpeed,
   isAutoRunning,
   startDungeonRun,
   proceedNextBattle,
   openPendingChest,
   openChests,
+  enqueuePack,
   addToAvailableIfNeeded,
   pruneAvailableWeapons,
   changeSpeed,
@@ -334,7 +340,8 @@ const {
   debugEnemyPresets,
   grantDebugWeapon,
   grantCustomDebugWeapon,
-  startDebugSpar
+  startDebugSpar,
+  grantDebugGold
 } = useDebugTools(player, debugTagOptions, startDebugBattle, showToast)
 
 const handleSelectDebugWeapon = (presetId: string) => {
@@ -350,6 +357,10 @@ const handleCustomDebugWeapon = () => {
 const handleSelectDebugEnemy = (templateId?: string) => {
   startDebugSpar(templateId)
   showDebugEnemyModal.value = false
+}
+
+const handleGrantDebugGold = () => {
+  grantDebugGold()
 }
 
 const nextSlotCost = computed(() => getNextWeaponSlotCost(player.weaponSlots))
@@ -392,7 +403,7 @@ const {
 )
 
 const lastLootSourceLabel = computed(() => {
-  const map: Record<string, string> = { boss: 'ボス', named: 'ネームド', elite: 'エリート', normal: '通常' }
+  const map: Record<string, string> = { boss: 'ボス', named: 'ネームド', elite: 'エリート', normal: '通常', pack: 'パック購入' }
   if (!lastLootSource.value) return '不明'
   return map[lastLootSource.value] ?? lastLootSource.value
 })
@@ -468,8 +479,8 @@ const { exportCombatLog, exportExplorationCombatLog, exportDungeonLog } = useLog
 
 const currentEventLabel = computed(() => {
   if (!isDungeonRunning.value) return '待機'
-  if (hasPendingChest.value) return '宝箱'
-  if (currentEvent.value === 'chest') return '宝箱'
+  if (hasPendingChest.value) return 'パック'
+  if (currentEvent.value === 'chest') return 'パック'
   if (combat.value?.isGameOver()) return '決着'
   return '戦闘'
 })
@@ -484,8 +495,39 @@ const explorationTimeline = computed(() => {
     .reverse()
 })
 
-const handleOpenChestsWrapper = (count?: number) => {
-  handleOpenChests(count, showToast)
+const handleOpenChestsWrapper = (count?: number, options?: { append?: boolean }) => {
+  handleOpenChests(count, showToast, options)
+}
+
+const handleBuyPack = (packId: string) => {
+  const config = packShopOptions.value.find(p => p.id === packId)
+  if (!config) {
+    showToast('不明なパックです', 'error')
+    return
+  }
+  if (player.gold < config.cost) {
+    showToast('ゴールドが足りません', 'error')
+    return
+  }
+
+  const result = enqueuePack(packId)
+  if (result.ok) {
+    player.gold -= config.cost
+    infoMessages.value.push(`${config.label} を購入（${config.cardsPerPack}枚入り）`)
+    showToast(`${config.label} を購入しました`, 'info')
+    const capacity = Math.max(0, 9 - chestDropCards.value.length)
+    const toOpen = Math.min(capacity, chestCount.value)
+    if (toOpen > 0) {
+      handleOpenChestsWrapper(toOpen, { append: true })
+    }
+  } else {
+    showToast('パックの購入に失敗しました', 'error')
+  }
+}
+
+const handleClosePackModal = () => {
+  showChestModal.value = false
+  chestDropCards.value = []
 }
 
 function equipWeapon(weapon: Weapon) {

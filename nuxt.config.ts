@@ -2,6 +2,9 @@
 export default defineNuxtConfig({
   devtools: { enabled: false },
   
+  // 静的サイト生成（SSG）モード - サーバー不要で公開可能
+  ssr: false,
+  
   // TypeScriptの設定
   typescript: {
     strict: true,
@@ -29,6 +32,10 @@ export default defineNuxtConfig({
 
   // アプリケーションの設定
   app: {
+    // GitHub Pagesのサブディレクトリで公開する場合は baseURL を設定
+    // 例: https://username.github.io/auto-battler/ の場合
+    // baseURL: '/auto-battler/',
+    baseURL: '/',
     head: {
       title: 'テキストベース・オートバトラー',
       meta: [

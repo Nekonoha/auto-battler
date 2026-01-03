@@ -197,11 +197,26 @@ export function useDebugTools(
     showToast('デバッグ敵との戦闘を開始', 'info')
   }
 
+  function grantDebugGold() {
+    const promptInput = window.prompt('付与するゴールドを入力', '1000000')
+    if (promptInput === null) return
+
+    const numeric = Math.floor(Number(promptInput.replace(/,/g, '')))
+    if (!Number.isFinite(numeric) || numeric <= 0) {
+      showToast('正の数を入力してください', 'error')
+      return
+    }
+
+    player.gold = (player.gold || 0) + numeric
+    showToast(`${numeric.toLocaleString()} ゴールドを付与しました`, 'info')
+  }
+
   return {
     presetWeapons,
     debugEnemyPresets,
     grantDebugWeapon,
     grantCustomDebugWeapon,
-    startDebugSpar
+    startDebugSpar,
+    grantDebugGold
   }
 }

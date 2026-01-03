@@ -5,6 +5,56 @@ import { generateEnchantedWeapon } from '~/systems/WeaponGenerationSystem'
 
 const DEFAULT_WEIGHTS: Record<string, number> = { common: 0.6, rare: 0.3, epic: 0.09, legendary: 0.01, mythic: 0.01 }
 
+type ChestSource = EnemyTier | 'pack'
+
+type ChestQueueEntry = { tier: ChestSource; packId?: string }
+
+type PackConfig = {
+  id: string
+  label: string
+  cost: number
+  cardsPerPack: number
+  weights: Record<string, number>
+}
+
+const PACK_SHOP: PackConfig[] = [
+  {
+    id: 'pack-1k',
+    label: '1,000G パック',
+    cost: 1_000,
+    cardsPerPack: 3,
+    weights: { common: 0.65, rare: 0.28, epic: 0.06, legendary: 0.009, mythic: 0.001 }
+  },
+  {
+    id: 'pack-10k',
+    label: '10,000G パック',
+    cost: 10_000,
+    cardsPerPack: 3,
+    weights: { common: 0.45, rare: 0.38, epic: 0.13, legendary: 0.032, mythic: 0.008 }
+  },
+  {
+    id: 'pack-100k',
+    label: '100,000G パック',
+    cost: 100_000,
+    cardsPerPack: 3,
+    weights: { common: 0.25, rare: 0.4, epic: 0.24, legendary: 0.08, mythic: 0.03 }
+  },
+  {
+    id: 'pack-1m',
+    label: '1,000,000G パック',
+    cost: 1_000_000,
+    cardsPerPack: 3,
+    weights: { common: 0.22, rare: 0.35, epic: 0.26, legendary: 0.12, mythic: 0.05 }
+  },
+  {
+    id: 'pack-10m',
+    label: '10,000,000G パック',
+    cost: 10_000_000,
+    cardsPerPack: 3,
+    weights: { common: 0.12, rare: 0.26, epic: 0.32, legendary: 0.18, mythic: 0.12 }
+  }
+]
+
 export type LootResult =
   | { type: 'chest'; options: Weapon[]; source: EnemyTier }
   | { type: 'weapon'; weapon: Weapon; status: 'new'; level: number }
@@ -19,11 +69,13 @@ export function useLootSystem(
   selectedDungeon: ComputedRef<Dungeon | undefined>
 ) {
   const showChestModal = ref(false)
-  const chestQueue = ref<Array<{ tier: EnemyTier }>>([])
-  const lastLootSource = computed<EnemyTier | null>(() => chestQueue.value[0]?.tier ?? null)
+  const chestQueue = ref<ChestQueueEntry[]>([])
+  const lastLootSource = computed<ChestSource | null>(() => chestQueue.value[0]?.tier ?? null)
   const hasPendingChest = computed<boolean>(() => chestQueue.value.length > 0)
   const chestCount = computed<number>(() => chestQueue.value.length)
-  const chestLootHistory = ref<Array<{ id: string; name: string; rarity: WeaponRarity; tier: EnemyTier; status: 'new'; level: number; timestamp: number }>>([])
+  const chestLootHistory = ref<Array<{ id: string; name: string; rarity: WeaponRarity; tier: ChestSource; status: 'new'; level: number; timestamp: number }>>([])
+  const packShopOptions = computed(() => PACK_SHOP.map(({ id, label, cost, cardsPerPack, weights }) => ({ id, label, cost, cardsPerPack, weights })))
+  const findPackConfig = (packId: string) => PACK_SHOP.find(p => p.id === packId)
   const cloneWeapon = (weapon: Weapon): Weapon => ({
     ...weapon,
     rarity: weapon.rarity,
@@ -35,6 +87,17 @@ export function useLootSystem(
   const resetLoot = () => {
     showChestModal.value = false
     chestQueue.value = []
+  }
+
+  const enqueuePack = (packId: string, packCount = 1) => {
+    const config = findPackConfig(packId)
+    if (!config) return { ok: false as const, reason: 'not-found' as const }
+    const totalCards = config.cardsPerPack * Math.max(1, packCount)
+    for (let i = 0; i < totalCards; i++) {
+      chestQueue.value.push({ tier: 'pack', packId: config.id })
+    }
+    showChestModal.value = true
+    return { ok: true as const, config }
   }
 
   const addToAvailableIfNeeded = (weapon: Weapon) => {
@@ -240,13 +303,17 @@ export function useLootSystem(
     const baseWeights = dungeon?.lootWeights || DEFAULT_WEIGHTS
     const chestWeights = dungeon?.chestLootWeights || baseWeights
     const weaponPool = dungeon?.chestWeaponPool
-    const openCount = Math.min(Math.max(1, count), Math.min(10, chestQueue.value.length))
-    const results: Array<{ weapon: Weapon; status: 'new' | 'limitbreak' | 'maxed'; level: number; tier: EnemyTier }> = []
+    const openCount = Math.min(Math.max(1, count), Math.min(9, chestQueue.value.length))
+    const results: Array<{ weapon: Weapon; status: 'new' | 'limitbreak' | 'maxed'; level: number; tier: ChestSource }> = []
 
     for (let i = 0; i < openCount; i++) {
       const entry = chestQueue.value.shift()
       if (!entry) break
-      const reward = rollChestReward(entry.tier, chestWeights, weaponPool)
+      const packConfig = entry.packId ? findPackConfig(entry.packId) : undefined
+      const weightsForRoll = packConfig?.weights || chestWeights
+      const reward = packConfig
+        ? rollWeaponByWeights(weightsForRoll, weaponPool)
+        : rollChestReward(entry.tier as EnemyTier, weightsForRoll, weaponPool)
       const result = addWeaponToInventory(reward)
       chestLootHistory.value.unshift({
         id: `${reward.id}-${Date.now()}-${i}`,
@@ -280,9 +347,11 @@ export function useLootSystem(
     openPendingChest,
     openChests,
     chestLootHistory,
+    packShopOptions,
     addWeaponToInventory,
     addToAvailableIfNeeded,
     pruneAvailableWeapons,
-    spawnChest
+    spawnChest,
+    enqueuePack
   }
 }

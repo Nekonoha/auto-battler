@@ -723,8 +723,10 @@ export class CombatSystem {
     if (opts?.playerLevel && opts?.dungeonLevelRange) {
       const predicted = calculateEnemyLevelForDungeon(opts.playerLevel, opts.dungeonLevelRange)
       const dungeonMid = Math.round((opts.dungeonLevelRange[0] + opts.dungeonLevelRange[1]) / 2)
-      // ステージレベル, 推奨レンジ中央値, プレイヤー基準の平均を取って底上げ
-      actualLevel = Math.max(level, Math.round((predicted + dungeonMid + level) / 3))
+      // ステージレベル / 推奨中央値 / プレイヤー基準の平均を取り、推奨レンジ内に抑える
+      const averaged = Math.round((predicted + dungeonMid + level) / 3)
+      const [minLevel, maxLevel] = opts.dungeonLevelRange
+      actualLevel = Math.min(maxLevel, Math.max(minLevel, averaged))
     }
     actualLevel = Math.max(1, Math.min(10000, actualLevel))
 

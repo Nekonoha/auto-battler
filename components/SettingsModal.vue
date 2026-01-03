@@ -67,6 +67,13 @@
             >
               🐞 デバッグ敵とスパーリング
             </button>
+            <button 
+              class="btn btn-primary" 
+              @click="$emit('grant-debug-gold')"
+              style="width: 100%;"
+            >
+              💰 ゴールドを付与
+            </button>
           </div>
         </div>
       </div>
@@ -83,6 +90,7 @@ type Emits = {
   (e: 'export-dungeon'): void
   (e: 'open-debug-weapon'): void
   (e: 'open-debug-enemy'): void
+  (e: 'grant-debug-gold'): void
 }
 
 defineProps<{

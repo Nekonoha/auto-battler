@@ -728,6 +728,567 @@ export const BASE_WEAPONS: Weapon[] = [
       duration: 1
     }],
     description: '魔力を打ち消す穂先。命中時にバフを剥がす'
+  },
+
+  // === 単一バフ・デバフ武器（不足分を補完） ===
+  {
+    id: 'thunder_rod',
+    name: '雷鳴の杖',
+    type: 'magic',
+    rarity: 'rare',
+    stats: {
+      attack: 10,
+      magic: 28,
+      speed: 23,
+      critChance: 12,
+      critDamage: 180,
+      statusPower: 38
+    },
+    tags: ['elemental'],
+    effects: [{
+      type: 'electrification',
+      chance: 50,
+      stacks: 2,
+      duration: 2
+    }],
+    description: '雷撃を放ち、敵を感電させる'
+  },
+  {
+    id: 'slow_bow',
+    name: '減速の弓',
+    type: 'ranged',
+    rarity: 'common',
+    stats: {
+      attack: 18,
+      magic: 0,
+      speed: 22,
+      critChance: 10,
+      critDamage: 170,
+      statusPower: 25
+    },
+    tags: ['fast'],
+    effects: [{
+      type: 'slow',
+      chance: 40,
+      stacks: 2,
+      duration: 3
+    }],
+    description: '敵の動きを鈍らせる特殊な矢'
+  },
+  {
+    id: 'stone_hammer',
+    name: '石化のハンマー',
+    type: 'melee',
+    rarity: 'epic',
+    stats: {
+      attack: 48,
+      magic: 0,
+      speed: 14,
+      critChance: 15,
+      critDamage: 230,
+      statusPower: 42
+    },
+    tags: ['heavy'],
+    effects: [{
+      type: 'petrification',
+      chance: 18,
+      stacks: 1,
+      duration: 2
+    }],
+    description: '敵を石に変える古代のハンマー'
+  },
+  {
+    id: 'ale_jug',
+    name: '酒瓶',
+    type: 'ranged',
+    rarity: 'rare',
+    stats: {
+      attack: 20,
+      magic: 5,
+      speed: 20,
+      critChance: 8,
+      critDamage: 160,
+      statusPower: 30
+    },
+    tags: ['versatile'],
+    effects: [{
+      type: 'drunk',
+      chance: 45,
+      stacks: 2,
+      duration: 3
+    }],
+    description: '敵に酒をぶちまけ、酩酊させる'
+  },
+  {
+    id: 'mist_orb',
+    name: '霧の宝珠',
+    type: 'magic',
+    rarity: 'rare',
+    stats: {
+      attack: 5,
+      magic: 26,
+      speed: 21,
+      critChance: 10,
+      critDamage: 170,
+      statusPower: 28
+    },
+    tags: ['elemental'],
+    effects: [{
+      type: 'mist',
+      chance: 50,
+      stacks: 3,
+      duration: 3
+    }],
+    description: '視界を奪う霧を展開する'
+  },
+  {
+    id: 'rust_blade',
+    name: '腐食の刃',
+    type: 'melee',
+    rarity: 'rare',
+    stats: {
+      attack: 26,
+      magic: 8,
+      speed: 24,
+      critChance: 14,
+      critDamage: 190,
+      statusPower: 32
+    },
+    tags: ['venomous', 'fast'],
+    effects: [{
+      type: 'corrosion',
+      chance: 55,
+      stacks: 3,
+      duration: 4
+    }],
+    description: '敵の装甲を腐食させる錆びた刃'
+  },
+  {
+    id: 'wound_scalpel',
+    name: '重症のメス',
+    type: 'melee',
+    rarity: 'rare',
+    stats: {
+      attack: 22,
+      magic: 0,
+      speed: 30,
+      critChance: 18,
+      critDamage: 200,
+      statusPower: 26
+    },
+    tags: ['fast', 'precise'],
+    effects: [{
+      type: 'grievousWound',
+      chance: 60,
+      stacks: 2,
+      duration: 4
+    }],
+    description: '回復を阻害する特殊なメス'
+  },
+  {
+    id: 'thorn_whip',
+    name: '棘の鞭',
+    type: 'melee',
+    rarity: 'rare',
+    stats: {
+      attack: 24,
+      magic: 10,
+      speed: 26,
+      critChance: 12,
+      critDamage: 180,
+      statusPower: 22
+    },
+    tags: ['defensive', 'fast'],
+    effects: [{
+      type: 'thorn',
+      chance: 100,
+      stacks: 2,
+      duration: 3,
+      target: 'self'
+    }],
+    description: '攻撃するたびに反射の棘を身にまとう'
+  },
+  {
+    id: 'immunity_amulet',
+    name: '免疫のお守り',
+    type: 'magic',
+    rarity: 'epic',
+    stats: {
+      attack: 8,
+      magic: 32,
+      speed: 20,
+      critChance: 10,
+      critDamage: 170,
+      statusPower: 35
+    },
+    tags: ['defensive', 'healing'],
+    effects: [{
+      type: 'debuffImmunity',
+      chance: 100,
+      stacks: 1,
+      duration: 2,
+      target: 'self'
+    }],
+    description: 'デバフを無効化する守護のお守り'
+  },
+
+  // === 複合バフ・デバフ武器 ===
+  {
+    id: 'support_staff',
+    name: '支援の杖',
+    type: 'magic',
+    rarity: 'epic',
+    stats: {
+      attack: 15,
+      magic: 38,
+      speed: 22,
+      critChance: 12,
+      critDamage: 190,
+      statusPower: 32
+    },
+    tags: ['supportive', 'healing'],
+    effects: [
+      {
+        type: 'power',
+        chance: 100,
+        stacks: 1,
+        duration: 3,
+        target: 'self'
+      },
+      {
+        type: 'intellect',
+        chance: 100,
+        stacks: 1,
+        duration: 3,
+        target: 'self'
+      },
+      {
+        type: 'fleet',
+        chance: 80,
+        stacks: 1,
+        duration: 2,
+        target: 'self'
+      }
+    ],
+    description: '複数のバフを同時に付与する支援特化の杖'
+  },
+  {
+    id: 'fortress_shield',
+    name: '要塞の盾',
+    type: 'melee',
+    rarity: 'epic',
+    stats: {
+      attack: 20,
+      magic: 10,
+      speed: 16,
+      critChance: 8,
+      critDamage: 160,
+      statusPower: 28
+    },
+    tags: ['defensive', 'heavy'],
+    effects: [
+      {
+        type: 'armor',
+        chance: 100,
+        stacks: 2,
+        duration: 3,
+        target: 'self'
+      },
+      {
+        type: 'barrier',
+        chance: 100,
+        stacks: 2,
+        duration: 2,
+        target: 'self'
+      }
+    ],
+    description: '防御に特化した盾。装甲とバリアを同時展開'
+  },
+  {
+    id: 'tempest_blade',
+    name: '暴風の剣',
+    type: 'melee',
+    rarity: 'legendary',
+    stats: {
+      attack: 50,
+      magic: 30,
+      speed: 30,
+      critChance: 25,
+      critDamage: 280,
+      statusPower: 40
+    },
+    tags: ['fast', 'elemental'],
+    effects: [
+      {
+        type: 'electrification',
+        chance: 45,
+        stacks: 3,
+        duration: 2
+      },
+      {
+        type: 'slow',
+        chance: 50,
+        stacks: 2,
+        duration: 3
+      },
+      {
+        type: 'vulnerable',
+        chance: 35,
+        stacks: 2,
+        duration: 3
+      }
+    ],
+    description: '嵐の力で敵を感電・減速・虚弱化させる'
+  },
+  {
+    id: 'executioner_axe',
+    name: '処刑斧',
+    type: 'melee',
+    rarity: 'legendary',
+    stats: {
+      attack: 70,
+      magic: 10,
+      speed: 12,
+      critChance: 20,
+      critDamage: 320,
+      statusPower: 45
+    },
+    tags: ['heavy', 'bloodthirsty'],
+    effects: [
+      {
+        type: 'bleed',
+        chance: 60,
+        stacks: 4,
+        duration: 4
+      },
+      {
+        type: 'grievousWound',
+        chance: 50,
+        stacks: 3,
+        duration: 4
+      },
+      {
+        type: 'weak',
+        chance: 40,
+        stacks: 2,
+        duration: 3
+      }
+    ],
+    description: '出血と重症を与え、敵を弱体化させる処刑斧'
+  },
+  {
+    id: 'witch_scepter',
+    name: '魔女の杖',
+    type: 'magic',
+    rarity: 'legendary',
+    stats: {
+      attack: 18,
+      magic: 62,
+      speed: 24,
+      critChance: 18,
+      critDamage: 220,
+      statusPower: 55
+    },
+    tags: ['cursed', 'elemental'],
+    effects: [
+      {
+        type: 'curse',
+        chance: 40,
+        stacks: 2,
+        duration: 4
+      },
+      {
+        type: 'poison',
+        chance: 45,
+        stacks: 3,
+        duration: 4
+      },
+      {
+        type: 'mist',
+        chance: 40,
+        stacks: 2,
+        duration: 3
+      }
+    ],
+    description: '呪い、毒、霧を同時に操る魔女の秘宝'
+  },
+  {
+    id: 'holy_mace',
+    name: '聖なる鈍器',
+    type: 'melee',
+    rarity: 'epic',
+    stats: {
+      attack: 32,
+      magic: 18,
+      speed: 20,
+      critChance: 15,
+      critDamage: 200,
+      statusPower: 30
+    },
+    tags: ['holy', 'defensive'],
+    effects: [
+      {
+        type: 'stun',
+        chance: 25,
+        stacks: 1,
+        duration: 1
+      },
+      {
+        type: 'dispel',
+        chance: 30,
+        stacks: 1,
+        duration: 1
+      },
+      {
+        type: 'armor',
+        chance: 100,
+        stacks: 1,
+        duration: 3,
+        target: 'self'
+      }
+    ],
+    description: '敵を気絶させバフを剥ぎ、自身を強化する聖なる武器'
+  },
+  {
+    id: 'nightmare_scythe',
+    name: '悪夢の鎌',
+    type: 'melee',
+    rarity: 'legendary',
+    stats: {
+      attack: 55,
+      magic: 35,
+      speed: 22,
+      critChance: 22,
+      critDamage: 270,
+      statusPower: 50
+    },
+    tags: ['cursed', 'heavy'],
+    effects: [
+      {
+        type: 'fear',
+        chance: 45,
+        stacks: 2,
+        duration: 3
+      },
+      {
+        type: 'sleep',
+        chance: 30,
+        stacks: 1,
+        duration: 2
+      },
+      {
+        type: 'vulnerable',
+        chance: 40,
+        stacks: 2,
+        duration: 3
+      }
+    ],
+    description: '恐怖と眠りで敵の心を蝕む悪夢の化身'
+  },
+  {
+    id: 'alchemist_vial',
+    name: '錬金術師の薬瓶',
+    type: 'ranged',
+    rarity: 'epic',
+    stats: {
+      attack: 22,
+      magic: 28,
+      speed: 26,
+      critChance: 16,
+      critDamage: 210,
+      statusPower: 48
+    },
+    tags: ['venomous', 'elemental'],
+    effects: [
+      {
+        type: 'poison',
+        chance: 50,
+        stacks: 3,
+        duration: 4
+      },
+      {
+        type: 'corrosion',
+        chance: 40,
+        stacks: 2,
+        duration: 4
+      },
+      {
+        type: 'weak',
+        chance: 35,
+        stacks: 2,
+        duration: 3
+      }
+    ],
+    description: '毒と腐食の複合効果を持つ錬金薬'
+  },
+  {
+    id: 'master_blade',
+    name: '武芸の剣',
+    type: 'melee',
+    rarity: 'legendary',
+    stats: {
+      attack: 58,
+      magic: 20,
+      speed: 28,
+      critChance: 32,
+      critDamage: 320,
+      statusPower: 38
+    },
+    tags: ['fast', 'precise', 'versatile'],
+    effects: [
+      {
+        type: 'power',
+        chance: 100,
+        stacks: 2,
+        duration: 3,
+        target: 'self'
+      },
+      {
+        type: 'precision',
+        chance: 100,
+        stacks: 2,
+        duration: 3,
+        target: 'self'
+      },
+      {
+        type: 'fleet',
+        chance: 100,
+        stacks: 1,
+        duration: 2,
+        target: 'self'
+      }
+    ],
+    description: '武芸の極致。力・精密・俊足を全て得る'
+  },
+  {
+    id: 'winter_bow',
+    name: '冬の弓',
+    type: 'ranged',
+    rarity: 'epic',
+    stats: {
+      attack: 38,
+      magic: 22,
+      speed: 24,
+      critChance: 20,
+      critDamage: 240,
+      statusPower: 40
+    },
+    tags: ['frost', 'elemental'],
+    effects: [
+      {
+        type: 'frozen',
+        chance: 25,
+        stacks: 1,
+        duration: 2
+      },
+      {
+        type: 'slow',
+        chance: 60,
+        stacks: 3,
+        duration: 3
+      }
+    ],
+    description: '氷結と減速で敵を凍てつかせる'
   }
 ]
 
