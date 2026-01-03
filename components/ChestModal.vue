@@ -603,6 +603,18 @@ h3 {
   -webkit-user-select: none;
 }
 
+@media (max-width: 768px) {
+  .weapon-card-wrapper {
+    height: 200px;
+  }
+}
+
+@media (max-width: 480px) {
+  .weapon-card-wrapper {
+    height: 160px;
+  }
+}
+
 .weapon-card-wrapper.revealed {
   animation: chestBounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), revealGlow 1.1s ease forwards;
 }
@@ -872,6 +884,18 @@ h3 {
   font-weight: 800;
   z-index: 2;
   text-shadow: 0 0 8px rgba(75, 216, 255, 0.6);
+}
+
+@media (max-width: 768px) {
+  .mystery-mask {
+    font-size: 26px;
+  }
+}
+
+@media (max-width: 480px) {
+  .mystery-mask {
+    font-size: 20px;
+  }
 }
 
 .mystery-glow {
