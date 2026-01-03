@@ -204,6 +204,8 @@ const getStatusName = (type: string) => StatusEffectSystem.getStatusName(type as
   background: linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
   height: 100%;
   min-height: 220px;
+  max-height: 100%;
+  overflow: auto;
   box-sizing: border-box;
 }
 

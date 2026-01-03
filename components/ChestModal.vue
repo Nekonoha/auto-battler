@@ -105,7 +105,7 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch, nextTick } from 'vue'
 import { WeaponSystem } from '~/systems/WeaponSystem'
 import WeaponDetails from './WeaponDetails.vue'
 import type { Weapon } from '~/types'
@@ -201,6 +201,20 @@ const isRevealed = (id: string) => revealedIds.value.has(id)
 const revealCard = (id: string) => {
   if (!revealedIds.value.has(id)) {
     revealedIds.value = new Set([...revealedIds.value, id])
+    
+    // カード高さを動的に更新
+    nextTick(() => {
+      setTimeout(() => {
+        const cardEl = document.querySelector(`[data-card-id="${id}"]`) as HTMLElement | null
+        if (cardEl) {
+          const revealCardEl = cardEl.querySelector('.reveal-card') as HTMLElement | null
+          if (revealCardEl) {
+            const contentHeight = revealCardEl.scrollHeight
+            cardEl.style.height = `${contentHeight}px`
+          }
+        }
+      }, 100)
+    })
   }
 }
 
@@ -621,6 +635,7 @@ h3 {
   cursor: pointer;
   user-select: none;
   -webkit-user-select: none;
+  background: transparent;
 }
 
 @media (max-width: 768px) {
@@ -650,6 +665,7 @@ h3 {
   width: 100%;
   height: 100%;
   perspective: 1200px;
+  background: transparent;
 }
 
 .mystery-card,
@@ -667,7 +683,6 @@ h3 {
   width: 100%;
   height: 100%;
   background: linear-gradient(135deg, rgba(6, 6, 8, 0.92), rgba(2, 2, 4, 0.95));
-  border: 1px solid rgba(60, 80, 100, 0.4);
   overflow: hidden;
   display: grid;
   place-items: center;
@@ -699,14 +714,7 @@ h3 {
   content: "";
   position: absolute;
   inset: -20%;
-  background: radial-gradient(circle at 50% 40%, rgba(255, 255, 255, 0.35), transparent 55%),
-    conic-gradient(
-      from 0deg,
-      rgba(255, 220, 140, 0.4),
-      rgba(255, 120, 200, 0.35),
-      rgba(120, 200, 255, 0.35),
-      rgba(255, 220, 140, 0.4)
-    );
+  background: transparent;
   opacity: 0;
   animation: upgradeFlash 0.6s ease forwards;
   filter: blur(6px);
@@ -836,7 +844,6 @@ h3 {
 
 .reveal-card {
   background: rgba(10, 15, 28, 0.92);
-  border: 1px solid rgba(75, 216, 255, 0.45);
   box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5), 0 10px 30px rgba(0, 0, 0, 0.45);
   transform: rotateY(-180deg);
   z-index: 3;
@@ -860,6 +867,9 @@ h3 {
   width: 100%;
   height: 100%;
   overflow: auto;
+  max-width: 100%;
+  max-height: 100%;
+  box-sizing: border-box;
 }
 
 .weapon-card-wrapper.revealed .reveal-card::after {
