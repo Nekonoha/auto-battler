@@ -34,8 +34,7 @@ export default defineNuxtConfig({
   app: {
     // GitHub Pagesのサブディレクトリで公開する場合は baseURL を設定
     // 例: https://username.github.io/auto-battler/ の場合
-    // baseURL: '/auto-battler/',
-    baseURL: '/',
+    baseURL: process.env.NUXT_APP_BASE_URL || '/',
     head: {
       title: 'テキストベース・オートバトラー',
       meta: [
