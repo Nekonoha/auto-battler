@@ -587,6 +587,26 @@ h3 {
   gap: 12px;
 }
 
+@media (max-width: 1100px) {
+  .weapon-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .weapon-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .weapon-grid {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+}
+
 @media (min-width: 1100px) {
   .weapon-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -826,6 +846,8 @@ h3 {
   opacity: 0;
   overflow: hidden;
   position: relative;
+  max-width: 100%;
+  max-height: 100%;
 }
 
 .reveal-card.showing {
